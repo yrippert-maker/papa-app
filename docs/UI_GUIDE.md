@@ -19,9 +19,18 @@ Status badges appear in the sidebar (when expanded) and provide quick access to 
 
 | Page | Permission | Purpose |
 |------|------------|---------|
-| `/system/verify` | WORKSPACE.READ | AuthZ and Ledger verification; visible to auditor/admin |
+| `/system/verify` | WORKSPACE.READ (page), LEDGER.READ (Ledger section) | AuthZ and Ledger verification; visible to auditor/admin |
 
-Users without WORKSPACE.READ see "Доступ запрещён" on direct access.
+- **AuthZ section:** requires WORKSPACE.READ (same as page).
+- **Ledger section:** requires LEDGER.READ; users without it see "Требуется право LEDGER.READ".
+
+### API response format `/api/ledger/verify`
+
+- **200 OK:** `{ ok: true, message, scope: { event_count, id_min, id_max }, timing_ms: { total } }`; `Cache-Control: no-store`
+- **403:** access denied (LEDGER.READ required)
+- **409:** integrity error (chain break, hash mismatch)
+- **429:** rate limit (10 req/min); `Retry-After` header
+- **500:** internal error
 
 ## StatePanel
 

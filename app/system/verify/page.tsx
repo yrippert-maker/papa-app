@@ -27,8 +27,20 @@ type AuthzVerifyResponse = {
   error?: string;
 };
 
+type LedgerVerifyResponse = {
+  ok?: boolean;
+  message?: string;
+  error?: string;
+  scope?: { event_count: number; id_min: number | null; id_max: number | null };
+  timing_ms?: { total?: number };
+};
+
 function hasWorkspaceRead(permissions: string[]): boolean {
   return permissions.includes('WORKSPACE.READ');
+}
+
+function hasLedgerRead(permissions: string[]): boolean {
+  return permissions.includes('LEDGER.READ');
 }
 
 export default function SystemVerifyPage() {
@@ -36,6 +48,8 @@ export default function SystemVerifyPage() {
   const permissions = (session?.user as { permissions?: string[] } | undefined)?.permissions ?? [];
   const [state, setState] = useState<VerifyState>('idle');
   const [result, setResult] = useState<AuthzVerifyResponse | null>(null);
+  const [ledgerState, setLedgerState] = useState<VerifyState>('idle');
+  const [ledgerResult, setLedgerResult] = useState<LedgerVerifyResponse | null>(null);
 
   const runVerify = useCallback(() => {
     setState('loading');
@@ -71,6 +85,35 @@ export default function SystemVerifyPage() {
       });
   }, []);
 
+  const runLedgerVerify = useCallback(() => {
+    setLedgerState('loading');
+    setLedgerResult(null);
+    fetch('/api/ledger/verify')
+      .then((r) => {
+        if (r.status === 429) {
+          setLedgerState('rate_limit');
+          return null;
+        }
+        return r.json().then((body: LedgerVerifyResponse) => ({ status: r.status, body }));
+      })
+      .then((data) => {
+        if (!data) return;
+        const { status, body } = data;
+        setLedgerResult(body);
+        if (status === 200 && body.ok) {
+          setLedgerState('ok');
+        } else if (status === 403) {
+          setLedgerState('skipped');
+        } else {
+          setLedgerState('failed');
+        }
+      })
+      .catch(() => {
+        setLedgerState('error');
+        setLedgerResult(null);
+      });
+  }, []);
+
   if (!hasWorkspaceRead(permissions)) {
     return (
       <DashboardLayout>
@@ -86,7 +129,7 @@ export default function SystemVerifyPage() {
     <DashboardLayout>
       <PageHeader
         title="Verify"
-        subtitle="Проверка RBAC и безопасности"
+        subtitle="Проверка RBAC, Ledger и безопасности"
         actions={
           <button
             onClick={runVerify}
@@ -97,7 +140,12 @@ export default function SystemVerifyPage() {
           </button>
         }
       />
-      <main className="flex-1 p-6 lg:p-8">
+      <main className="flex-1 p-6 lg:p-8 space-y-8">
+        {/* AuthZ section */}
+        <section aria-labelledby="authz-heading">
+          <h2 id="authz-heading" className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+            AuthZ (RBAC)
+          </h2>
         {/* Result banner */}
         {state !== 'idle' && state !== 'loading' && (
           <div className="mb-6">
@@ -141,7 +189,7 @@ export default function SystemVerifyPage() {
           </div>
         )}
 
-        {/* Details (read-only) */}
+        {/* AuthZ Details (read-only) */}
         {result && (state === 'ok' || state === 'failed' || state === 'skipped') && (
           <div className="card">
             <div className="card-header">
@@ -189,6 +237,97 @@ export default function SystemVerifyPage() {
             </div>
           </div>
         )}
+        </section>
+
+        {/* Ledger section */}
+        <section aria-labelledby="ledger-heading">
+          <h2 id="ledger-heading" className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+            Ledger integrity
+          </h2>
+          {hasLedgerRead(permissions) ? (
+            <>
+              <div className="mb-4">
+                <button
+                  onClick={runLedgerVerify}
+                  disabled={ledgerState === 'loading'}
+                  className="btn btn-secondary disabled:opacity-50"
+                >
+                  {ledgerState === 'loading' ? 'Проверка…' : 'Verify ledger'}
+                </button>
+              </div>
+              {ledgerState !== 'idle' && ledgerState !== 'loading' && (
+                <div className="mb-6">
+                  <StatePanel
+                    variant={
+                      ledgerState === 'ok'
+                        ? 'success'
+                        : ledgerState === 'skipped' || ledgerState === 'rate_limit'
+                          ? 'warning'
+                          : 'error'
+                    }
+                    title={
+                      ledgerState === 'ok'
+                        ? 'OK'
+                        : ledgerState === 'skipped'
+                          ? 'Доступ запрещён'
+                          : ledgerState === 'rate_limit'
+                            ? 'Rate limit — попробуйте позже'
+                            : 'Failed'
+                    }
+                    description={
+                      ledgerState === 'skipped'
+                        ? 'Требуется право LEDGER.READ.'
+                        : ledgerState === 'rate_limit'
+                          ? 'Превышен лимит запросов.'
+                          : ledgerResult?.error ?? ledgerResult?.message
+                    }
+                    actions={
+                      (ledgerState === 'error' || ledgerState === 'rate_limit') && (
+                        <button
+                          onClick={runLedgerVerify}
+                          className="text-sm font-medium underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 rounded"
+                        >
+                          Повторить
+                        </button>
+                      )
+                    }
+                  />
+                </div>
+              )}
+              {ledgerResult && (ledgerState === 'ok' || ledgerState === 'failed') && ledgerResult.scope && (
+                <div className="card">
+                  <div className="card-header">
+                    <h3 className="text-lg font-semibold">Детали Ledger</h3>
+                  </div>
+                  <div className="card-body">
+                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <dt className="text-slate-500 dark:text-slate-400">event_count</dt>
+                        <dd className="font-mono">{ledgerResult.scope.event_count}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500 dark:text-slate-400">id_min</dt>
+                        <dd className="font-mono">{ledgerResult.scope.id_min ?? '—'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500 dark:text-slate-400">id_max</dt>
+                        <dd className="font-mono">{ledgerResult.scope.id_max ?? '—'}</dd>
+                      </div>
+                      {ledgerResult.timing_ms?.total != null && (
+                        <div>
+                          <dt className="text-slate-500 dark:text-slate-400">timing_ms</dt>
+                          <dd className="font-mono">{ledgerResult.timing_ms.total} ms</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <StatePanel variant="warning" title="Доступ запрещён" description="Требуется право LEDGER.READ для проверки Ledger." />
+          )}
+        </section>
       </main>
     </DashboardLayout>
   );
