@@ -35,4 +35,6 @@ npm run bundle:regulatory
 ## Release Artifact
 
 - **Release tag:** v0.1.5
-- **Release commit (git SHA):** _fill after release_
+- **Release commit (git SHA):** d0af274
+- **Submission bundle:** `dist/regulatory-bundle-v0.1.5.zip`
+- **SHA-256:** `5401cc1b52137ae86597e9bf5a892cf8176bea9e7a0886a619b48231306e0d88`
