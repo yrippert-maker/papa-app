@@ -55,16 +55,21 @@
 
 ---
 
-## 5. Пример сопроводительной записки
+## 5. Сопроводительное письмо
 
+Шаблоны (заполнить placeholder'ы):
+- [REGULATORY_COVER_LETTER_RU.md](REGULATORY_COVER_LETTER_RU.md) — русский
+- [REGULATORY_COVER_LETTER_EN.md](REGULATORY_COVER_LETTER_EN.md) — английский
+
+Краткий пример:
 ```
 Регуляторная передача: ПАПА v0.1.4
 
 Артефакт: regulatory-bundle-v0.1.4.zip
-SHA-256: 860a501b2f12bf196f39427693f6ae0a3fa4a51d0ae623bc72fc62661144cd12
+SHA-256: <из вывода shasum>
 Tag: v0.1.4
-Commit: 22faaa125ac2a56ea31abab2edfddb6d3a8391b3
-Дата: 2026-02-01
+Commit: <SHA под тегом>
+Дата: YYYY-MM-DD
 
 Порядок проверки: см. BUNDLE_FINGERPRINT.md внутри zip.
 ```

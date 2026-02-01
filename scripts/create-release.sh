@@ -8,6 +8,10 @@ TAG="${2:-v0.1.2}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 case "$TAG" in
+  v0.1.5)
+    NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v0.1.5.md"
+    TITLE="Release $TAG — Ledger Verify UI, evidence-grade API, cover letters"
+    ;;
   v0.1.4)
     NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v0.1.4.md"
     TITLE="Release $TAG — AuthZ UI, TMC.VIEW/AI_INBOX.VIEW, StatePanel, clickable badges"

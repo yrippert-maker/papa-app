@@ -2,61 +2,50 @@
 
 ## Goal
 
-Extend verify UX and optionally further RBAC refinement. Build on v0.1.4 (StatePanel, clickable badges, TMC.VIEW, AI_INBOX.VIEW).
+Extend verify UX. Build on v0.1.4 (StatePanel, clickable badges, TMC.VIEW, AI_INBOX.VIEW).
 
-## Scope (in)
+## Scope (in) — tightened
 
-### A) Ledger Verify UI (recommended)
+### A) Ledger Verify UI ✅ DONE (PR-1)
 
-1. **Integrate Ledger verify into `/system/verify`**
-   - Add section "Ledger integrity" with button "Verify Ledger"
-   - Call `GET /api/ledger/verify`
-   - Display result (OK / Failed) via StatePanel
-   - Reuse existing verify page layout
+- [x] Section "Ledger integrity" on `/system/verify`
+- [x] Button "Verify ledger", call `GET /api/ledger/verify`
+- [x] Display OK / Failed / Skipped / Rate limit via StatePanel
+- [x] Scope: event_count, id_min, id_max, timing_ms
+- [x] Permission: LEDGER.READ (section gated)
+- [x] API extended: scope + timing_ms + Cache-Control: no-store
 
-2. **Or:** Dedicated `/system/ledger-verify` page (if separation preferred)
+### B) Verify page — DONE (A covers it)
 
-### B) Verify page enhancements
+Unified page with AuthZ + Ledger sections. No tabs needed for current scope.
 
-1. **Unified verify page** with tabs/sections:
-   - AuthZ verification (current)
-   - Ledger verification (new)
-   - Optional: future checks
+### C) Optional (defer to v0.1.6+)
 
-2. **StatusBadges:** Ledger badge could reflect last verify result (optional, requires state)
+- **TMC.REQUEST.MANAGE** — only when request write flows exist
+- **INSPECTION.VIEW / INSPECTION.MANAGE** — only when inspection module exists
+- **StatusBadges** reflecting last verify result — adds state complexity; defer
 
-### C) Optional RBAC refinement
+### D) UX polish — minimal
 
-1. **TMC.REQUEST.MANAGE** — if write for requests is needed separately from VIEW
-2. **INSPECTION.VIEW / INSPECTION.MANAGE** — when inspection module is implemented
-
-### D) UX polish
-
-1. **Loading state** for verify buttons (already done)
-2. **Empty state** for pages without data (StatePanel empty variant)
-3. **"Coming soon"** mode for future menu items (as discussed)
+- Empty state (StatePanel empty variant) — apply where missing
+- "Coming soon" for future menu items — when new items are added
 
 ## Out of scope (explicit)
 
 - New business domains
 - AI autonomy changes
-- DB schema migrations (unless for new features)
+- Aggregator `/api/system/verify` (AuthZ + Ledger in one call) — not needed
+- StatusBadges live result — deferred
 
-## Proposed PR breakdown
+## v0.1.5 Release scope (recommended)
 
-- **PR-1:** Ledger verify section on `/system/verify` (or dedicated page)
-- **PR-2:** Verify page structure (tabs/sections) if needed
-- **PR-3:** Optional RBAC/UX polish
+- **Include:** PR-1 (Ledger Verify UI) ✅
+- **Exclude:** C, D — move to v0.1.6 or later
+- **Freeze:** v0.1.5 as "verify-complete" after PR-1
 
-## Definition of Done
+## Definition of Done v0.1.5
 
-- Auditor/admin can verify Ledger from UI (no console)
-- AuthZ and Ledger verify results displayed consistently
-- Evidence (LEDGER_VERIFY_RESULT in bundle) unchanged; runtime verify remains API
-- Tests and build green
-
-## Priority
-
-1. **High:** Ledger verify UI (completes verify story)
-2. **Medium:** Verify page structure (if UX requires)
-3. **Low:** RBAC/UX polish
+- [x] Ledger verify UI on /system/verify
+- [x] AuthZ + Ledger sections, separate buttons, StatePanel
+- [ ] Tests and build green
+- [ ] Release v0.1.5
