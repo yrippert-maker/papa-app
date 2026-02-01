@@ -58,7 +58,7 @@ Hash-chain в ledger; аудит событий с привязкой к пол�
 
 **Runtime fingerprint:** шаблон для аудита/сертификации (OS, Node, SQLite, PRAGMA) — [RELEASE_NOTES_v0.1.1.md](RELEASE_NOTES_v0.1.1.md) § Runtime fingerprint. Все evidence-документы в данном релизе сгенерированы и верифицированы под указанным runtime fingerprint.
 
-**Regulatory submission bundle:** `npm run bundle:regulatory` → `dist/regulatory-bundle-v0.1.1.zip`. Список: [REGULATORY_BUNDLE_MANIFEST.md](REGULATORY_BUNDLE_MANIFEST.md). Verification protocol: распаковать → проверить sha256 по MANIFEST.txt → открыть BUNDLE_FINGERPRINT.md.
+**Regulatory submission bundle:** `npm run bundle:regulatory` → `dist/regulatory-bundle-<tag>.zip`. Список: [REGULATORY_BUNDLE_MANIFEST.md](REGULATORY_BUNDLE_MANIFEST.md). Verification protocol: распаковать → проверить sha256 по MANIFEST.txt → открыть BUNDLE_FINGERPRINT.md. Чек-лист передачи: [REGULATORY_SUBMISSION_CHECKLIST.md](REGULATORY_SUBMISSION_CHECKLIST.md).
 
 ---
 
