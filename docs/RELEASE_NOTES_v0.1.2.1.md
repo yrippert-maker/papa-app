@@ -34,3 +34,5 @@ npm run bundle:regulatory
 
 - **Release tag:** v0.1.2.1
 - **Release commit (git SHA):** `5d8f412032de7119cc535c027125a78dc839df23`
+- **CI run ID (optional):** <fill-if-applicable>
+- **Runtime fingerprint:** see [RELEASE_NOTES_v0.1.1.md](RELEASE_NOTES_v0.1.1.md) (unchanged)
