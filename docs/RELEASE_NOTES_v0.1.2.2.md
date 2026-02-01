@@ -25,4 +25,4 @@ E2E_PORT=3200 npm run e2e   # override port
 ## Release Artifact
 
 - **Release tag:** v0.1.2.2
-- **Release commit (git SHA):** <fill-after-tag>
+- **Release commit (git SHA):** `84247b7cab1eed952f394bd6f0ca50f4a375b840`
