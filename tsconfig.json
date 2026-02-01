@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "00_SYSTEM", "data", "Новая папка", "РД — копия", "tv3 — копия", "аи-9 — копия", "договоры — копия", "климов — копия", "ОДК — копия", "одк-стар — копия", "окр — копия", "письма — копия", "платежи — копия", "Руководство по среднему ремонту — копия", "ТУ ММ 2.0 — копия"]
+}

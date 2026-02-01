@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --primary: #2563EB;
+  --primary-hover: #1d4ed8;
+  --secondary: #64748B;
+  --border: #e2e8f0;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-muted: #94a3b8;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --info: #3b82f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0f172a;
+    --foreground: #f1f5f9;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --secondary: #94a3b8;
+    --border: #334155;
+    --card-bg: #1e293b;
+    --card-border: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', system-ui, 'Roboto', 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, var(--font-geist-sans), 'Segoe UI', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@layer components {
+  /* Кнопки - REFLY Style */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply bg-[#2563EB] text-white hover:bg-[#1d4ed8] focus:ring-blue-500;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+  }
+  
+  .btn-secondary {
+    @apply bg-white border border-slate-300 text-[#64748B] hover:bg-slate-50 focus:ring-slate-500;
+    @apply dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700;
+  }
+  
+  .btn-danger {
+    @apply bg-[#EF4444] text-white hover:bg-[#dc2626] focus:ring-red-500;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-slate-300 bg-transparent text-[#64748B] hover:bg-slate-50 focus:ring-slate-500;
+    @apply dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-[#64748B] hover:bg-slate-100 focus:ring-slate-500;
+    @apply dark:text-slate-400 dark:hover:bg-slate-800;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  /* Карточки - REFLY Style */
+  .card {
+    @apply bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700;
+    @apply shadow-sm hover:shadow-sm transition-shadow duration-200;
+  }
+  
+  .card-header {
+    @apply px-6 py-6 border-b border-slate-200 dark:border-slate-700;
+  }
+  
+  .card-body {
+    @apply px-6 py-6;
+  }
+  
+  .card-footer {
+    @apply px-6 py-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50;
+  }
+
+  /* Формы - REFLY Style */
+  .input {
+    @apply w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600;
+    @apply bg-white dark:bg-slate-800 text-[#0F172A] dark:text-slate-100;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+    @apply placeholder:text-[#64748B] dark:placeholder:text-slate-500;
+    @apply transition-all duration-200;
+  }
+  
+  .label {
+    @apply block text-sm font-medium text-[#0F172A] dark:text-slate-300 mb-2;
+  }
+
+  /* Таблицы - REFLY Style */
+  .table {
+    @apply w-full border-collapse;
+  }
+  
+  .table thead {
+    @apply bg-slate-50 dark:bg-slate-900/50;
+  }
+  
+  .table th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-[#64748B] dark:text-slate-400 uppercase tracking-wider;
+    @apply border-b border-slate-200 dark:border-slate-700;
+  }
+  
+  .table td {
+    @apply px-4 py-3 text-sm text-[#0F172A] dark:text-slate-100;
+    @apply border-b border-slate-100 dark:border-slate-800;
+  }
+  
+  .table tbody tr {
+    @apply hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors;
+  }
+
+  /* Badge - REFLY Style */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-primary {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300;
+  }
+  
+  .badge-success {
+    @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300;
+    background-color: #dcfce7;
+    color: #166534;
+  }
+  
+  .badge-warning {
+    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300;
+  }
+  
+  .badge-error {
+    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300;
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+  
+  .badge-secondary {
+    @apply bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300;
+  }
+
+  /* Навигация - REFLY Style */
+  .nav-link {
+    @apply block px-4 py-2 rounded-lg text-[#64748B] dark:text-slate-300;
+    @apply hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors;
+    @apply font-medium;
+  }
+  
+  .nav-link-active {
+    @apply bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

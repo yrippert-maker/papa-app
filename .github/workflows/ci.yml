@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Check DB imports
+        run: npm run check:db-imports
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+        env:
+          WORKSPACE_ROOT: /tmp/papa-test-data
+
+      - name: Build
+        run: npm run build
+        env:
+          WORKSPACE_ROOT: /tmp/papa-build-data
+          NEXTAUTH_SECRET: ci-secret-for-build
+
+      - name: E2E smoke
+        run: npm run test:e2e
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/.tmp/e2e-workspace
+          NEXTAUTH_SECRET: ci-e2e-secret
+          E2E_MODE: "1"

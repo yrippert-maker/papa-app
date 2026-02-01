@@ -1,0 +1,3 @@
+-- SQLite does not support DROP COLUMN until 3.35.0; recreate table if needed
+-- For minimal rollback: leave actor_id (nullable, harmless)
+-- No-op for compatibility
