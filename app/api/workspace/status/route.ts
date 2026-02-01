@@ -22,31 +22,43 @@ export async function GET() {
     );
   }
 
-  try {
-    const workspaceExists = existsSync(WORKSPACE_ROOT);
-    const dbExists = existsSync(DB_PATH);
-    let filesRegistered = 0;
-    let ledgerEvents = 0;
-    if (dbExists) {
+  const workspaceExists = existsSync(WORKSPACE_ROOT);
+  const dbFileExists = existsSync(DB_PATH);
+  let dbExists = false;
+  let schemaReady = false;
+  let filesRegistered = 0;
+  let ledgerEvents = 0;
+  let warning: string | undefined;
+  let errorCode: string | undefined;
+
+  if (dbFileExists) {
+    try {
       const db = getDbReadOnly();
       const fr = db.prepare('SELECT COUNT(*) as c FROM file_registry').get() as { c: number };
       const le = db.prepare('SELECT COUNT(*) as c FROM ledger_events').get() as { c: number };
+      dbExists = true;
+      schemaReady = true;
       filesRegistered = fr?.c ?? 0;
       ledgerEvents = le?.c ?? 0;
+    } catch (e) {
+      const err = e as { code?: string; message?: string };
+      errorCode = err?.code ?? (err?.message?.includes('no such table') ? 'SQLITE_ERROR_NO_TABLE' : undefined);
+      warning = errorCode ? `db_unavailable: ${errorCode}` : 'db_unavailable';
+      console.warn('[workspace/status] DB exists but read failed (init needed?):', err?.message ?? e);
     }
-    return NextResponse.json({
-      workspaceRoot: WORKSPACE_ROOT,
-      workspaceExists,
-      dbExists,
-      filesRegistered,
-      ledgerEvents,
-      workspaceConfigured: WORKSPACE_IS_EXPLICIT,
-    });
-  } catch (e) {
-    console.error('[workspace/status]', e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Status failed' },
-      { status: 500 }
-    );
   }
+
+  const body: Record<string, unknown> = {
+    ok: true,
+    workspaceRoot: WORKSPACE_ROOT,
+    workspaceExists,
+    dbExists,
+    schemaReady,
+    filesRegistered,
+    ledgerEvents,
+    workspaceConfigured: WORKSPACE_IS_EXPLICIT,
+  };
+  if (warning) body.warning = warning;
+  if (errorCode) body.error_code = errorCode;
+  return NextResponse.json(body);
 }

@@ -83,13 +83,32 @@ async function run() {
     console.error('[FAIL] No cookies after auditor login');
     failed = true;
   } else {
+    const rStatusBefore = await fetchWithJar(auditorJar, `${BASE}/api/workspace/status`);
+    if (rStatusBefore.status !== 200) {
+      console.error('[FAIL] Auditor: /api/workspace/status (before init) expected 200, got', rStatusBefore.status);
+      failed = true;
+    } else {
+      const bodyBefore = await rStatusBefore.json();
+      if (bodyBefore.ok !== true) {
+        console.error('[FAIL] Auditor: /api/workspace/status body must have ok: true, got', bodyBefore);
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: /api/workspace/status (before init) → 200, ok: true');
+      }
+    }
     await fetchWithJar(auditorJar, `${BASE}/api/workspace/init`, { method: 'POST' });
     const rStatus = await fetchWithJar(auditorJar, `${BASE}/api/workspace/status`);
     if (rStatus.status !== 200) {
-      console.error('[FAIL] Auditor: /api/workspace/status expected 200, got', rStatus.status);
+      console.error('[FAIL] Auditor: /api/workspace/status (after init) expected 200, got', rStatus.status);
       failed = true;
     } else {
-      console.log('[OK] Auditor: /api/workspace/status → 200');
+      const body = await rStatus.json();
+      if (body.ok !== true || body.dbExists !== true) {
+        console.error('[FAIL] Auditor: /api/workspace/status (after init) expected ok:true, dbExists:true, got', body);
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: /api/workspace/status (after init) → 200, ok: true, dbExists: true');
+      }
     }
     const rTmc = await fetchWithJar(auditorJar, `${BASE}/api/tmc/items`);
     if (rTmc.status !== 403) {

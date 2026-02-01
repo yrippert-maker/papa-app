@@ -1,6 +1,6 @@
 {
   "name": "papa-app",
-  "version": "0.1.2.1",
+  "version": "0.1.2.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e": "npm run build && node scripts/e2e-prepare.mjs && WORKSPACE_ROOT=.tmp/e2e-workspace npm run migrate && WORKSPACE_ROOT=.tmp/e2e-workspace npm run seed:admin && NEXTAUTH_SECRET=e2e-test-secret CI=true E2E_MODE=1 WORKSPACE_ROOT=.tmp/e2e-workspace start-server-and-test start http://localhost:3000/login e2e:run",
+    "e2e": "npm run test:e2e",
+    "test:e2e": "npm run build && node scripts/e2e-prepare.mjs && WORKSPACE_ROOT=.tmp/e2e-workspace npm run migrate && WORKSPACE_ROOT=.tmp/e2e-workspace npm run seed:admin && NEXTAUTH_SECRET=e2e-test-secret CI=true E2E_MODE=1 WORKSPACE_ROOT=.tmp/e2e-workspace bash scripts/run-e2e.sh",
     "e2e:run": "node scripts/e2e-smoke.mjs",
     "migrate": "node scripts/migrate.mjs up",
     "migrate:down": "node scripts/migrate.mjs down",

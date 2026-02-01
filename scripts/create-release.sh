@@ -8,6 +8,10 @@ TAG="${2:-v0.1.2}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 case "$TAG" in
+  v0.1.2.2)
+    NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v0.1.2.2.md"
+    TITLE="Release $TAG — E2E stability, workspace status health"
+    ;;
   v0.1.2.1)
     NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v0.1.2.1.md"
     TITLE="Release $TAG — NextAuth hardening, AuthZ evidence"

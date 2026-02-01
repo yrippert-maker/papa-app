@@ -46,6 +46,7 @@ jobs:
       - name: E2E smoke
         run: npm run test:e2e
         env:
+          E2E_PORT: "3100"
           WORKSPACE_ROOT: ${{ github.workspace }}/.tmp/e2e-workspace
           NEXTAUTH_SECRET: ci-e2e-secret
           E2E_MODE: "1"

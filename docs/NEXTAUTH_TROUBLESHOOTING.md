@@ -116,6 +116,41 @@ GITHUB_SECRET=...
 
 ---
 
+## Другие 404 (не связаны с auth)
+
+### URL `/login.` с точкой в конце
+
+`/login` и `/login.` — разные маршруты. Точка даёт 404. Открывать строго:
+
+```
+http://localhost:3000/login
+```
+
+### 500 на `/api/workspace/status` / «Workspace: Не найден»
+
+Означает, что workspace/БД ещё не инициализированы.
+
+**Фикс:** Workspace → **Инициализировать** (кнопка) или из Console:
+
+```js
+fetch("/api/workspace/init", { method: "POST" }).then(r=>r.json()).then(console.log)
+```
+
+После init обновите дашборд. `/api/workspace/status` теперь всегда возвращает 200 (не 500) при отсутствии workspace/БД.
+
+### Ошибки `/_next/static/*` 404
+
+Битый dev-кэш после clean build, смены ветки, обновления Next.js. Фикс:
+
+```bash
+rm -rf .next
+npm run dev
+```
+
+В браузере: **Cmd+Shift+R** (hard refresh) или инкогнито, затем `http://localhost:3000/login`.
+
+---
+
 ## Важно для papa-app
 
 - **NextAuth v4:** `trustHost` не использовать (v5-only); вызывает ошибку сборки.
