@@ -38,6 +38,11 @@ jobs:
           WORKSPACE_ROOT: /tmp/papa-build-data
           NEXTAUTH_SECRET: ci-secret-for-build
 
+      - name: Regulatory bundle
+        run: npm run bundle:regulatory
+        env:
+          ALLOW_DIRTY: '1'
+
       - name: E2E smoke
         run: npm run test:e2e
         env:

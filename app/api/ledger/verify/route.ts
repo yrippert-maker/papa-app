@@ -1,13 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getDbReadOnly } from '@/lib/db';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
 import { verifyLedgerChain } from '@/lib/ledger-hash';
+import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const key = getClientKey(req);
+  const { allowed, retryAfterMs } = checkRateLimit(key, { windowMs: 60_000, max: 10 });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      {
+        status: 429,
+        headers: retryAfterMs ? { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) } : undefined,
+      }
+    );
+  }
+
   const session = await getServerSession(authOptions);
   const err = requirePermission(session, PERMISSIONS.LEDGER_READ);
   if (err) return err;

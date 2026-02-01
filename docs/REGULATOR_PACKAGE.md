@@ -75,7 +75,7 @@ Hash-chain в ledger; аудит событий с привязкой к пол�
 - Least privilege: роли получают минимально необходимый набор permissions
 - 401 — не аутентифицирован; 403 — аутентифицирован, но нет permission
 
-**Evidence:** unit-тесты (authz), E2E (auditor 403 на admin/write), route registry (deny-by-default).
+**Evidence:** unit-тесты (authz), E2E (auditor 403 на admin/write), route registry (deny-by-default). Bundle включает `AUTHZ_VERIFY_RESULT.txt` — результат проверки route registry и permissions; AuthZ подтверждена, если `authz_verification.executed = true` и `authz_verification.authz_ok = true`.
 
 ---
 

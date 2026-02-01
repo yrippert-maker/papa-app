@@ -5,9 +5,9 @@
 
 ---
 
-## Содержимое (19 файлов)
+## Содержимое (20 файлов)
 
-Все файлы из списка ниже + MANIFEST.txt + BUNDLE_FINGERPRINT.md + LEDGER_VERIFY_RESULT.txt. Итого **19 файлов** в zip.
+Все файлы из списка ниже + MANIFEST.txt + BUNDLE_FINGERPRINT.md + LEDGER_VERIFY_RESULT.txt + AUTHZ_VERIFY_RESULT.txt. Итого **20 файлов** в zip.
 
 | # | Файл | Описание |
 |---|------|----------|
@@ -30,8 +30,50 @@
 | 17 | MANIFEST.txt | Машиночитаемый манифест (path, size, sha256) |
 | 18 | BUNDLE_FINGERPRINT.md | Точка входа: tag, commit, verify |
 | 19 | LEDGER_VERIFY_RESULT.txt | Evidence: результат проверки hash-chain ledger (JSON Schema v1, генерируется при сборке) |
+| 20 | AUTHZ_VERIFY_RESULT.txt | Evidence: результат проверки route registry и permissions (JSON Schema v1, генерируется при сборке) |
 
-**Правило включения:** в zip попадают ровно эти 19 файлов (включая AUTHZ_MODEL.md, ENDPOINT_AUTHZ_EVIDENCE.md, RELEASE_NOTES_v0.1.2.md).
+**Правило включения:** в zip попадают ровно эти 20 файлов (включая AUTHZ_VERIFY_RESULT.txt с v0.1.3).
+
+---
+
+### AUTHZ_VERIFY_RESULT.txt — Schema v1 (normative semantics)
+
+The file `AUTHZ_VERIFY_RESULT.txt` contains a single UTF-8 encoded JSON object
+serialized in canonical JSON form (sorted keys, no whitespace).
+
+#### Versioning
+
+- `schema_version` MUST be present and equal to `1` for this format.
+- Any incompatible change MUST increment `schema_version`.
+
+#### Execution semantics
+
+- `bundle_ok` indicates whether the regulatory bundle was successfully generated.
+- `authz_verification.executed` indicates whether AuthZ verification logic was executed.
+- `authz_verification.skipped` indicates that verification was not executed.
+- `authz_verification.authz_ok` has the following meaning:
+  - `true`  — verification executed and AuthZ (route registry, permissions) confirmed.
+  - `false` — verification executed and AuthZ violation or verification error detected.
+  - `null`  — verification not executed (`skipped = true`).
+
+#### Invariants (MUST)
+
+- If `skipped = true`:
+  - `executed = false`
+  - `authz_ok = null`
+  - `skip_reason` MUST be present.
+- If `executed = true`:
+  - `skipped = false`
+  - `authz_ok` MUST be either `true` or `false`
+  - `scope` MUST be present (route_registry_file, route_count, unique_routes, permissions_valid).
+
+#### Interpretation
+
+- A regulatory bundle MAY be considered valid if `bundle_ok = true`, regardless of AuthZ verification being skipped.
+- AuthZ (deny-by-default, route registry integrity) is considered confirmed ONLY if:
+  - `executed = true` AND `authz_ok = true`.
+
+---
 
 ### LEDGER_VERIFY_RESULT.txt — Schema v1 (normative semantics)
 

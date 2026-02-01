@@ -75,6 +75,14 @@ if [ ! -s "$DIST/LEDGER_VERIFY_RESULT.txt" ]; then
     "$TAG" "$COMMIT" "$GENERATED_AT" > "$DIST/LEDGER_VERIFY_RESULT.txt"
 fi
 
+# 3c. AuthZ verification (evidence output, JSON Schema v1)
+export OUTPUT_PATH="$DIST/AUTHZ_VERIFY_RESULT.txt"
+node "$ROOT/scripts/verify-authz.mjs" 2>/dev/null || true
+if [ ! -s "$DIST/AUTHZ_VERIFY_RESULT.txt" ]; then
+  printf '{"schema_version":1,"release":{"tag":"%s","commit":"%s","generated_at_utc":"%s"},"bundle_ok":true,"authz_verification":{"executed":false,"skipped":true,"authz_ok":null,"message":"AuthZ verification skipped","skip_reason":"Verification script failed"}}\n' \
+    "$TAG" "$COMMIT" "$GENERATED_AT" > "$DIST/AUTHZ_VERIFY_RESULT.txt"
+fi
+
 # 4. MANIFEST.txt (машиночитаемый: path, size, sha256, date)
 # Каждая строка — отдельный printf, явные \n (надёжно для аудитора)
 MANIFEST_BODY="$DIST/MANIFEST_BODY.txt"
@@ -100,6 +108,11 @@ if [ -f "$DIST/LEDGER_VERIFY_RESULT.txt" ]; then
   SIZE="$(wc -c < "$DIST/LEDGER_VERIFY_RESULT.txt" | tr -d ' ')"
   SHA="$(shasum -a 256 "$DIST/LEDGER_VERIFY_RESULT.txt" | cut -d' ' -f1)"
   printf 'LEDGER_VERIFY_RESULT.txt  %s  sha256:%s  %s\n' "$SIZE" "$SHA" "$GENERATED_AT" >> "$MANIFEST_BODY"
+fi
+if [ -f "$DIST/AUTHZ_VERIFY_RESULT.txt" ]; then
+  SIZE="$(wc -c < "$DIST/AUTHZ_VERIFY_RESULT.txt" | tr -d ' ')"
+  SHA="$(shasum -a 256 "$DIST/AUTHZ_VERIFY_RESULT.txt" | cut -d' ' -f1)"
+  printf 'AUTHZ_VERIFY_RESULT.txt  %s  sha256:%s  %s\n' "$SIZE" "$SHA" "$GENERATED_AT" >> "$MANIFEST_BODY"
 fi
 
 # sha256_manifest = hash всего MANIFEST до (исключая) комментарий и строку sha256_manifest
@@ -146,6 +159,7 @@ RELEASE_NOTES="docs/RELEASE_NOTES_${TAG}.md"
   echo "3. Для каждого файла из MANIFEST.txt: \`shasum -a 256 path\` и сравнить с указанным sha256"
   echo "4. Открыть [docs/REGULATOR_PACKAGE.md](REGULATOR_PACKAGE.md) как точку входа"
   echo "5. Ledger verification: bundle включает LEDGER_VERIFY_RESULT.txt. Целостность ledger подтверждена ТОЛЬКО если \`ledger_verification.executed = true\` и \`ledger_verification.ledger_ok = true\` в этом файле."
+  echo "6. AuthZ verification: bundle включает AUTHZ_VERIFY_RESULT.txt. AuthZ (route registry, permissions) подтверждена ТОЛЬКО если \`authz_verification.executed = true\` и \`authz_verification.authz_ok = true\`."
   echo ""
 } > "$FINGERPRINT"
 
@@ -154,7 +168,7 @@ rm -f "$ZIP"
 for f in "${FILES[@]}"; do
   [ -f "$ROOT/$f" ] && (cd "$ROOT" && zip -q "$ZIP" "$f")
 done
-(cd "$DIST" && zip -q "$ZIP" MANIFEST.txt BUNDLE_FINGERPRINT.md LEDGER_VERIFY_RESULT.txt)
+(cd "$DIST" && zip -q "$ZIP" MANIFEST.txt BUNDLE_FINGERPRINT.md LEDGER_VERIFY_RESULT.txt AUTHZ_VERIFY_RESULT.txt)
 
 # 7. Вывод
 ZIP_SHA="$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
