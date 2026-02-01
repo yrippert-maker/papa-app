@@ -4,6 +4,13 @@ import { compareSync } from 'bcryptjs';
 import { getDbReadOnly } from './db';
 import { getPermissionsForRole } from './authz';
 
+const secret = process.env.NEXTAUTH_SECRET;
+const isProd = process.env.NODE_ENV === 'production';
+const allowDevFallback = process.env.ALLOW_DEV_FALLBACK_SECRET === '1';
+if (!secret && (isProd || !allowDevFallback)) {
+  throw new Error('NEXTAUTH_SECRET is required. Set in .env.local or use ALLOW_DEV_FALLBACK_SECRET=1 for local dev only.');
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -34,6 +41,15 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 24 * 60 * 60 },
   pages: { signIn: '/login' },
   callbacks: {
+    redirect({ url, baseUrl }) {
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch {
+        return baseUrl;
+      }
+      return baseUrl;
+    },
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -52,5 +68,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET ?? (process.env.NODE_ENV === 'development' ? 'dev-secret-change-in-production' : undefined),
+  secret: secret ?? 'dev-secret-change-in-production',
 };
