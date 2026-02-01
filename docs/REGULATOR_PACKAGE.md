@@ -62,6 +62,23 @@ Hash-chain в ledger; аудит событий с привязкой к пол�
 
 ---
 
+## Access Control & Authorization (v0.1.2)
+
+**Модель:** RBAC, permission-first. Endpoint'ы проверяют permission, а не роль напрямую.
+
+**Документы:**
+- [AUTHZ_MODEL.md](AUTHZ_MODEL.md) — нормативная модель ролей и permissions
+- [ENDPOINT_AUTHZ_EVIDENCE.md](ENDPOINT_AUTHZ_EVIDENCE.md) — Endpoint → Permission → Roles → Evidence
+
+**Принципы:**
+- Deny-by-default: endpoint без явной проверки permission — недоступен
+- Least privilege: роли получают минимально необходимый набор permissions
+- 401 — не аутентифицирован; 403 — аутентифицирован, но нет permission
+
+**Evidence:** unit-тесты (authz), E2E (auditor 403 на admin/write), route registry (deny-by-default).
+
+---
+
 ## Контакт
 
 Вопросы по документам — владелец проекта / главный инженер.

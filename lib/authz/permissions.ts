@@ -1,0 +1,16 @@
+/**
+ * Permission codes (normative). Must match rbac_permission.perm_code in DB.
+ * See docs/AUTHZ_MODEL.md, docs/ENDPOINT_AUTHZ_EVIDENCE.md.
+ */
+export const Permissions = {
+  WORKSPACE_READ: 'WORKSPACE.READ',
+  FILES_LIST: 'FILES.LIST',
+  FILES_UPLOAD: 'FILES.UPLOAD',
+  LEDGER_READ: 'LEDGER.READ',
+  LEDGER_APPEND: 'LEDGER.APPEND',
+  ADMIN_MANAGE_USERS: 'ADMIN.MANAGE_USERS',
+  TMC_MANAGE: 'TMC.MANAGE',
+  TMC_REQUEST_VIEW: 'TMC.REQUEST.VIEW',
+} as const;
+
+export type Permission = (typeof Permissions)[keyof typeof Permissions];

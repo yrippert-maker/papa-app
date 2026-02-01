@@ -1,17 +1,31 @@
 #!/bin/bash
 # Создание GitHub Release.
 # Использование: ./scripts/create-release.sh owner/repo [tag]
-# Для v0.1.1: ./scripts/create-release.sh owner/repo v0.1.1
+# Примеры: ./scripts/create-release.sh owner/repo v0.1.2
 
 REPO="${1:?Usage: $0 owner/repo [tag]}"
-TAG="${2:-v0.1.1}"
+TAG="${2:-v0.1.2}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v0.1.1.md"
 
-if [ "$TAG" = "v0.1.1" ] && [ -f "$NOTES_FILE" ]; then
+case "$TAG" in
+  v0.1.2)
+    NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v0.1.2.md"
+    TITLE="Release $TAG — RBAC hardening, deny-by-default authz"
+    ;;
+  v0.1.1)
+    NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v0.1.1.md"
+    TITLE="Release $TAG — US-7 Pagination, US-8 SQLite Safe Mode"
+    ;;
+  *)
+    NOTES_FILE=""
+    TITLE="Release $TAG"
+    ;;
+esac
+
+if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
   gh release create "$TAG" \
     --repo "$REPO" \
-    --title "Release $TAG — US-7 Pagination, US-8 SQLite Safe Mode" \
+    --title "$TITLE" \
     --notes-file "$NOTES_FILE"
 else
   # fallback для v0.1.0 или если файл не найден

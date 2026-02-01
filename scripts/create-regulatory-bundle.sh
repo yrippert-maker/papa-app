@@ -6,7 +6,7 @@
 # Guardrails: fail при uncommitted changes; требует точного совпадения tag.
 
 set -e
-TAG="${1:-v0.1.1}"
+TAG="${1:-v0.1.2}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DOCS="$ROOT/docs"
 DIST="$ROOT/dist"
@@ -44,12 +44,15 @@ FILES=(
   docs/REGULATOR_PACKAGE.md
   docs/RESPONSIBILITY_MATRIX.md
   docs/RELEASE_NOTES_v0.1.1.md
+  docs/RELEASE_NOTES_v0.1.2.md
   docs/ENDPOINT_DB_EVIDENCE.md
+  docs/AUTHZ_MODEL.md
+  docs/ENDPOINT_AUTHZ_EVIDENCE.md
   docs/SECURITY_POSTURE.md
   docs/ARCHITECTURE_OVERVIEW.md
   docs/AUDIT_LOG_SCHEMA.md
-  docs/RELEASE_GUIDE_v0.1.1.md
-  docs/GITHUB_RELEASE_NOTES_v0.1.1.md
+  docs/RELEASE_GUIDE_v0.1.2.md
+  docs/GITHUB_RELEASE_NOTES_v0.1.2.md
   docs/DEMO_TABLE_M1_M2.md
   docs/ADR-002_SQLite_to_PostgreSQL.md
   docs/ADR-003_Adapter_Contracts.md
@@ -59,6 +62,7 @@ FILES=(
 mkdir -p "$DIST"
 
 # 3b. Ledger verification (evidence output, JSON Schema v1)
+# ВАЖНО: генерируется ДО MANIFEST, чтобы sha256 LEDGER_VERIFY_RESULT.txt попал в MANIFEST
 if [ -d "$ROOT/.tmp/e2e-workspace" ]; then
   export WORKSPACE_ROOT="$ROOT/.tmp/e2e-workspace"
 fi
@@ -108,6 +112,8 @@ mv "$MANIFEST_BODY" "$DIST/MANIFEST.txt"
 
 # 5. BUNDLE_FINGERPRINT.md (генерируем)
 FINGERPRINT="$DIST/BUNDLE_FINGERPRINT.md"
+RELEASE_NOTES="docs/RELEASE_NOTES_${TAG}.md"
+[ -f "$ROOT/$RELEASE_NOTES" ] || RELEASE_NOTES="docs/RELEASE_NOTES_v0.1.1.md"
 {
   echo "# Bundle Fingerprint"
   echo ""
@@ -129,7 +135,7 @@ FINGERPRINT="$DIST/BUNDLE_FINGERPRINT.md"
   echo ""
   echo "## Runtime fingerprint"
   echo ""
-  echo "См. [docs/RELEASE_NOTES_v0.1.1.md](RELEASE_NOTES_v0.1.1.md) § Runtime fingerprint."
+  echo "См. [$RELEASE_NOTES]($RELEASE_NOTES) § Runtime fingerprint."
   echo ""
   echo "---"
   echo ""
@@ -139,7 +145,7 @@ FINGERPRINT="$DIST/BUNDLE_FINGERPRINT.md"
   echo "2. Распаковать"
   echo "3. Для каждого файла из MANIFEST.txt: \`shasum -a 256 path\` и сравнить с указанным sha256"
   echo "4. Открыть [docs/REGULATOR_PACKAGE.md](REGULATOR_PACKAGE.md) как точку входа"
-  echo "5. Ledger verification: bundle включает LEDGER_VERIFY_RESULT.txt (результат проверки целостности hash-chain). Скрипт выполняет verification автоматически при сборке."
+  echo "5. Ledger verification: bundle включает LEDGER_VERIFY_RESULT.txt. Целостность ledger подтверждена ТОЛЬКО если \`ledger_verification.executed = true\` и \`ledger_verification.ledger_ok = true\` в этом файле."
   echo ""
 } > "$FINGERPRINT"
 

@@ -78,6 +78,15 @@ function getDbPathUsed() {
   return rel || dbPath;
 }
 
+function getFormulaVersion(rows) {
+  if (!rows || rows.length === 0) return 'normative_only';
+  const hasLegacy = rows.some((r) => r.actor_id == null || r.actor_id === '');
+  const hasNormative = rows.some((r) => r.actor_id != null && r.actor_id !== '');
+  if (hasLegacy && hasNormative) return 'mixed';
+  if (hasLegacy) return 'legacy_only';
+  return 'normative_only';
+}
+
 function main() {
   const tag = process.env.TAG || 'v0.1.1';
   const commit = process.env.COMMIT || 'unknown';
@@ -145,6 +154,7 @@ function main() {
           skipped: false,
           ledger_ok: true,
           message: 'Ledger integrity verified (empty)',
+          formula_version: 'normative_only',
           db: {
             db_mode: 'readonly',
             db_source: getDbSource(),
@@ -174,6 +184,7 @@ function main() {
         skipped: false,
         ledger_ok: true,
         message: 'Ledger integrity verified',
+        formula_version: getFormulaVersion(rows),
         db: {
           db_mode: 'readonly',
           db_source: getDbSource(),
@@ -192,6 +203,13 @@ function main() {
     writeLedgerVerifyResultCanonical(outputPath, result);
   } catch (e) {
     const totalMs = Date.now() - t0;
+    let formulaVer = 'normative_only';
+    try {
+      const errRows = db.prepare('SELECT actor_id FROM ledger_events').all();
+      formulaVer = getFormulaVersion(errRows);
+    } catch {
+      /* ignore */
+    }
     const result = buildLedgerVerifyResult({
       release: { tag, commit, generated_at_utc: generatedAt },
       bundle_ok: true,
@@ -200,6 +218,7 @@ function main() {
         skipped: false,
         ledger_ok: false,
         message: e instanceof Error ? e.message : String(e),
+        formula_version: formulaVer,
         db: {
           db_mode: 'readonly',
           db_source: getDbSource(),

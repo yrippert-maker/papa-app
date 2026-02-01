@@ -1,23 +1,14 @@
 /**
- * Policy / Authorization layer (US-2).
- * Единая точка проверки прав. Использовать can() перед операциями.
- * Никаких ручных if в endpoint'ах.
+ * Policy / Authorization layer (US-2, v0.1.2).
+ * Единая точка проверки прав. Использовать requirePermission() перед операциями.
+ * Permission-first: endpoint проверяет permission, не роль. See docs/AUTHZ_MODEL.md.
  */
 import { getDbReadOnly } from './db';
 import type { Session } from 'next-auth';
+import { Permissions, type Permission as Perm } from './authz/permissions';
 
-export const PERMISSIONS = {
-  WORKSPACE_READ: 'WORKSPACE.READ',
-  FILES_LIST: 'FILES.LIST',
-  FILES_UPLOAD: 'FILES.UPLOAD',
-  LEDGER_READ: 'LEDGER.READ',
-  LEDGER_APPEND: 'LEDGER.APPEND',
-  ADMIN_MANAGE_USERS: 'ADMIN.MANAGE_USERS',
-  TMC_MANAGE: 'TMC.MANAGE',
-  TMC_REQUEST_VIEW: 'TMC.REQUEST.VIEW',
-} as const;
-
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+export const PERMISSIONS = Permissions;
+export type Permission = Perm;
 
 /** Возвращает список permissions для роли. */
 export function getPermissionsForRole(roleCode: string): Set<string> {
