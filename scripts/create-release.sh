@@ -30,23 +30,29 @@ case "$TAG" in
     ;;
 esac
 
-if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
-  gh release create "$TAG" \
-    --repo "$REPO" \
-    --title "$TITLE" \
-    --notes-file "$NOTES_FILE"
-else
-  # fallback для v0.1.0 или если файл не найден
-  gh release create "$TAG" \
-    --repo "$REPO" \
-    --title "Release $TAG — P1: RBAC + Users + Admin UI" \
-    --notes "## $TAG — P1: RBAC + Users + Admin UI
+run_gh_release() {
+  if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
+    gh release create "$TAG" --repo "$REPO" --title "$TITLE" --notes-file "$NOTES_FILE"
+  else
+    gh release create "$TAG" --repo "$REPO" --title "Release $TAG" --notes "## $TAG"
+  fi
+}
 
-### Features
-- Multi-user auth, RBAC, Admin Users UI, Audit, Migrations
-
-### Docs
-- [docs/SECURITY_POSTURE.md](docs/SECURITY_POSTURE.md)
-- [docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md)"
+if command -v gh >/dev/null 2>&1; then
+  if run_gh_release; then
+    echo "Created: https://github.com/$REPO/releases/tag/$TAG"
+    exit 0
+  fi
 fi
-echo "Created: https://github.com/$REPO/releases/tag/$TAG"
+
+echo "---"
+echo "gh not installed or release create failed. Create release manually:"
+echo "  GitHub → Repo $REPO → Releases → Draft a new release"
+echo "  Tag: $TAG (existing)"
+echo "  Title: $TITLE"
+if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
+  echo "  Body: contents of $NOTES_FILE"
+fi
+echo "  https://github.com/$REPO/releases/new?tag=$TAG"
+echo "---"
+exit 1
