@@ -114,3 +114,11 @@ GitHub → Releases → Create release → Tag `v0.1.2` → вставить т�
 The absence of a configured remote does not affect the integrity or reproducibility
 of the release artifacts. Regulatory bundles and evidence are generated locally
 and become publicly accessible only after a successful push and GitHub Release.
+
+**Regulatory submission bundles** MUST be built from a clean checkout of the release tag (no `ALLOW_DIRTY`):
+
+```bash
+git checkout v0.1.2.1
+npm ci
+./scripts/create-regulatory-bundle.sh v0.1.2.1
+```
