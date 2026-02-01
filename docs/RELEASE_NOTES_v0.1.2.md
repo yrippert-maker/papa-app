@@ -54,5 +54,5 @@ Verify that:
 ## Release Artifact
 
 - **Release tag:** v0.1.2
-- **Release commit (git SHA):** <fill-after-push>
+- **Release commit (git SHA):** `7f9cef4bffba0b0a0c6d9ba7690174798481567c`
 - **Runtime fingerprint:** see [RELEASE_NOTES_v0.1.1.md](RELEASE_NOTES_v0.1.1.md) (unchanged)
