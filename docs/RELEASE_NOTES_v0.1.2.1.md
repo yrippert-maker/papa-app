@@ -33,4 +33,4 @@ npm run bundle:regulatory
 ## Release Artifact
 
 - **Release tag:** v0.1.2.1
-- **Release commit (git SHA):** `3205351c4945302874a919cea73301292a88e840`
+- **Release commit (git SHA):** `5d8f412032de7119cc535c027125a78dc839df23`
