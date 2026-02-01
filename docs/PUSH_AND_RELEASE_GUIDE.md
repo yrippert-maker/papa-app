@@ -83,6 +83,8 @@ gh auth status
 ./scripts/create-release.sh YOUR_USERNAME/REPO v0.1.2
 ```
 
+If `gh` is not installed or authenticated, `create-release.sh` prints manual steps and exits with code 1.
+
 ### Вручную
 
 GitHub → Releases → Create release → Tag `v0.1.2` → вставить текст из `docs/GITHUB_RELEASE_NOTES_v0.1.2.md`.
