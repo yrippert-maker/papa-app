@@ -111,11 +111,11 @@ async function run() {
       }
     }
     const rTmc = await fetchWithJar(auditorJar, `${BASE}/api/tmc/items`);
-    if (rTmc.status !== 403) {
-      console.error('[FAIL] Auditor: /api/tmc/items expected 403, got', rTmc.status);
+    if (rTmc.status !== 200) {
+      console.error('[FAIL] Auditor: /api/tmc/items expected 200 (TMC.VIEW), got', rTmc.status);
       failed = true;
     } else {
-      console.log('[OK] Auditor: /api/tmc/items → 403 (Forbidden)');
+      console.log('[OK] Auditor: /api/tmc/items → 200 (read-only TMC.VIEW)');
     }
     const rLedger = await fetchWithJar(auditorJar, `${BASE}/api/ledger/append`, {
       method: 'POST',

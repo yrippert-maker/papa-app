@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAuthzVerifyResult, writeAuthzVerifyResultCanonical } from '../lib/authz-verify-result.mjs';
-import { ROUTE_REGISTRY, VALID_PERMISSIONS } from '../lib/authz/routes-export.mjs';
+import { ROUTE_REGISTRY, VALID_PERMISSIONS, ROLE_COUNT } from '../lib/authz/routes-export.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const root = path.join(__dirname, '..');
@@ -60,8 +60,12 @@ function runVerification() {
     scope: {
       route_registry_file: 'lib/authz/routes.ts',
       route_count: ROUTE_REGISTRY.length,
+      permission_count: VALID_PERMISSIONS.size,
+      role_count: ROLE_COUNT,
       unique_routes: uniqueRoutes,
       permissions_valid: permissionsValid,
+      deny_by_default: true,
+      deny_by_default_scope: 'route_registry_only',
     },
   };
 }
@@ -90,8 +94,12 @@ try {
       scope: {
         route_registry_file: 'lib/authz/routes.ts',
         route_count: ROUTE_REGISTRY.length,
+        permission_count: VALID_PERMISSIONS.size,
+        role_count: ROLE_COUNT,
         unique_routes: false,
         permissions_valid: false,
+        deny_by_default: false,
+        deny_by_default_scope: 'route_registry_only',
       },
     },
   });

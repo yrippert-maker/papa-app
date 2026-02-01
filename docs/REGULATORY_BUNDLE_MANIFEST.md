@@ -65,7 +65,8 @@ serialized in canonical JSON form (sorted keys, no whitespace).
 - If `executed = true`:
   - `skipped = false`
   - `authz_ok` MUST be either `true` or `false`
-  - `scope` MUST be present (route_registry_file, route_count, unique_routes, permissions_valid).
+  - `scope` MUST be present: route_registry_file, route_count, permission_count, role_count, unique_routes, permissions_valid, deny_by_default, deny_by_default_scope.
+  - `deny_by_default_scope` MUST be `"route_registry_only"`: clarifies that deny-by-default applies only to routes in the registry; unknown routes are denied.
 
 #### Interpretation
 

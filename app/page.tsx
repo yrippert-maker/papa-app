@@ -2,7 +2,8 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useWorkspaceStatus } from '@/hooks/useWorkspaceStatus';
 
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('ru-RU', {
@@ -15,19 +16,7 @@ function formatDate(date: Date): string {
 
 export default function Home() {
   const [currentDate] = useState(new Date());
-  const [workspaceStatus, setWorkspaceStatus] = useState<{
-    workspaceExists: boolean;
-    dbExists: boolean;
-    filesRegistered: number;
-    ledgerEvents: number;
-  } | null>(null);
-
-  useEffect(() => {
-    fetch('/api/workspace/status')
-      .then((r) => r.json())
-      .then(setWorkspaceStatus)
-      .catch(console.error);
-  }, []);
+  const { status: workspaceStatus } = useWorkspaceStatus();
 
   return (
     <DashboardLayout>

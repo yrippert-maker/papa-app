@@ -3,7 +3,7 @@
 This document provides regulator-ready evidence for authorization enforcement:
 Endpoint → Permission → Roles → DB Mode → Evidence.
 
-**Source of truth (route registry):** `lib/authz/routes.ts`. This table is a regulatory snapshot. When adding routes, update both the registry and this document in the same release. CI test `authz-routes.test.ts` enforces deny-by-default and route count (12).
+**Source of truth (route registry):** `lib/authz/routes.ts`. This table is a regulatory snapshot. When adding routes, update both the registry and this document in the same release. CI test `authz-routes.test.ts` enforces deny-by-default and route count (14).
 
 ## 1. Normative statements
 
@@ -19,15 +19,17 @@ Endpoint → Permission → Roles → DB Mode → Evidence.
 | /api/admin/users | GET | ADMIN.MANAGE_USERS | ADMIN | readonly | E2E: admin 200; auditor 403 (no ADMIN.MANAGE_USERS) |
 | /api/admin/users | POST | ADMIN.MANAGE_USERS | ADMIN | readwrite | E2E: create user 200 |
 | /api/admin/users/[id] | PATCH | ADMIN.MANAGE_USERS | ADMIN | readwrite | E2E: role/reset |
-| /api/tmc/items | GET | TMC.MANAGE | STOREKEEPER, ENGINEER, MANAGER, ADMIN | readonly | E2E: auditor 403 |
-| /api/tmc/lots | GET | TMC.MANAGE | STOREKEEPER, ENGINEER, MANAGER, ADMIN | readonly | E2E: auditor 403 |
+| /api/tmc/items | GET | TMC.VIEW | AUDITOR, ENGINEER, STOREKEEPER, MANAGER, ADMIN | readonly | PR-2.1 |
+| /api/tmc/lots | GET | TMC.VIEW | AUDITOR, ENGINEER, STOREKEEPER, MANAGER, ADMIN | readonly | PR-2.1 |
 | /api/tmc/requests | GET | TMC.REQUEST.VIEW | ENGINEER, MANAGER, ADMIN | readonly | E2E: auditor 403 |
 | /api/files/list | GET | FILES.LIST | ENGINEER, STOREKEEPER, MANAGER, ADMIN, AUDITOR | readonly | E2E |
+| /api/ai-inbox | GET | AI_INBOX.VIEW | AUDITOR, MANAGER, ADMIN | readonly | PR-2.2 |
 | /api/files/upload | POST | FILES.UPLOAD | STOREKEEPER, MANAGER, ADMIN | readwrite | Unit: authz |
 | /api/workspace/status | GET | WORKSPACE.READ | AUDITOR, ADMIN, ... | readonly | E2E: auditor 200 |
 | /api/workspace/init | POST | WORKSPACE.READ | AUDITOR, ADMIN, ... | readwrite | E2E: init before status |
 | /api/ledger/verify | GET | LEDGER.READ | AUDITOR, ADMIN | readonly | Unit: authz |
 | /api/ledger/append | POST | LEDGER.APPEND | MANAGER, ADMIN | readwrite | E2E: auditor 403 |
+| /api/authz/verify | GET | WORKSPACE.READ | AUDITOR, ADMIN | readonly | Runtime AuthZ verification (v0.1.3) |
 
 > **Notes:**
 > - If an endpoint is not listed here, it MUST NOT exist in the production build.

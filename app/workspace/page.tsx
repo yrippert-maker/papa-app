@@ -2,7 +2,9 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { StatePanel } from '@/components/ui/StatePanel';
 import { useEffect, useState } from 'react';
+import { useWorkspaceStatus } from '@/hooks/useWorkspaceStatus';
 
 type WorkspaceEntry = {
   name: string;
@@ -17,6 +19,7 @@ export default function WorkspacePage() {
   const [currentDir, setCurrentDir] = useState('');
   const [loading, setLoading] = useState(true);
   const [initStatus, setInitStatus] = useState<string | null>(null);
+  const { refetch: refetchWorkspaceStatus } = useWorkspaceStatus();
 
   const loadEntries = (dir: string) => {
     const url = dir ? `/api/files/list?dir=${encodeURIComponent(dir)}` : '/api/files/list';
@@ -37,7 +40,10 @@ export default function WorkspacePage() {
       .then((r) => r.json())
       .then((data) => {
         setInitStatus(data.ok ? 'Workspace инициализирован' : data.error ?? 'Ошибка');
-        if (data.ok) loadEntries(currentDir);
+        if (data.ok) {
+          loadEntries(currentDir);
+          refetchWorkspaceStatus();
+        }
       })
       .catch((e) => setInitStatus(e instanceof Error ? e.message : 'Ошибка'));
   };
@@ -57,14 +63,19 @@ export default function WorkspacePage() {
       />
       <main className="flex-1 p-6 lg:p-8">
         {initStatus && (
-          <div
-            className={`mb-6 p-4 rounded-lg ${
-              initStatus.includes('инициализирован')
-                ? 'bg-green-50 text-green-800'
-                : 'bg-red-50 text-red-800'
-            }`}
-          >
-            {initStatus}
+          <div className="mb-6">
+            <StatePanel
+              variant={initStatus.includes('инициализирован') ? 'success' : 'error'}
+              title={initStatus.includes('инициализирован') ? 'Workspace инициализирован' : 'Ошибка'}
+              description={initStatus.includes('инициализирован') ? undefined : initStatus}
+              actions={
+                !initStatus.includes('инициализирован') && (
+                  <button onClick={handleInitWorkspace} className="text-sm font-medium underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 rounded">
+                    Повторить
+                  </button>
+                )
+              }
+            />
           </div>
         )}
         <div className="card mb-6">

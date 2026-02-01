@@ -2,6 +2,8 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { StatePanel } from '@/components/ui/StatePanel';
+import { useSession } from 'next-auth/react';
 import { useEffect, useState, useRef } from 'react';
 
 type FileEntry = {
@@ -13,6 +15,9 @@ type FileEntry = {
 };
 
 export default function AiInboxPage() {
+  const { data: session } = useSession();
+  const permissions = (session?.user as { permissions?: string[] } | undefined)?.permissions ?? [];
+  const canUpload = permissions.includes('FILES.UPLOAD');
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -20,7 +25,7 @@ export default function AiInboxPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const loadAiInbox = () => {
-    fetch('/api/files/list?dir=ai-inbox')
+    fetch('/api/ai-inbox')
       .then((r) => r.json())
       .then((data) => setEntries(data.entries ?? []))
       .catch(console.error)
@@ -62,65 +67,76 @@ export default function AiInboxPage() {
     <DashboardLayout>
       <PageHeader
         title="AI Inbox"
-        subtitle="Загрузка документов для обработки"
+        subtitle={canUpload ? 'Загрузка документов для обработки' : 'Просмотр загруженных документов'}
         actions={
-          <>
-            <input
-              ref={inputRef}
-              type="file"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-            <button
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-              className="btn btn-primary"
-            >
-              {uploading ? 'Загрузка...' : '+ Загрузить файл'}
-            </button>
-          </>
+          canUpload ? (
+            <>
+              <input
+                ref={inputRef}
+                type="file"
+                className="hidden"
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+              <button
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+                className="btn btn-primary"
+              >
+                {uploading ? 'Загрузка...' : '+ Загрузить файл'}
+              </button>
+            </>
+          ) : null
         }
       />
       <main className="flex-1 p-6 lg:p-8">
         {uploadResult && (
-          <div
-            className={`mb-6 p-4 rounded-lg ${
-              uploadResult.includes('загружен')
-                ? 'bg-green-50 text-green-800'
-                : 'bg-red-50 text-red-800'
-            }`}
-          >
-            {uploadResult}
+          <div className="mb-6">
+            <StatePanel
+              variant={uploadResult.includes('загружен') ? 'success' : 'error'}
+              title={uploadResult.includes('загружен') ? 'Файл загружен' : 'Ошибка загрузки'}
+              description={uploadResult}
+            />
           </div>
         )}
-        <div className="card mb-6">
-          <div className="card-body">
-            <p className="text-slate-500 dark:text-slate-400 mb-4">
-              Загрузите документы (накладные, спецификации, техкарты) для регистрации в реестре и
-              последующей AI-обработки.
-            </p>
-            <div
-              className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all"
-              onClick={() => inputRef.current?.click()}
-            >
-              <svg
-                className="w-12 h-12 mx-auto mb-3 text-slate-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+        {!canUpload && (
+          <div className="mb-6">
+            <StatePanel
+              variant="warning"
+              title="Только просмотр"
+              description="Загрузка требует право FILES.UPLOAD."
+            />
+          </div>
+        )}
+        {canUpload && (
+          <div className="card mb-6">
+            <div className="card-body">
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Загрузите документы (накладные, спецификации, техкарты) для регистрации в реестре и
+                последующей AI-обработки.
+              </p>
+              <div
+                className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all"
+                onClick={() => inputRef.current?.click()}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-              <p>Нажмите или перетащите файл сюда</p>
+                <svg
+                  className="w-12 h-12 mx-auto mb-3 text-slate-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
+                </svg>
+                <p>Нажмите или перетащите файл сюда</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
         <div className="card">
           <div className="card-header">
             <h3 className="text-lg font-semibold text-[#0F172A]">Загруженные файлы</h3>

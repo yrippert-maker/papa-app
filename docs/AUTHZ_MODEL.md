@@ -47,8 +47,10 @@ Endpoints MUST require exactly one primary permission and MUST deny access other
 | LEDGER.READ | Read ledger events |
 | LEDGER.APPEND | Append to ledger |
 | ADMIN.MANAGE_USERS | Create, update users; manage roles |
-| TMC.MANAGE | TMC items, lots |
+| TMC.VIEW | View TMC items, lots (read-only) |
+| TMC.MANAGE | Create, update TMC |
 | TMC.REQUEST.VIEW | TMC requests |
+| AI_INBOX.VIEW | View AI inbox files |
 
 ### 3.3 Enforcement
 
@@ -73,12 +75,15 @@ Below is the documented mapping (must match DB).
 - LEDGER.READ
 - LEDGER.APPEND
 - ADMIN.MANAGE_USERS
-- TMC.MANAGE, TMC.REQUEST.VIEW (implied by implementation)
+- TMC.VIEW, TMC.MANAGE, TMC.REQUEST.VIEW
+- AI_INBOX.VIEW
 
 ### 4.2 AUDITOR
 
 - WORKSPACE.READ
 - FILES.LIST
+- TMC.VIEW
+- AI_INBOX.VIEW
 - LEDGER.READ
 - (no write permissions)
 
@@ -87,8 +92,10 @@ Below is the documented mapping (must match DB).
 - WORKSPACE.READ
 - FILES.LIST
 - FILES.UPLOAD
+- AI_INBOX.VIEW
 - LEDGER.READ
 - LEDGER.APPEND
+- TMC.VIEW, TMC.MANAGE, TMC.REQUEST.VIEW
 
 ### 4.4 STOREKEEPER
 
@@ -96,12 +103,14 @@ Below is the documented mapping (must match DB).
 - FILES.LIST
 - FILES.UPLOAD
 - LEDGER.READ
+- TMC.VIEW, TMC.MANAGE, TMC.REQUEST.VIEW
 
 ### 4.5 ENGINEER
 
 - WORKSPACE.READ
 - FILES.LIST
 - LEDGER.READ
+- TMC.VIEW, TMC.REQUEST.VIEW
 
 ### 4.6 OPERATOR / CERTIFYING_ENGINEER / SYSTEM
 

@@ -39,11 +39,13 @@ describe('route registry', () => {
       { method: 'GET', path: '/api/tmc/lots' },
       { method: 'GET', path: '/api/tmc/requests' },
       { method: 'GET', path: '/api/files/list' },
+      { method: 'GET', path: '/api/ai-inbox' },
       { method: 'POST', path: '/api/files/upload' },
       { method: 'GET', path: '/api/workspace/status' },
       { method: 'POST', path: '/api/workspace/init' },
       { method: 'GET', path: '/api/ledger/verify' },
       { method: 'POST', path: '/api/ledger/append' },
+      { method: 'GET', path: '/api/authz/verify' },
     ];
     const reg = new Set(routeRegistry.map((r) => `${r.method} ${r.path}`));
     for (const e of expected) {
