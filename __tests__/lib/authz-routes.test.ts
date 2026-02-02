@@ -46,6 +46,7 @@ describe('route registry', () => {
       { method: 'GET', path: '/api/ledger/verify' },
       { method: 'POST', path: '/api/ledger/append' },
       { method: 'GET', path: '/api/authz/verify' },
+      { method: 'GET', path: '/api/system/verify' },
     ];
     const reg = new Set(routeRegistry.map((r) => `${r.method} ${r.path}`));
     for (const e of expected) {

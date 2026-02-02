@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.TMC_MANAGE);
+  const err = requirePermission(session, PERMISSIONS.TMC_VIEW);
   if (err) return err;
 
   try {

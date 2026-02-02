@@ -27,4 +27,5 @@ export const routeRegistry: RouteSpec[] = [
   { method: 'GET', path: '/api/ledger/verify', permission: Permissions.LEDGER_READ },
   { method: 'POST', path: '/api/ledger/append', permission: Permissions.LEDGER_APPEND },
   { method: 'GET', path: '/api/authz/verify', permission: Permissions.WORKSPACE_READ },
+  { method: 'GET', path: '/api/system/verify', permission: Permissions.WORKSPACE_READ },
 ];

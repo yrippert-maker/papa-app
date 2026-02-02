@@ -22,9 +22,17 @@ Status badges appear in the sidebar (when expanded) and provide quick access to 
 | `/system/verify` | WORKSPACE.READ (page), LEDGER.READ (Ledger section) | AuthZ and Ledger verification; visible to auditor/admin |
 
 - **AuthZ section:** requires WORKSPACE.READ (same as page).
-- **Ledger section:** requires LEDGER.READ; users without it see "Требуется право LEDGER.READ".
+- **Ledger section:** requires LEDGER.READ for ledger results; users without it see "Ledger verification skipped" after Verify.
+- **Data source:** single `GET /api/system/verify` (aggregator); no separate authz/ledger calls.
 
-### API response format `/api/ledger/verify`
+### API response format `GET /api/system/verify` (aggregator)
+
+- **200 OK:** `{ ok, authz_verification, ledger_verification, timing_ms }`
+- **ledger_verification:** `{ ok, message, scope }` or `{ skipped: true, reason }` when LEDGER.READ not granted
+- **429:** rate limit (10 req/min)
+- **403:** WORKSPACE.READ required
+
+### API response format `/api/ledger/verify` (standalone, optional)
 
 - **200 OK:** `{ ok: true, message, scope: { event_count, id_min, id_max }, timing_ms: { total } }`; `Cache-Control: no-store`
 - **403:** access denied (LEDGER.READ required)

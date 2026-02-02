@@ -3,7 +3,7 @@
 This document provides regulator-ready evidence for authorization enforcement:
 Endpoint → Permission → Roles → DB Mode → Evidence.
 
-**Source of truth (route registry):** `lib/authz/routes.ts`. This table is a regulatory snapshot. When adding routes, update both the registry and this document in the same release. CI test `authz-routes.test.ts` enforces deny-by-default and route count (14).
+**Source of truth (route registry):** `lib/authz/routes.ts`. This table is a regulatory snapshot. When adding routes, update both the registry and this document in the same release. CI test `authz-routes.test.ts` enforces deny-by-default and route count (15).
 
 ## 1. Normative statements
 
@@ -30,6 +30,7 @@ Endpoint → Permission → Roles → DB Mode → Evidence.
 | /api/ledger/verify | GET | LEDGER.READ | AUDITOR, ADMIN | readonly | Unit: authz |
 | /api/ledger/append | POST | LEDGER.APPEND | MANAGER, ADMIN | readwrite | E2E: auditor 403 |
 | /api/authz/verify | GET | WORKSPACE.READ | AUDITOR, ADMIN | readonly | Runtime AuthZ verification (v0.1.3) |
+| /api/system/verify | GET | WORKSPACE.READ | AUDITOR, ADMIN | readonly | Aggregator: AuthZ + Ledger snapshot (v0.1.6) |
 
 > **Notes:**
 > - If an endpoint is not listed here, it MUST NOT exist in the production build.

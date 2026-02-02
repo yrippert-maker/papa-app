@@ -20,7 +20,7 @@ const cmd = process.argv[2] || 'up';
 const dbDir = dirname(dbPath);
 if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
 
-const db = new Database(dbPath);
+let db = new Database(dbPath);
 db.exec(`
   CREATE TABLE IF NOT EXISTS schema_migrations (
     version TEXT PRIMARY KEY,
@@ -64,6 +64,8 @@ if (cmd === 'up') {
       const db2 = new Database(dbPath);
       db2.prepare('INSERT INTO schema_migrations (version) VALUES (?)').run(name);
       db2.close();
+      // Re-open for next migration
+      db = new Database(dbPath);
     } else {
       const sql = readFileSync(sqlPath, 'utf8');
       db.exec(sql);

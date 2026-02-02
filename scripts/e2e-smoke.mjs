@@ -232,6 +232,24 @@ async function run() {
     }
   }
 
+  // 4. Verify aggregator (auditor has WORKSPACE.READ + LEDGER.READ)
+  const rVerifyAgg = await fetchWithJar(auditorJar, `${BASE}/api/system/verify`);
+  if (rVerifyAgg.status !== 200) {
+    console.error('[FAIL] Auditor: /api/system/verify expected 200, got', rVerifyAgg.status);
+    failed = true;
+  } else {
+    const vBody = await rVerifyAgg.json();
+    if (!vBody.authz_verification || vBody.ledger_verification?.skipped) {
+      console.error('[FAIL] Auditor: /api/system/verify expected ledger included (not skipped), got', vBody);
+      failed = true;
+    } else if (!vBody.ledger_verification || !('ok' in vBody.ledger_verification)) {
+      console.error('[FAIL] Auditor: /api/system/verify expected ledger_verification.ok field, got', vBody);
+      failed = true;
+    } else {
+      console.log('[OK] Auditor: /api/system/verify → 200 (AuthZ + Ledger included)');
+    }
+  }
+
   if (failed) process.exit(1);
   console.log('E2E smoke: all passed');
 }

@@ -4,35 +4,30 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatePanel } from '@/components/ui/StatePanel';
 import { useSession } from 'next-auth/react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 type VerifyState = 'idle' | 'loading' | 'ok' | 'failed' | 'skipped' | 'rate_limit' | 'error';
 
-type AuthzVerifyResponse = {
+type AggregatorResponse = {
   ok?: boolean;
   schema_version?: number;
+  generated_at?: string;
   authz_verification?: {
-    executed: boolean;
-    skipped: boolean;
-    authz_ok: boolean | null;
-    message: string;
+    authz_ok?: boolean;
+    message?: string;
     scope?: {
-      route_count: number;
-      permission_count: number;
-      role_count: number;
+      route_count?: number;
+      permission_count?: number;
+      role_count?: number;
       deny_by_default_scope?: string;
     };
   };
-  timing_ms?: { total?: number; verify?: number };
+  ledger_verification?:
+    | { ok: true; message?: string; scope?: { event_count: number; id_min: number | null; id_max: number | null } }
+    | { ok: false; error?: string }
+    | { skipped: true; reason?: string };
+  timing_ms?: { total?: number; authz?: number; ledger?: number };
   error?: string;
-};
-
-type LedgerVerifyResponse = {
-  ok?: boolean;
-  message?: string;
-  error?: string;
-  scope?: { event_count: number; id_min: number | null; id_max: number | null };
-  timing_ms?: { total?: number };
 };
 
 function hasWorkspaceRead(permissions: string[]): boolean {
@@ -46,71 +41,52 @@ function hasLedgerRead(permissions: string[]): boolean {
 export default function SystemVerifyPage() {
   const { data: session } = useSession();
   const permissions = (session?.user as { permissions?: string[] } | undefined)?.permissions ?? [];
-  const [state, setState] = useState<VerifyState>('idle');
-  const [result, setResult] = useState<AuthzVerifyResponse | null>(null);
-  const [ledgerState, setLedgerState] = useState<VerifyState>('idle');
-  const [ledgerResult, setLedgerResult] = useState<LedgerVerifyResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<AggregatorResponse | null>(null);
+  const [overallState, setOverallState] = useState<VerifyState>('idle');
+  const inFlightRef = useRef(false);
 
   const runVerify = useCallback(() => {
-    setState('loading');
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setLoading(true);
     setResult(null);
-    fetch('/api/authz/verify')
+    setOverallState('idle');
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    fetch('/api/system/verify', { signal: controller.signal })
       .then((r) => {
         if (r.status === 429) {
-          setState('rate_limit');
+          setOverallState('rate_limit');
           return null;
         }
-        return r.json().then((body: AuthzVerifyResponse) => ({ status: r.status, body }));
+        return r.json().then((body: AggregatorResponse) => ({ status: r.status, body }));
       })
       .then((data) => {
         if (!data) return;
         const { status, body } = data;
         setResult(body);
         if (status !== 200) {
-          setState(status === 500 ? 'error' : 'failed');
+          setOverallState(status === 500 ? 'error' : 'failed');
           return;
         }
-        const av = body.authz_verification;
-        if (av?.skipped || av?.executed === false || av?.authz_ok === null) {
-          setState('skipped');
-        } else if (av?.authz_ok === true) {
-          setState('ok');
+        setOverallState(body.ok ? 'ok' : 'failed');
+      })
+      .catch((e) => {
+        if (e.name === 'AbortError') {
+          setOverallState('error');
+          setResult({ error: 'Request timeout' });
         } else {
-          setState('failed');
+          setOverallState('error');
+          setResult(null);
         }
       })
-      .catch(() => {
-        setState('error');
-        setResult(null);
-      });
-  }, []);
-
-  const runLedgerVerify = useCallback(() => {
-    setLedgerState('loading');
-    setLedgerResult(null);
-    fetch('/api/ledger/verify')
-      .then((r) => {
-        if (r.status === 429) {
-          setLedgerState('rate_limit');
-          return null;
-        }
-        return r.json().then((body: LedgerVerifyResponse) => ({ status: r.status, body }));
-      })
-      .then((data) => {
-        if (!data) return;
-        const { status, body } = data;
-        setLedgerResult(body);
-        if (status === 200 && body.ok) {
-          setLedgerState('ok');
-        } else if (status === 403) {
-          setLedgerState('skipped');
-        } else {
-          setLedgerState('failed');
-        }
-      })
-      .catch(() => {
-        setLedgerState('error');
-        setLedgerResult(null);
+      .finally(() => {
+        clearTimeout(timeoutId);
+        setLoading(false);
+        inFlightRef.current = false;
       });
   }, []);
 
@@ -125,6 +101,13 @@ export default function SystemVerifyPage() {
     );
   }
 
+  const authz = result?.authz_verification;
+  const ledger = result?.ledger_verification;
+  const authzOk = authz?.authz_ok === true;
+  const ledgerSkipped = ledger && 'skipped' in ledger && ledger.skipped;
+  const ledgerOk = ledger && !ledgerSkipped && 'ok' in ledger && ledger.ok;
+  const ledgerFailed = ledger && !ledgerSkipped && 'ok' in ledger && !ledger.ok;
+
   return (
     <DashboardLayout>
       <PageHeader
@@ -133,10 +116,10 @@ export default function SystemVerifyPage() {
         actions={
           <button
             onClick={runVerify}
-            disabled={state === 'loading'}
+            disabled={loading}
             className="btn btn-primary disabled:opacity-50"
           >
-            {state === 'loading' ? 'Проверка…' : 'Verify access control'}
+            {loading ? 'Проверка…' : 'Verify'}
           </button>
         }
       />
@@ -146,97 +129,89 @@ export default function SystemVerifyPage() {
           <h2 id="authz-heading" className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
             AuthZ (RBAC)
           </h2>
-        {/* Result banner */}
-        {state !== 'idle' && state !== 'loading' && (
-          <div className="mb-6">
-            <StatePanel
-              variant={
-                state === 'ok'
-                  ? 'success'
-                  : state === 'skipped' || state === 'rate_limit'
-                    ? 'warning'
-                    : 'error'
-              }
-              title={
-                state === 'ok'
-                  ? 'OK'
-                  : state === 'skipped'
-                    ? 'Skipped / Unavailable'
-                    : state === 'rate_limit'
+          {overallState !== 'idle' && overallState !== 'loading' && (
+            <div className="mb-6">
+              <StatePanel
+                variant={
+                  overallState === 'ok'
+                    ? 'success'
+                    : overallState === 'rate_limit'
+                      ? 'warning'
+                      : 'error'
+                }
+                title={
+                  overallState === 'ok'
+                    ? 'OK'
+                    : overallState === 'rate_limit'
                       ? 'Rate limit — попробуйте позже'
                       : 'Failed'
-              }
-              description={
-                result?.authz_verification?.message && state !== 'rate_limit'
-                  ? result.authz_verification.message
-                  : state === 'rate_limit'
-                    ? 'Превышен лимит запросов. Подождите минуту и повторите.'
-                    : state === 'error'
-                      ? 'Internal error'
-                      : undefined
-              }
-              actions={
-                (state === 'error' || state === 'rate_limit') && (
-                  <button
-                    onClick={runVerify}
-                    className="text-sm font-medium underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 rounded"
-                  >
-                    Повторить
-                  </button>
-                )
-              }
-            />
-          </div>
-        )}
+                }
+                description={
+                  overallState === 'rate_limit'
+                    ? 'Превышен лимит запросов (10/мин). Подождите минуту и нажмите Verify.'
+                    : authz?.message ?? result?.error ?? 'Internal error'
+                }
+                actions={
+                  (overallState === 'error' || overallState === 'rate_limit') && (
+                    <button
+                      onClick={runVerify}
+                      className="text-sm font-medium underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 rounded"
+                    >
+                      Повторить
+                    </button>
+                  )
+                }
+              />
+            </div>
+          )}
 
-        {/* AuthZ Details (read-only) */}
-        {result && (state === 'ok' || state === 'failed' || state === 'skipped') && (
-          <div className="card">
-            <div className="card-header">
-              <h3 className="text-lg font-semibold">Детали проверки</h3>
-            </div>
-            <div className="card-body">
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                {result.schema_version != null && (
-                  <>
-                    <div>
-                      <dt className="text-slate-500 dark:text-slate-400">schema_version</dt>
-                      <dd className="font-mono">{result.schema_version}</dd>
-                    </div>
-                    {result.authz_verification?.scope && (
-                      <>
-                        <div>
-                          <dt className="text-slate-500 dark:text-slate-400">route_count</dt>
-                          <dd className="font-mono">{result.authz_verification.scope.route_count}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500 dark:text-slate-400">permission_count</dt>
-                          <dd className="font-mono">{result.authz_verification.scope.permission_count}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500 dark:text-slate-400">role_count</dt>
-                          <dd className="font-mono">{result.authz_verification.scope.role_count}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500 dark:text-slate-400">deny_by_default_scope</dt>
-                          <dd className="font-mono">{result.authz_verification.scope.deny_by_default_scope ?? '—'}</dd>
-                        </div>
-                      </>
-                    )}
-                    {result.timing_ms && (
+          {result && authz && (overallState === 'ok' || overallState === 'failed') && (
+            <div className="card">
+              <div className="card-header">
+                <h3 className="text-lg font-semibold">Детали AuthZ</h3>
+              </div>
+              <div className="card-body">
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  {result.schema_version != null && (
+                    <>
                       <div>
-                        <dt className="text-slate-500 dark:text-slate-400">timing_ms</dt>
-                        <dd className="font-mono">
-                          {result.timing_ms.total != null ? `${result.timing_ms.total} ms` : '—'}
-                        </dd>
+                        <dt className="text-slate-500 dark:text-slate-400">schema_version</dt>
+                        <dd className="font-mono">{result.schema_version}</dd>
                       </div>
-                    )}
-                  </>
-                )}
-              </dl>
+                      {authz.scope && (
+                        <>
+                          <div>
+                            <dt className="text-slate-500 dark:text-slate-400">route_count</dt>
+                            <dd className="font-mono">{authz.scope.route_count}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500 dark:text-slate-400">permission_count</dt>
+                            <dd className="font-mono">{authz.scope.permission_count}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500 dark:text-slate-400">role_count</dt>
+                            <dd className="font-mono">{authz.scope.role_count}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500 dark:text-slate-400">deny_by_default_scope</dt>
+                            <dd className="font-mono">{authz.scope.deny_by_default_scope ?? '—'}</dd>
+                          </div>
+                        </>
+                      )}
+                      {result.timing_ms && (
+                        <div>
+                          <dt className="text-slate-500 dark:text-slate-400">timing_ms</dt>
+                          <dd className="font-mono">
+                            {result.timing_ms.total != null ? `${result.timing_ms.total} ms` : '—'}
+                          </dd>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </dl>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </section>
 
         {/* Ledger section */}
@@ -244,57 +219,40 @@ export default function SystemVerifyPage() {
           <h2 id="ledger-heading" className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
             Ledger integrity
           </h2>
-          {hasLedgerRead(permissions) ? (
+          {result === null && overallState === 'idle' ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Нажмите &quot;Verify&quot; для проверки AuthZ и Ledger.
+              {!hasLedgerRead(permissions) && ' Ledger будет пропущен (требуется LEDGER.READ).'}
+            </p>
+          ) : result && overallState !== 'loading' ? (
             <>
-              <div className="mb-4">
-                <button
-                  onClick={runLedgerVerify}
-                  disabled={ledgerState === 'loading'}
-                  className="btn btn-secondary disabled:opacity-50"
-                >
-                  {ledgerState === 'loading' ? 'Проверка…' : 'Verify ledger'}
-                </button>
-              </div>
-              {ledgerState !== 'idle' && ledgerState !== 'loading' && (
+              {ledgerSkipped && (
                 <div className="mb-6">
                   <StatePanel
-                    variant={
-                      ledgerState === 'ok'
-                        ? 'success'
-                        : ledgerState === 'skipped' || ledgerState === 'rate_limit'
-                          ? 'warning'
-                          : 'error'
-                    }
-                    title={
-                      ledgerState === 'ok'
-                        ? 'OK'
-                        : ledgerState === 'skipped'
-                          ? 'Доступ запрещён'
-                          : ledgerState === 'rate_limit'
-                            ? 'Rate limit — попробуйте позже'
-                            : 'Failed'
-                    }
-                    description={
-                      ledgerState === 'skipped'
-                        ? 'Требуется право LEDGER.READ.'
-                        : ledgerState === 'rate_limit'
-                          ? 'Превышен лимит запросов.'
-                          : ledgerResult?.error ?? ledgerResult?.message
-                    }
+                    variant="warning"
+                    title="Ledger verification skipped"
+                    description={(ledger as { reason?: string }).reason ?? 'LEDGER.READ not granted'}
+                  />
+                </div>
+              )}
+              {ledgerFailed && (
+                <div className="mb-6">
+                  <StatePanel
+                    variant="error"
+                    title="Failed"
+                    description={(ledger as { error?: string }).error ?? 'Ledger verification failed'}
                     actions={
-                      (ledgerState === 'error' || ledgerState === 'rate_limit') && (
-                        <button
-                          onClick={runLedgerVerify}
-                          className="text-sm font-medium underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 rounded"
-                        >
-                          Повторить
-                        </button>
-                      )
+                      <button
+                        onClick={runVerify}
+                        className="text-sm font-medium underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 rounded"
+                      >
+                        Повторить
+                      </button>
                     }
                   />
                 </div>
               )}
-              {ledgerResult && (ledgerState === 'ok' || ledgerState === 'failed') && ledgerResult.scope && (
+              {ledgerOk && ledger && 'scope' in ledger && ledger.scope && (
                 <div className="card">
                   <div className="card-header">
                     <h3 className="text-lg font-semibold">Детали Ledger</h3>
@@ -303,20 +261,20 @@ export default function SystemVerifyPage() {
                     <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div>
                         <dt className="text-slate-500 dark:text-slate-400">event_count</dt>
-                        <dd className="font-mono">{ledgerResult.scope.event_count}</dd>
+                        <dd className="font-mono">{ledger.scope.event_count}</dd>
                       </div>
                       <div>
                         <dt className="text-slate-500 dark:text-slate-400">id_min</dt>
-                        <dd className="font-mono">{ledgerResult.scope.id_min ?? '—'}</dd>
+                        <dd className="font-mono">{ledger.scope.id_min ?? '—'}</dd>
                       </div>
                       <div>
                         <dt className="text-slate-500 dark:text-slate-400">id_max</dt>
-                        <dd className="font-mono">{ledgerResult.scope.id_max ?? '—'}</dd>
+                        <dd className="font-mono">{ledger.scope.id_max ?? '—'}</dd>
                       </div>
-                      {ledgerResult.timing_ms?.total != null && (
+                      {result.timing_ms?.ledger != null && (
                         <div>
                           <dt className="text-slate-500 dark:text-slate-400">timing_ms</dt>
-                          <dd className="font-mono">{ledgerResult.timing_ms.total} ms</dd>
+                          <dd className="font-mono">{result.timing_ms.ledger} ms</dd>
                         </div>
                       )}
                     </dl>
@@ -324,9 +282,7 @@ export default function SystemVerifyPage() {
                 </div>
               )}
             </>
-          ) : (
-            <StatePanel variant="warning" title="Доступ запрещён" description="Требуется право LEDGER.READ для проверки Ledger." />
-          )}
+          ) : null}
         </section>
       </main>
     </DashboardLayout>
