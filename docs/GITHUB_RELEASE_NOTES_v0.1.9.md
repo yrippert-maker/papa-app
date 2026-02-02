@@ -63,4 +63,4 @@ v0.1.9 добавляет read-only API для модуля Inspection (техк
 ## Release Artifacts
 
 - `dist/regulatory-bundle-v0.1.9.zip`
-- SHA-256: **`c9f37a8d64a93a029bccd4d1920fb7737be1de9e48d4aa7f179b241704b5ff6f`**
+- SHA-256: **`0d1712f278249288b7c799c262c713d0107c8630708147193e725477e31bf55c`**
