@@ -50,4 +50,4 @@ self-contained JSON snapshot с результатами проверок, audit
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.15.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **db081ae82e67ebe05a764ec91b6e8c509f4a9e6625f82860e19f51e4f1cb92c7**
