@@ -107,3 +107,14 @@ export function buildEvidenceExport(
 
   return { ...body, export_hash };
 }
+
+/**
+ * Verifies the export_hash matches the content of the export.
+ * Returns { valid, computedHash } for external verification.
+ */
+export function verifyExportContent(exportData: EvidenceExport): { valid: boolean; computedHash: string } {
+  const { export_hash, export_signature: _, export_key_id: __, export_public_key: ___, ...body } = exportData;
+  void _; void __; void ___;  // mark as used
+  const computedHash = computeExportHash(body as Omit<EvidenceExport, 'export_hash'>);
+  return { valid: computedHash === export_hash, computedHash };
+}

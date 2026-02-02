@@ -86,4 +86,60 @@ describe('evidence-signing', () => {
     expect(active).toBe(newKeyId);
     expect(archived).toContain(oldKeyId);
   });
+
+  it('revokeKey marks archived key as revoked', () => {
+    const { ensureKeys, rotateKeys, revokeKey, isKeyRevoked, getKeyStatus } = require('@/lib/evidence-signing');
+    const { keyId: oldKeyId } = ensureKeys();
+    rotateKeys();
+    
+    // Revoke old key
+    const result = revokeKey(oldKeyId, 'test revocation');
+    expect(result).toBe(true);
+    
+    // Check revocation
+    const revocation = isKeyRevoked(oldKeyId);
+    expect(revocation).not.toBeNull();
+    expect(revocation?.reason).toBe('test revocation');
+    expect(revocation?.revokedAt).toBeDefined();
+    
+    // Check key status
+    const status = getKeyStatus(oldKeyId);
+    expect(status?.isRevoked).toBe(true);
+    expect(status?.revocationInfo?.reason).toBe('test revocation');
+  });
+
+  it('verifyExportHash rejects revoked keys', () => {
+    const { ensureKeys, rotateKeys, signExportHash, verifyExportHash, revokeKey } = require('@/lib/evidence-signing');
+    const { keyId: oldKeyId } = ensureKeys();
+    const hash = 'g'.repeat(64);
+    const { signature: oldSig } = signExportHash(hash);
+    
+    rotateKeys();
+    revokeKey(oldKeyId, 'compromised');
+    
+    // Old signature should NOT verify anymore
+    expect(verifyExportHash(hash, oldSig, oldKeyId)).toBe(false);
+  });
+
+  it('verifyExportHashWithDetails returns revocation info', () => {
+    const { ensureKeys, rotateKeys, signExportHash, verifyExportHashWithDetails, revokeKey } = require('@/lib/evidence-signing');
+    const { keyId: oldKeyId } = ensureKeys();
+    const hash = 'h'.repeat(64);
+    const { signature: oldSig } = signExportHash(hash);
+    
+    rotateKeys();
+    revokeKey(oldKeyId, 'policy rotation');
+    
+    const result = verifyExportHashWithDetails(hash, oldSig, oldKeyId);
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('KEY_REVOKED');
+    expect(result.revocationReason).toBe('policy rotation');
+  });
+
+  it('cannot revoke active key', () => {
+    const { ensureKeys, revokeKey } = require('@/lib/evidence-signing');
+    const { keyId } = ensureKeys();
+    
+    expect(() => revokeKey(keyId, 'test')).toThrow('Cannot revoke active key');
+  });
 });

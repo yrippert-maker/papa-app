@@ -206,16 +206,37 @@ async function run() {
       }
     }
     const rEvidenceSigned = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/evidence?signed=1`);
+    let signedExportBody = null;
     if (rEvidenceSigned.status !== 200) {
       console.error('[FAIL] Auditor: /api/inspection/cards/:id/evidence?signed=1 expected 200, got', rEvidenceSigned.status);
       failed = true;
     } else {
-      const signedBody = await rEvidenceSigned.json();
-      if (!signedBody.export_signature || !signedBody.export_public_key || !signedBody.export_key_id) {
+      signedExportBody = await rEvidenceSigned.json();
+      if (!signedExportBody.export_signature || !signedExportBody.export_public_key || !signedExportBody.export_key_id) {
         console.error('[FAIL] Auditor: evidence?signed=1 must have export_signature, export_public_key, export_key_id');
         failed = true;
       } else {
         console.log('[OK] Auditor: /api/inspection/cards/:id/evidence?signed=1 → 200 (signed export with key_id)');
+      }
+    }
+    // Verify signed export
+    if (signedExportBody) {
+      const rVerify = await fetchWithJar(auditorJar, `${BASE}/api/inspection/evidence/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ export_json: signedExportBody }),
+      });
+      if (rVerify.status !== 200) {
+        console.error('[FAIL] Auditor: /api/inspection/evidence/verify expected 200, got', rVerify.status);
+        failed = true;
+      } else {
+        const verifyBody = await rVerify.json();
+        if (!verifyBody.ok || !verifyBody.content?.valid || !verifyBody.signature?.valid) {
+          console.error('[FAIL] Auditor: evidence/verify must return ok:true, content.valid:true, signature.valid:true');
+          failed = true;
+        } else {
+          console.log('[OK] Auditor: /api/inspection/evidence/verify → 200 (verified signed export)');
+        }
       }
     }
     const rCheckResults = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/check-results`, {

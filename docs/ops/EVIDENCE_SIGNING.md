@@ -72,9 +72,50 @@ const { active, archived } = listKeyIds();
 - Старые подписи верифицируются по `key_id` (публичный ключ хранится в `archived/{key_id}/`)
 - Приватный ключ НЕ архивируется (security best practice)
 
+## Key Revocation
+
+Отзыв ключа (после ротации):
+
+```typescript
+import { revokeKey, isKeyRevoked, getKeyStatus } from '@/lib/evidence-signing';
+
+// Отозвать архивный ключ
+revokeKey(oldKeyId, 'compromised');
+
+// Проверить статус
+const revocation = isKeyRevoked(oldKeyId);
+// { revoked: true, reason: 'compromised', revokedAt: '2026-...' }
+
+const status = getKeyStatus(oldKeyId);
+// { keyId, isActive: false, isRevoked: true, revocationInfo: {...} }
+```
+
+**ВАЖНО:** 
+- Нельзя отозвать активный ключ (сначала `rotateKeys()`)
+- `verifyExportHash` автоматически отклоняет подписи отозванных ключей
+- Используйте `verifyExportHashWithDetails` для детальной информации об ошибке
+
+## Evidence Verification Endpoint
+
+```
+POST /api/inspection/evidence/verify
+```
+
+Принимает:
+- `export_json` — полный evidence export
+- `signature` (опционально) — подпись, если нет в export_json
+- `key_id` (опционально) — key_id, если нет в export_json
+
+Возвращает:
+- `ok` — общий результат
+- `content.valid` — content hash совпадает
+- `signature.valid` — подпись валидна
+- `signature.error` — `KEY_NOT_FOUND`, `KEY_REVOKED`, `SIGNATURE_INVALID`
+- `errors[]` — человекочитаемые ошибки
+
 ## Безопасность
 
 - Приватный ключ хранится только на сервере (mode 0600)
 - `key_id` позволяет отслеживать, каким ключом подписан каждый экспорт
-- При компрометации — вызвать `rotateKeys()` (старый ключ архивируется)
+- При компрометации — `rotateKeys()` + `revokeKey(oldId, 'compromised')`
 - Регулярная ротация — по политике организации (рекомендуется: ежеквартально или при смене персонала)

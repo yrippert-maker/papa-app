@@ -183,6 +183,49 @@ Evidence export для compliance: snapshot карты + check_results + audit e
   - `export_key_id` — идентификатор ключа (16 hex chars, SHA-256 fingerprint публичного ключа)
   - `export_public_key` — PEM публичный ключ
 
+---
+
+## POST /api/inspection/evidence/verify
+
+Верификация evidence export: проверяет content hash и подпись.
+
+**Permission:** `INSPECTION.VIEW`
+
+**Request body:**
+```json
+{
+  "export_json": { ... },        // полный объект evidence export
+  "signature": "hex...",         // опционально, если нет в export_json
+  "key_id": "abc123..."          // опционально, если нет в export_json
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "content": {
+    "valid": true,
+    "export_hash": "...",
+    "computed_hash": "..."
+  },
+  "signature": {
+    "valid": true,
+    "key_id": "abc123...",
+    "key_status": {
+      "is_active": false,
+      "is_revoked": false
+    }
+  }
+}
+```
+
+**Ошибки верификации:**
+- `ok: false` при несовпадении content hash или невалидной подписи
+- `signature.error`: `KEY_NOT_FOUND`, `KEY_REVOKED`, `SIGNATURE_INVALID`, `INVALID_FORMAT`
+- `signature.revocation_reason`: причина отзыва ключа (если `KEY_REVOKED`)
+- `errors[]`: человекочитаемые описания ошибок
+
 **Response (ZIP, format=bundle):** архив содержит:
 - `export.json` — полный evidence export (включая `export_key_id`)
 - `export.signature` — hex подпись `export_hash` (Ed25519)

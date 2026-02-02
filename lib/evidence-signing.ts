@@ -21,6 +21,14 @@ const LEGACY_PUBLIC_KEY = join(KEYS_DIR, 'evidence-signing.pub');
 
 export type KeyPair = { privateKey: string; publicKey: string };
 export type KeyInfo = { publicKey: string; keyId: string };
+export type RevocationInfo = { revoked: true; reason: string; revokedAt: string };
+export type KeyStatus = { keyId: string; isActive: boolean; isRevoked: boolean; revocationInfo?: RevocationInfo };
+export type VerifyResult = {
+  valid: boolean;
+  keyId?: string;
+  error?: 'KEY_NOT_FOUND' | 'KEY_REVOKED' | 'SIGNATURE_INVALID' | 'INVALID_FORMAT';
+  revocationReason?: string;
+};
 
 /**
  * Computes key_id from public key (SHA-256 fingerprint, first 16 hex chars).
@@ -128,6 +136,7 @@ export function findPublicKeyById(keyId: string): string | null {
  * Verifies signature of export_hash.
  * keyId: key_id to find the correct public key (optional for legacy).
  * publicKey: PEM string (optional, overrides keyId lookup).
+ * NOTE: Rejects revoked keys. For detailed result, use verifyExportHashWithDetails.
  */
 export function verifyExportHash(
   exportHash: string,
@@ -135,22 +144,20 @@ export function verifyExportHash(
   keyId?: string,
   publicKey?: string
 ): boolean {
-  let pub = publicKey;
-  if (!pub && keyId) {
-    pub = findPublicKeyById(keyId) ?? undefined;
+  // If publicKey is provided directly, skip revocation check (caller's responsibility)
+  if (publicKey) {
+    try {
+      const data = Buffer.from(exportHash, 'utf8');
+      const sig = Buffer.from(signatureHex, 'hex');
+      return crypto.verify(null, data, publicKey, sig);
+    } catch {
+      return false;
+    }
   }
-  if (!pub) {
-    // Legacy fallback: try active key
-    pub = existsSync(PUBLIC_KEY_FILE) ? readFileSync(PUBLIC_KEY_FILE, 'utf8') : undefined;
-  }
-  if (!pub) return false;
-  try {
-    const data = Buffer.from(exportHash, 'utf8');
-    const sig = Buffer.from(signatureHex, 'hex');
-    return crypto.verify(null, data, pub, sig);
-  } catch {
-    return false;
-  }
+  
+  // Use detailed verification (includes revocation check)
+  const result = verifyExportHashWithDetails(exportHash, signatureHex, keyId);
+  return result.valid;
 }
 
 /**
@@ -204,4 +211,126 @@ export function listKeyIds(): { active: string | null; archived: string[] } {
     }
   }
   return { active, archived };
+}
+
+/**
+ * Checks if a key is revoked.
+ */
+export function isKeyRevoked(keyId: string): RevocationInfo | null {
+  const revokedFile = join(ARCHIVED_DIR, keyId, 'revoked.json');
+  if (existsSync(revokedFile)) {
+    try {
+      const data = JSON.parse(readFileSync(revokedFile, 'utf8'));
+      if (data.revoked) {
+        return { revoked: true, reason: data.reason, revokedAt: data.revokedAt };
+      }
+    } catch {
+      // ignore malformed file
+    }
+  }
+  return null;
+}
+
+/**
+ * Revokes a key by key_id. Key must be archived first.
+ * @param keyId - the key to revoke
+ * @param reason - reason for revocation (e.g., "compromised", "personnel change", "policy rotation")
+ */
+export function revokeKey(keyId: string, reason: string): boolean {
+  const activeKeyId = getActiveKeyId();
+  if (activeKeyId === keyId) {
+    throw new Error('Cannot revoke active key. Rotate keys first.');
+  }
+  const keyDir = join(ARCHIVED_DIR, keyId);
+  if (!existsSync(keyDir)) {
+    return false; // key not found
+  }
+  const revokedFile = join(keyDir, 'revoked.json');
+  const revocationData = {
+    revoked: true,
+    reason,
+    revokedAt: new Date().toISOString(),
+  };
+  writeFileSync(revokedFile, JSON.stringify(revocationData, null, 2), { mode: 0o644 });
+  return true;
+}
+
+/**
+ * Gets status of a key by key_id.
+ */
+export function getKeyStatus(keyId: string): KeyStatus | null {
+  const activeKeyId = getActiveKeyId();
+  const isActive = activeKeyId === keyId;
+  
+  // Check if key exists
+  if (isActive && existsSync(PUBLIC_KEY_FILE)) {
+    return { keyId, isActive: true, isRevoked: false };
+  }
+  
+  const archivedKeyDir = join(ARCHIVED_DIR, keyId);
+  if (!existsSync(archivedKeyDir)) {
+    return null;
+  }
+  
+  const revocationInfo = isKeyRevoked(keyId);
+  return {
+    keyId,
+    isActive: false,
+    isRevoked: !!revocationInfo,
+    revocationInfo: revocationInfo ?? undefined,
+  };
+}
+
+/**
+ * Verifies signature with detailed result (checks revocation).
+ */
+export function verifyExportHashWithDetails(
+  exportHash: string,
+  signatureHex: string,
+  keyId?: string,
+  publicKey?: string
+): VerifyResult {
+  // Validate format
+  if (!exportHash || typeof exportHash !== 'string') {
+    return { valid: false, error: 'INVALID_FORMAT' };
+  }
+  if (!signatureHex || typeof signatureHex !== 'string' || !/^[a-f0-9]+$/i.test(signatureHex)) {
+    return { valid: false, error: 'INVALID_FORMAT' };
+  }
+
+  let pub = publicKey;
+  let resolvedKeyId = keyId;
+
+  if (!pub && keyId) {
+    // Check revocation first
+    const revocation = isKeyRevoked(keyId);
+    if (revocation) {
+      return { valid: false, keyId, error: 'KEY_REVOKED', revocationReason: revocation.reason };
+    }
+    pub = findPublicKeyById(keyId) ?? undefined;
+  }
+
+  if (!pub) {
+    // Legacy fallback: try active key
+    if (existsSync(PUBLIC_KEY_FILE)) {
+      pub = readFileSync(PUBLIC_KEY_FILE, 'utf8');
+      resolvedKeyId = getActiveKeyId() ?? undefined;
+    }
+  }
+
+  if (!pub) {
+    return { valid: false, keyId: resolvedKeyId, error: 'KEY_NOT_FOUND' };
+  }
+
+  try {
+    const data = Buffer.from(exportHash, 'utf8');
+    const sig = Buffer.from(signatureHex, 'hex');
+    const valid = crypto.verify(null, data, pub, sig);
+    if (valid) {
+      return { valid: true, keyId: resolvedKeyId };
+    }
+    return { valid: false, keyId: resolvedKeyId, error: 'SIGNATURE_INVALID' };
+  } catch {
+    return { valid: false, keyId: resolvedKeyId, error: 'SIGNATURE_INVALID' };
+  }
 }

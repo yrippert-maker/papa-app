@@ -24,6 +24,7 @@ export const routeRegistry: RouteSpec[] = [
   { method: 'GET', path: '/api/inspection/cards/:id', permission: Permissions.INSPECTION_VIEW },
   { method: 'GET', path: '/api/inspection/cards/:id/audit', permission: Permissions.INSPECTION_VIEW },
   { method: 'GET', path: '/api/inspection/cards/:id/evidence', permission: Permissions.INSPECTION_VIEW },
+  { method: 'POST', path: '/api/inspection/evidence/verify', permission: Permissions.INSPECTION_VIEW },
   { method: 'POST', path: '/api/inspection/cards/:id/transition', permission: Permissions.INSPECTION_MANAGE },
   { method: 'POST', path: '/api/inspection/cards/:id/check-results', permission: Permissions.INSPECTION_MANAGE },
   { method: 'GET', path: '/api/files/list', permission: Permissions.FILES_LIST },

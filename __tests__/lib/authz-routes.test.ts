@@ -43,6 +43,7 @@ describe('route registry', () => {
       { method: 'GET', path: '/api/inspection/cards/:id' },
       { method: 'GET', path: '/api/inspection/cards/:id/audit' },
       { method: 'GET', path: '/api/inspection/cards/:id/evidence' },
+      { method: 'POST', path: '/api/inspection/evidence/verify' },
       { method: 'POST', path: '/api/inspection/cards/:id/transition' },
       { method: 'POST', path: '/api/inspection/cards/:id/check-results' },
       { method: 'GET', path: '/api/files/list' },
