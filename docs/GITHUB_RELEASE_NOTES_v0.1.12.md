@@ -59,4 +59,4 @@ v0.1.12 добавляет write-path для результатов провер
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.12.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **15ed5c678b42fe79652a8e67f9c117fe4f6b729c1133808fe0fee886f04e7f30**
