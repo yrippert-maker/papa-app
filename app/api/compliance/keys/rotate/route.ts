@@ -7,7 +7,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS, hasPermission } from '@/lib/authz';
-import { rotateKeys } from '@/lib/compliance-service';
+import { rotateKeys, logKeyAction } from '@/lib/compliance-service';
+import { getActiveKeyId } from '@/lib/evidence-signing';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,16 @@ export async function POST(request: Request) {
   }
 
   try {
+    const oldKeyId = getActiveKeyId();
     const newKey = rotateKeys();
+    
+    // Log to ledger
+    const actorId = (session?.user?.id as string) ?? null;
+    logKeyAction('KEY_ROTATED', {
+      key_id: oldKeyId ?? 'none',
+      new_key_id: newKey.key_id,
+    }, actorId);
+    
     return NextResponse.json({
       success: true,
       key: newKey,

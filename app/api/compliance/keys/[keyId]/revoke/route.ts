@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS, hasPermission } from '@/lib/authz';
-import { revokeKey } from '@/lib/compliance-service';
+import { revokeKey, logKeyAction } from '@/lib/compliance-service';
 import { getActiveKeyId } from '@/lib/evidence-signing';
 
 export const dynamic = 'force-dynamic';
@@ -63,6 +63,10 @@ export async function POST(
         { status: 404 }
       );
     }
+    
+    // Log to ledger
+    const actorId = (session?.user?.id as string) ?? null;
+    logKeyAction('KEY_REVOKED', { key_id: keyId, reason }, actorId);
     
     return NextResponse.json({
       success: true,

@@ -58,7 +58,9 @@ describe('route registry', () => {
       { method: 'GET', path: '/api/compliance/keys' },
       { method: 'POST', path: '/api/compliance/keys/rotate' },
       { method: 'POST', path: '/api/compliance/keys/:keyId/revoke' },
+      { method: 'GET', path: '/api/compliance/keys/audit' },
       { method: 'GET', path: '/api/compliance/verify-stats' },
+      { method: 'GET', path: '/api/compliance/export' },
     ];
     const reg = new Set(routeRegistry.map((r) => `${r.method} ${r.path}`));
     for (const e of expected) {

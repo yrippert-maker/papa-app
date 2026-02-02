@@ -24,9 +24,21 @@ type KeysResponse = {
   archived: KeyInfo[];
 };
 
+type AuditEvent = {
+  id: number;
+  action: 'KEY_ROTATED' | 'KEY_REVOKED';
+  key_id: string;
+  new_key_id?: string;
+  reason?: string;
+  actor_id: string | null;
+  created_at: string;
+  block_hash: string;
+};
+
 export default function ComplianceKeysPage() {
   const { data: session, status } = useSession();
   const [keys, setKeys] = useState<KeysResponse | null>(null);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -53,6 +65,18 @@ export default function ComplianceKeysPage() {
     }
   };
 
+  const fetchAudit = async () => {
+    try {
+      const res = await fetch('/api/compliance/keys/audit?limit=20');
+      if (res.ok) {
+        const data = await res.json();
+        setAuditEvents(data.events ?? []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch audit:', err);
+    }
+  };
+
   useEffect(() => {
     if (status === 'loading') return;
     if (!hasView) {
@@ -60,7 +84,7 @@ export default function ComplianceKeysPage() {
       setLoading(false);
       return;
     }
-    fetchKeys().finally(() => setLoading(false));
+    Promise.all([fetchKeys(), fetchAudit()]).finally(() => setLoading(false));
   }, [status, hasView]);
 
   const handleRotate = async () => {
@@ -78,7 +102,7 @@ export default function ComplianceKeysPage() {
         return;
       }
       setSuccess('Ключ успешно ротирован');
-      await fetchKeys();
+      await Promise.all([fetchKeys(), fetchAudit()]);
     } catch (err) {
       setError('Network error');
     } finally {
@@ -104,7 +128,7 @@ export default function ComplianceKeysPage() {
       setSuccess(`Ключ ${keyId} успешно отозван`);
       setShowRevokeModal(null);
       setRevokeReason('');
-      await fetchKeys();
+      await Promise.all([fetchKeys(), fetchAudit()]);
     } catch (err) {
       setError('Network error');
     } finally {
@@ -260,6 +284,59 @@ export default function ComplianceKeysPage() {
                           )}
                         </td>
                       )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Audit Log */}
+        <div className="card">
+          <div className="card-header flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-[#0F172A] dark:text-slate-100">Журнал действий</h3>
+            <a
+              href="/api/compliance/export?type=key-audit"
+              className="btn btn-ghost btn-xs"
+              download
+            >
+              📥 CSV
+            </a>
+          </div>
+          <div className="card-body">
+            {auditEvents.length === 0 ? (
+              <p className="text-[#64748B] dark:text-slate-400">Нет записей</p>
+            ) : (
+              <table className="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Время</th>
+                    <th>Действие</th>
+                    <th>Key ID</th>
+                    <th>Детали</th>
+                    <th>Актор</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditEvents.map((e) => (
+                    <tr key={e.id}>
+                      <td className="text-xs whitespace-nowrap">{formatDate(e.created_at)}</td>
+                      <td>
+                        <span className={`badge badge-sm ${e.action === 'KEY_ROTATED' ? 'badge-info' : 'badge-error'}`}>
+                          {e.action === 'KEY_ROTATED' ? 'Ротация' : 'Отзыв'}
+                        </span>
+                      </td>
+                      <td className="font-mono text-xs">{e.key_id}</td>
+                      <td className="text-xs max-w-xs truncate">
+                        {e.action === 'KEY_ROTATED' && e.new_key_id && (
+                          <span>→ {e.new_key_id}</span>
+                        )}
+                        {e.action === 'KEY_REVOKED' && e.reason && (
+                          <span title={e.reason}>{e.reason}</span>
+                        )}
+                      </td>
+                      <td className="text-xs">{e.actor_id ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>

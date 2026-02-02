@@ -115,9 +115,18 @@ export default function ComplianceVerifyPage() {
         title="Статистика верификации"
         subtitle="Метрики Evidence Verify и Dead-Letter"
         actions={
-          <Link href="/inspection/verify" className="btn btn-outline btn-sm">
-            Проверить Evidence
-          </Link>
+          <div className="flex gap-2">
+            <a
+              href="/api/compliance/export?type=verify-stats"
+              className="btn btn-outline btn-sm"
+              download
+            >
+              📥 CSV
+            </a>
+            <Link href="/inspection/verify" className="btn btn-outline btn-sm">
+              Проверить Evidence
+            </Link>
+          </div>
         }
       />
       <main className="flex-1 p-6 lg:p-8 space-y-6">
