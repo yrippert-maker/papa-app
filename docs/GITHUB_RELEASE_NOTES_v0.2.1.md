@@ -131,5 +131,5 @@ v0.2.1 extends the governance layer with audit hardening, abuse resistance, and 
 
 ```
 Bundle: dist/regulatory-bundle-v0.2.1.zip
-SHA-256: <TBD>
+SHA-256: 2f1c9fbe23cf340a3d307d6b0e0dfb57464130b0eacb0ac913e5a760e176cf7c
 ```
