@@ -50,3 +50,54 @@ jobs:
           WORKSPACE_ROOT: ${{ github.workspace }}/.tmp/e2e-workspace
           NEXTAUTH_SECRET: ci-e2e-secret
           E2E_MODE: "1"
+
+  verify_audit:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Prepare workspace
+        run: |
+          mkdir -p .tmp/verify-workspace/00_SYSTEM/db
+          mkdir -p .tmp/verify-workspace/00_SYSTEM/anchor-receipts
+          mkdir -p .tmp/verify-workspace/00_SYSTEM/audit-snapshots
+          mkdir -p .tmp/verify-workspace/00_SYSTEM/trust-anchors
+
+      - name: Build
+        run: npm run build
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/.tmp/verify-workspace
+          NEXTAUTH_SECRET: ci-verify-secret
+
+      - name: Migrate
+        run: npm run migrate
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/.tmp/verify-workspace
+
+      - name: Create auditor pack
+        run: npm run auditor-pack:create -- --output dist
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/.tmp/verify-workspace
+
+      - name: Audit verify (strict)
+        run: |
+          PACK=$(ls -td dist/auditor-pack-* 2>/dev/null | head -1)
+          if [ -z "$PACK" ]; then echo "No auditor pack found"; exit 1; fi
+          STRICT_VERIFY=1 node scripts/independent-verify.mjs --audit-pack "$PACK" 2>&1 | tee verify-output.txt
+
+      - name: Upload verify output
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verify-output
+          path: verify-output.txt
