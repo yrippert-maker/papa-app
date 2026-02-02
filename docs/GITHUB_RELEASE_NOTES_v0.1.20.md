@@ -66,4 +66,4 @@ v0.1.20 завершает operational readiness для compliance-слоя:
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.20.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **bf51ed8d1f4742430f27ad1d09b16af94200e84edaf9505c5d56e84312ad3446**
