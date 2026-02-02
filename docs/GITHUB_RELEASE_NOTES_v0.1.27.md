@@ -79,4 +79,4 @@ npm run retention:baseline:update
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.27.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **a5a14ae4b75a19af95dd11e401fda50d27141a580cfd2a174d4a9e8dc595cc8d**
