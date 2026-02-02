@@ -18,7 +18,7 @@
  *   1 = Verification failed
  *   2 = Invalid arguments
  */
-import { createHash, createVerify } from 'crypto';
+import crypto, { createHash, createVerify } from 'crypto';
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join, basename } from 'path';
 
@@ -60,7 +60,6 @@ function verifySignature(hash, signature, publicKeyPem) {
   } catch {
     // Fallback to crypto.verify for Ed25519
     try {
-      const crypto = await import('crypto');
       return crypto.verify(null, Buffer.from(hash), publicKeyPem, Buffer.from(signature, 'hex'));
     } catch {
       return false;
@@ -280,14 +279,53 @@ async function verifyAuditPack(packPath) {
       log('error', `Evidence index issues: ${indexResult.issues.join(', ')}`);
     }
   }
-  
+
+  // Anchoring status summary (if present) + STRICT verify mode
+  const STRICT = process.env.STRICT_VERIFY === '1' || process.env.STRICT_VERIFY === 'true';
+  results.anchoringStrictFail = false;
+
+  const anchoringStatusPath = join(packPath, 'ANCHORING_STATUS.json');
+  if (existsSync(anchoringStatusPath)) {
+    const anchoring = JSON.parse(readFileSync(anchoringStatusPath, 'utf8'));
+    const a = anchoring.assessment ?? {};
+    const c = anchoring.counts ?? {};
+    const lc = anchoring.last_confirmed;
+    log('info', `Anchoring status: ${a.status ?? 'unknown'}`);
+    if (anchoring.coverage) {
+      log('info', `Coverage: ${anchoring.coverage.from ?? '?'}..${anchoring.coverage.to ?? '?'} | days=${anchoring.coverage.days_total ?? 0}`);
+    }
+    log('info', `Counts: confirmed=${c.confirmed ?? 0} empty=${c.empty ?? 0} failed=${c.failed ?? 0} pending=${c.pending ?? 0}`);
+    log('info', `Last confirmed: ${lc?.anchored_at ?? 'none'}`);
+
+    if (STRICT) {
+      const status = a.status ?? '';
+      const isCritical =
+        status === 'FAIL' ||
+        status.toLowerCase() === 'fail' ||
+        status.toLowerCase() === 'critical' ||
+        (c.failed ?? 0) > 0;
+
+      if (isCritical) {
+        log('error', 'STRICT VERIFY FAIL: anchoring status is FAIL or has failed anchors.');
+        results.anchoringStrictFail = true;
+      }
+    }
+  } else {
+    log('info', 'ANCHORING STATUS: (not present)');
+    if (STRICT) {
+      log('error', 'STRICT VERIFY FAIL: ANCHORING_STATUS.json is required.');
+      results.anchoringStrictFail = true;
+    }
+  }
+
   // Overall result
-  results.overall = 
+  results.overall =
     results.manifest.valid &&
-    results.snapshots.every(s => s.hash_valid) &&
+    results.snapshots.every((s) => s.hash_valid) &&
     results.hash_chain.valid &&
-    results.evidence_index.valid;
-  
+    results.evidence_index.valid &&
+    !results.anchoringStrictFail;
+
   return results;
 }
 
@@ -347,7 +385,10 @@ Usage:
 Exit codes:
   0 = All verifications passed
   1 = Verification failed
-  2 = Invalid arguments
+  2 = Invalid arguments (or STRICT_VERIFY=1 + anchoring fail)
+
+Environment:
+  STRICT_VERIFY=1  Fail if ANCHORING_STATUS.json missing or assessment.status=FAIL
 
 Example:
   node independent-verify.mjs --audit-pack ./audit-pack-abc12345
@@ -405,13 +446,15 @@ async function main() {
   } else {
     log('error', 'VERIFICATION FAILED');
   }
-  
+
   if (jsonOutput) {
     console.log('\n[JSON_RESULT]');
     console.log(JSON.stringify(results, null, 2));
   }
-  
-  process.exit(results.overall ? 0 : 1);
+
+  // Exit: 2 = strict anchoring fail, 1 = general fail, 0 = pass
+  const exitCode = results.anchoringStrictFail ? 2 : results.overall ? 0 : 1;
+  process.exit(exitCode);
 }
 
 main().catch(e => {
