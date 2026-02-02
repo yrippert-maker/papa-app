@@ -100,4 +100,4 @@ All non-2xx responses now use:
 ## 6. Release Artifact
 
 **Bundle:** `dist/regulatory-bundle-v0.1.7.zip`  
-**SHA-256:** (to be added after bundle creation)
+**SHA-256:** `7c86f4b91b445aaea2a52feb0cf2116d3b9d8b2c692d1c581bebcdc9d66cbe50`
