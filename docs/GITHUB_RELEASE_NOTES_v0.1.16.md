@@ -44,4 +44,4 @@ v0.1.16 усиливает evidence export: добавляет подпись `e
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.16.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **a72ef9cfecb4a50e153fa8c8e25327f09af8630a357bdd4a122fa544b56bf990**
