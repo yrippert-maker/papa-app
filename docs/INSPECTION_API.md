@@ -1,6 +1,7 @@
-# Inspection API (MVP)
+# Inspection API (v0.1.10)
 
 Read-only API для техкарт контроля. Permission: `INSPECTION.VIEW` (или `INSPECTION.MANAGE`).
+Write API (transitions): `INSPECTION.MANAGE`.
 
 ## Endpoints
 
@@ -59,12 +60,22 @@ Read-only API для техкарт контроля. Permission: `INSPECTION.VI
 }
 ```
 
+### POST /api/inspection/cards/:id/transition
+
+Изменение статуса техкарты. Permission: `INSPECTION.MANAGE`.
+
+**Body:** `{ "status": "IN_PROGRESS" | "COMPLETED" | "CANCELLED" }`
+
+**Response 200:** обновлённая карта с `from_status` в ответе.
+
+**Errors:** `400` — invalid status, invalid transition, or card is immutable. См. [INSPECTION_TRANSITIONS.md](INSPECTION_TRANSITIONS.md).
+
 ## Roles
 
-| Role | INSPECTION.VIEW |
-|------|-----------------|
-| ADMIN | ✓ |
-| MANAGER | ✓ |
-| STOREKEEPER | ✓ |
-| ENGINEER | ✓ |
-| AUDITOR | ✓ |
+| Role | INSPECTION.VIEW | INSPECTION.MANAGE |
+|------|-----------------|-------------------|
+| ADMIN | ✓ | ✓ |
+| MANAGER | ✓ | ✓ |
+| STOREKEEPER | ✓ | ✓ |
+| ENGINEER | ✓ | — |
+| AUDITOR | ✓ | — |

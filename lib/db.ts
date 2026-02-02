@@ -173,6 +173,8 @@ export function getDb(): Database.Database {
       inspector_role TEXT,
       performed_at TEXT,
       summary TEXT,
+      transitioned_by TEXT,
+      transitioned_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );

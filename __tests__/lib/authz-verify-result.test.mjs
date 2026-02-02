@@ -17,7 +17,7 @@ describe('buildAuthzVerifyResult', () => {
         message: 'AuthZ verification passed',
         scope: {
           route_registry_file: 'lib/authz/routes.ts',
-          route_count: 17,
+          route_count: 18,
           permission_count: 13,
           role_count: 5,
           unique_routes: true,
@@ -31,7 +31,7 @@ describe('buildAuthzVerifyResult', () => {
     expect(r.bundle_ok).toBe(true);
     expect(r.authz_verification.executed).toBe(true);
     expect(r.authz_verification.authz_ok).toBe(true);
-    expect(r.authz_verification.scope.route_count).toBe(17);
+    expect(r.authz_verification.scope.route_count).toBe(18);
   });
 
   it('builds valid result when skipped=true', () => {

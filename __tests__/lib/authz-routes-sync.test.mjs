@@ -5,8 +5,8 @@
 import { ROUTE_REGISTRY, VALID_PERMISSIONS } from '../../lib/authz/routes-export.mjs';
 
 describe('routes-export sync', () => {
-  it('route count matches expected (17)', () => {
-    expect(ROUTE_REGISTRY.length).toBe(17);
+  it('route count matches expected (18)', () => {
+    expect(ROUTE_REGISTRY.length).toBe(18);
   });
 
   it('all permissions in registry are valid', () => {
@@ -35,6 +35,7 @@ describe('routes-export sync', () => {
       'GET /api/tmc/requests',
       'GET /api/inspection/cards',
       'GET /api/inspection/cards/:id',
+      'POST /api/inspection/cards/:id/transition',
       'GET /api/files/list',
       'GET /api/ai-inbox',
       'POST /api/files/upload',

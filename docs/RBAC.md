@@ -41,7 +41,9 @@ Legacy aliases (backward compatible):
 | TMC | `/api/tmc/requests/:id` | PATCH | `TMC.REQUEST.MANAGE` (or legacy `TMC.MANAGE`) | update *(future)* |
 | TMC | `/api/tmc/requests/:id` | DELETE | `TMC.REQUEST.MANAGE` (or legacy `TMC.MANAGE`) | delete *(future)* |
 | TMC | `/api/tmc/requests/:id/transition` | POST | `TMC.REQUEST.MANAGE` (or legacy `TMC.MANAGE`) | status change *(future)* |
-| Inspection | *(reserved)* | — | `INSPECTION.VIEW` / `INSPECTION.MANAGE` | no routes in v0.1.8 |
+| Inspection | `/api/inspection/cards` | GET | `INSPECTION.VIEW` | list |
+| Inspection | `/api/inspection/cards/:id` | GET | `INSPECTION.VIEW` | detail |
+| Inspection | `/api/inspection/cards/:id/transition` | POST | `INSPECTION.MANAGE` | status change |
 
 ## Deprecation plan (legacy permissions)
 

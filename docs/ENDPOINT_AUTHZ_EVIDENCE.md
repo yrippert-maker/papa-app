@@ -3,7 +3,7 @@
 This document provides regulator-ready evidence for authorization enforcement:
 Endpoint → Permission → Roles → DB Mode → Evidence.
 
-**Source of truth (route registry):** `lib/authz/routes.ts`. This table is a regulatory snapshot. When adding routes, update both the registry and this document in the same release. CI test `authz-routes.test.ts` enforces deny-by-default and route count (17).
+**Source of truth (route registry):** `lib/authz/routes.ts`. This table is a regulatory snapshot. When adding routes, update both the registry and this document in the same release. CI test `authz-routes.test.ts` enforces deny-by-default and route count (18).
 
 ## 1. Normative statements
 
@@ -24,6 +24,7 @@ Endpoint → Permission → Roles → DB Mode → Evidence.
 | /api/tmc/requests | GET | TMC.REQUEST.VIEW | AUDITOR (via TMC.VIEW), ENGINEER, MANAGER, ADMIN | readonly | E2E: auditor 200 (alias) |
 | /api/inspection/cards | GET | INSPECTION.VIEW | AUDITOR, ENGINEER, STOREKEEPER, MANAGER, ADMIN | readonly | Inspection MVP |
 | /api/inspection/cards/[id] | GET | INSPECTION.VIEW | AUDITOR, ENGINEER, STOREKEEPER, MANAGER, ADMIN | readonly | Inspection MVP |
+| /api/inspection/cards/[id]/transition | POST | INSPECTION.MANAGE | MANAGER, STOREKEEPER, ADMIN | readwrite | E2E: auditor 403, admin 200 |
 | /api/files/list | GET | FILES.LIST | ENGINEER, STOREKEEPER, MANAGER, ADMIN, AUDITOR | readonly | E2E |
 | /api/ai-inbox | GET | AI_INBOX.VIEW | AUDITOR, MANAGER, ADMIN | readonly | PR-2.2 |
 | /api/files/upload | POST | FILES.UPLOAD | STOREKEEPER, MANAGER, ADMIN | readwrite | Unit: authz |

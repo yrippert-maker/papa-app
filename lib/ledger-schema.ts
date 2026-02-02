@@ -3,6 +3,7 @@ import { z } from 'zod';
 /** Разрешённые типы событий ledger (allowlist). */
 export const ALLOWED_LEDGER_EVENT_TYPES = [
   'FILE_REGISTERED',
+  'INSPECTION_CARD_TRANSITION',
   // Добавлять сюда при необходимости: 'TMC_MOVEMENT', 'REQUEST_STATUS_CHANGE' и т.п.
 ] as const;
 
@@ -12,8 +13,18 @@ const fileRegisteredPayload = z.object({
   checksum_sha256: z.string().regex(/^[a-f0-9]{64}$/),
 });
 
+const inspectionCardTransitionPayload = z.object({
+  inspection_card_id: z.string().min(1),
+  card_no: z.string().optional(),
+  from_status: z.string(),
+  to_status: z.string(),
+  transitioned_by: z.string(),
+  transitioned_at: z.string(),
+});
+
 const eventSchemas: Record<(typeof ALLOWED_LEDGER_EVENT_TYPES)[number], z.ZodType> = {
   FILE_REGISTERED: fileRegisteredPayload,
+  INSPECTION_CARD_TRANSITION: inspectionCardTransitionPayload,
 };
 
 export const ledgerAppendSchema = z.object({

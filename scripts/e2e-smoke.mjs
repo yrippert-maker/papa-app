@@ -166,6 +166,23 @@ async function run() {
         console.log('[OK] Auditor: /api/inspection/cards → 200 (INSPECTION.VIEW)');
       }
     }
+    const rTransition = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/transition`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'IN_PROGRESS' }),
+    });
+    if (rTransition.status !== 403) {
+      console.error('[FAIL] Auditor: POST /api/inspection/cards/:id/transition expected 403 (no INSPECTION.MANAGE), got', rTransition.status);
+      failed = true;
+    } else {
+      const body = await rTransition.json();
+      if (!body?.error?.code || body.error.code !== 'FORBIDDEN' || !body?.error?.request_id) {
+        console.error('[FAIL] Auditor: transition 403 expected { error: { code: FORBIDDEN, request_id } }, got', JSON.stringify(body));
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: POST /api/inspection/cards/:id/transition → 403 (standardized payload)');
+      }
+    }
     const rAdminUsers = await fetchWithJar(auditorJar, `${BASE}/api/admin/users`);
     if (rAdminUsers.status !== 403) {
       console.error('[FAIL] Auditor: /api/admin/users expected 403, got', rAdminUsers.status);
@@ -270,6 +287,24 @@ async function run() {
       failed = true;
     } else {
       console.log('[OK] Admin: POST duplicate email → 409');
+    }
+    const rTransitionAdmin = await fetchWithJar(adminJar, `${BASE}/api/inspection/cards/CARD-SEED-001/transition`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'IN_PROGRESS' }),
+    });
+    if (rTransitionAdmin.status !== 200) {
+      const body = await rTransitionAdmin.text();
+      console.error('[FAIL] Admin: POST /api/inspection/cards/:id/transition expected 200 (INSPECTION.MANAGE), got', rTransitionAdmin.status, body);
+      failed = true;
+    } else {
+      const tBody = await rTransitionAdmin.json();
+      if (tBody.status !== 'IN_PROGRESS' || tBody.from_status !== 'DRAFT') {
+        console.error('[FAIL] Admin: transition response expected status:IN_PROGRESS, from_status:DRAFT, got', JSON.stringify(tBody));
+        failed = true;
+      } else {
+        console.log('[OK] Admin: POST /api/inspection/cards/:id/transition → 200 (DRAFT→IN_PROGRESS)');
+      }
     }
   }
 

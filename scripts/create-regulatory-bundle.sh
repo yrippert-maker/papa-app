@@ -58,7 +58,9 @@ FILES=(
   docs/ADR-003_Adapter_Contracts.md
   docs/REGULATORY_BUNDLE_MANIFEST.md
   docs/INSPECTION_API.md
+  docs/INSPECTION_TRANSITIONS.md
   docs/RELEASE_NOTES_v0.1.9.md
+  docs/RELEASE_NOTES_v0.1.10.md
 )
 
 mkdir -p "$DIST"

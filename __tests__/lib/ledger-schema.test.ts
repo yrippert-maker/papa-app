@@ -53,4 +53,22 @@ describe('validateLedgerAppend', () => {
     expect(validateLedgerAppend({}).success).toBe(false);
     expect(validateLedgerAppend({ event_type: 'FILE_REGISTERED' }).success).toBe(false);
   });
+
+  it('accepts valid INSPECTION_CARD_TRANSITION payload', () => {
+    const result = validateLedgerAppend({
+      event_type: 'INSPECTION_CARD_TRANSITION',
+      payload_json: {
+        inspection_card_id: 'CARD-001',
+        card_no: 'IC-001',
+        from_status: 'DRAFT',
+        to_status: 'IN_PROGRESS',
+        transitioned_by: 'user@example.com',
+        transitioned_at: '2026-02-01T12:00:00.000Z',
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.event_type).toBe('INSPECTION_CARD_TRANSITION');
+    }
+  });
 });

@@ -16,7 +16,7 @@ describe('/api/system/verify aggregator', () => {
           authz_ok: true,
           message: 'AuthZ verification passed',
           scope: {
-            route_count: 17,
+            route_count: 18,
             permission_count: 10,
             role_count: 5,
             unique_routes: true,

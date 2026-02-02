@@ -40,6 +40,7 @@ describe('route registry', () => {
       { method: 'GET', path: '/api/tmc/requests' },
       { method: 'GET', path: '/api/inspection/cards' },
       { method: 'GET', path: '/api/inspection/cards/:id' },
+      { method: 'POST', path: '/api/inspection/cards/:id/transition' },
       { method: 'GET', path: '/api/files/list' },
       { method: 'GET', path: '/api/ai-inbox' },
       { method: 'POST', path: '/api/files/upload' },
