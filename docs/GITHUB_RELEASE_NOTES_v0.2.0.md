@@ -118,5 +118,5 @@ v0.2.0 introduces a complete governance layer for key lifecycle management with 
 
 ```
 Bundle: dist/regulatory-bundle-v0.2.0.zip
-SHA-256: <TBD>
+SHA-256: 2ac6f4e7f5b3ea5d62a47226ab80a096dfc41dbcba05bae6dc6412b22f885aed
 ```
