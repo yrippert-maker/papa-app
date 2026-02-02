@@ -1,0 +1,53 @@
+{
+  "index_version": "1.0.0",
+  "generated_at": "2026-02-02T00:00:00Z",
+  "description": "Index of all governance policies with versioning metadata",
+  "policies": [
+    {
+      "policy_id": "policy-standard-key",
+      "current_version": "1.0.0",
+      "key_class": "standard",
+      "status": "active",
+      "file": "standard-key-v1.0.0.json",
+      "history": [
+        {
+          "version": "1.0.0",
+          "effective_date": "2026-02-02",
+          "file": "standard-key-v1.0.0.json",
+          "changelog": "Initial release"
+        }
+      ]
+    },
+    {
+      "policy_id": "policy-critical-key",
+      "current_version": "1.0.0",
+      "key_class": "critical",
+      "status": "active",
+      "file": "critical-key-v1.0.0.json",
+      "history": [
+        {
+          "version": "1.0.0",
+          "effective_date": "2026-02-02",
+          "file": "critical-key-v1.0.0.json",
+          "changelog": "Initial release"
+        }
+      ]
+    },
+    {
+      "policy_id": "policy-root-key",
+      "current_version": "1.0.0",
+      "key_class": "root",
+      "status": "active",
+      "file": "root-key-v1.0.0.json",
+      "history": [
+        {
+          "version": "1.0.0",
+          "effective_date": "2026-02-02",
+          "file": "root-key-v1.0.0.json",
+          "changelog": "Initial release"
+        }
+      ]
+    }
+  ],
+  "schema_version": "approval-policy-v1.json"
+}

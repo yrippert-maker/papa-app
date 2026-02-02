@@ -1,0 +1,41 @@
+{
+  "$schema": "../approval-policy-v1.json",
+  "policy_id": "policy-critical-key",
+  "version": "1.0.0",
+  "name": "Critical Key Operations",
+  "description": "Enhanced controls for critical key class (audit signing, regulatory submission)",
+  "key_class": "critical",
+  "approval_requirements": {
+    "min_approvers": 3,
+    "total_pool": 0,
+    "quorum_type": "n_of_any"
+  },
+  "timeouts": {
+    "approval_hours": 48,
+    "execution_hours": 2
+  },
+  "constraints": {
+    "require_different_teams": true,
+    "require_different_orgs": false,
+    "require_senior_approver": true,
+    "blocked_hours": [
+      { "day": "Saturday", "start_hour": 0, "end_hour": 24 },
+      { "day": "Sunday", "start_hour": 0, "end_hour": 24 }
+    ]
+  },
+  "scope": {
+    "org_id": null,
+    "team_id": null
+  },
+  "enabled": true,
+  "metadata": {
+    "created_at": "2026-02-02T00:00:00Z",
+    "created_by": "system",
+    "approved_at": "2026-02-02T00:00:00Z",
+    "approved_by": "security_council",
+    "effective_date": "2026-02-02",
+    "review_date": "2026-08-02",
+    "deprecated": false,
+    "superseded_by": null
+  }
+}

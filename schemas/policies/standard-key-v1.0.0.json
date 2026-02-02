@@ -1,0 +1,38 @@
+{
+  "$schema": "../approval-policy-v1.json",
+  "policy_id": "policy-standard-key",
+  "version": "1.0.0",
+  "name": "Standard Key Operations",
+  "description": "Default policy for standard key class operations (evidence signing, API tokens)",
+  "key_class": "standard",
+  "approval_requirements": {
+    "min_approvers": 2,
+    "total_pool": 0,
+    "quorum_type": "n_of_any"
+  },
+  "timeouts": {
+    "approval_hours": 24,
+    "execution_hours": 1
+  },
+  "constraints": {
+    "require_different_teams": false,
+    "require_different_orgs": false,
+    "require_senior_approver": false,
+    "blocked_hours": []
+  },
+  "scope": {
+    "org_id": null,
+    "team_id": null
+  },
+  "enabled": true,
+  "metadata": {
+    "created_at": "2026-02-02T00:00:00Z",
+    "created_by": "system",
+    "approved_at": "2026-02-02T00:00:00Z",
+    "approved_by": "security_council",
+    "effective_date": "2026-02-02",
+    "review_date": "2026-08-02",
+    "deprecated": false,
+    "superseded_by": null
+  }
+}

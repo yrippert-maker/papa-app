@@ -1,6 +1,6 @@
 {
   "name": "papa-app",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -28,7 +28,15 @@
     "audit:snapshot:daily": "node scripts/generate-audit-snapshot.mjs --daily",
     "audit:snapshot:weekly": "node scripts/generate-audit-snapshot.mjs --weekly",
     "audit:snapshot:verify": "node scripts/verify-audit-snapshots.mjs --all",
-    "expire:requests": "node scripts/expire-requests.mjs"
+    "expire:requests": "node scripts/expire-requests.mjs",
+    "attestation:quarterly": "node scripts/generate-attestation.mjs --type quarterly",
+    "attestation:annual": "node scripts/generate-attestation.mjs --type annual",
+    "attestation:list": "node scripts/generate-attestation.mjs --list",
+    "trust-anchors:export": "node scripts/export-trust-anchors.mjs",
+    "trust-anchors:keys": "node scripts/export-trust-anchors.mjs --keys-only",
+    "trust-anchors:list": "node scripts/export-trust-anchors.mjs --list",
+    "verify:independent": "node scripts/independent-verify.mjs",
+    "auditor-pack:create": "node scripts/create-auditor-pack.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

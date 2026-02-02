@@ -1,0 +1,32 @@
+[
+  {
+    "date": "2026-02-02T00:00:00Z",
+    "policy_id": "policy-root-key",
+    "from_version": null,
+    "to_version": "1.0.0",
+    "change_type": "created",
+    "summary": "Initial release of root key policy with 4-of-5 quorum requirement",
+    "changed_by": "system",
+    "approved_by": "security_council"
+  },
+  {
+    "date": "2026-02-02T00:00:00Z",
+    "policy_id": "policy-critical-key",
+    "from_version": null,
+    "to_version": "1.0.0",
+    "change_type": "created",
+    "summary": "Initial release of critical key policy with 3-of-N requirement and weekend blocking",
+    "changed_by": "system",
+    "approved_by": "security_council"
+  },
+  {
+    "date": "2026-02-02T00:00:00Z",
+    "policy_id": "policy-standard-key",
+    "from_version": null,
+    "to_version": "1.0.0",
+    "change_type": "created",
+    "summary": "Initial release of standard key policy with 2-of-N requirement",
+    "changed_by": "system",
+    "approved_by": "security_council"
+  }
+]

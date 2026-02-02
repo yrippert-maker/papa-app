@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://papa-app.io/schemas/approval-policy-v1.json",
+  "title": "Approval Policy",
+  "type": "object",
+  "required": [
+    "policy_id",
+    "version",
+    "key_class",
+    "approval_requirements",
+    "timeouts",
+    "constraints"
+  ],
+  "properties": {
+    "policy_id": {
+      "type": "string",
+      "pattern": "^POL-[A-Z0-9]{8}$|^policy-[a-z0-9-]+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "key_class": {
+      "type": "string",
+      "enum": ["standard", "critical", "root"]
+    },
+    "approval_requirements": {
+      "type": "object",
+      "required": ["min_approvers", "quorum_type"],
+      "properties": {
+        "min_approvers": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10
+        },
+        "total_pool": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "0 = any eligible approver"
+        },
+        "quorum_type": {
+          "type": "string",
+          "enum": ["n_of_any", "n_of_m", "unanimous"]
+        }
+      }
+    },
+    "timeouts": {
+      "type": "object",
+      "required": ["approval_hours", "execution_hours"],
+      "properties": {
+        "approval_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 168
+        },
+        "execution_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "require_different_teams": {
+          "type": "boolean",
+          "default": false
+        },
+        "require_different_orgs": {
+          "type": "boolean",
+          "default": false
+        },
+        "require_senior_approver": {
+          "type": "boolean",
+          "default": false
+        },
+        "blocked_hours": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "day": { 
+                "type": "string",
+                "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "*"]
+              },
+              "start_hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+              "end_hour": { "type": "integer", "minimum": 0, "maximum": 24 }
+            },
+            "required": ["day", "start_hour", "end_hour"]
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "org_id": { "type": ["string", "null"] },
+        "team_id": { "type": ["string", "null"] }
+      }
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "created_at": { "type": "string", "format": "date-time" },
+        "created_by": { "type": "string" },
+        "approved_at": { "type": "string", "format": "date-time" },
+        "approved_by": { "type": "string" },
+        "effective_date": { "type": "string", "format": "date" },
+        "review_date": { "type": "string", "format": "date" },
+        "deprecated": { "type": "boolean", "default": false },
+        "superseded_by": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
