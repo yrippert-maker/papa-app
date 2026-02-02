@@ -2,14 +2,15 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getDbReadOnly } from '@/lib/db';
-import { requirePermission, PERMISSIONS } from '@/lib/authz';
+import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
+import { badRequest } from '@/lib/api/error-response';
 import { parsePaginationParams } from '@/lib/pagination';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.TMC_REQUEST_VIEW);
+  const err = requirePermissionWithAlias(session, PERMISSIONS.TMC_REQUEST_VIEW, request);
   if (err) return err;
 
   try {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ requests, hasMore: (requests as unknown[]).length === limit });
   } catch (e) {
     if (e instanceof Error && /^Invalid (limit|cursor|offset)$/.test(e.message)) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+      return badRequest(e.message, request.headers);
     }
     console.error('[tmc/requests]', e);
     return NextResponse.json(

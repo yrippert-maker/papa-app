@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
   const actor = (session?.user as { email?: string } | undefined)?.email;
   logVerify({ request_id: rid, event: 'verify_start', actor });
 
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ);
+  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) {
     const status = err.status;
     const code = status === 401 ? VerifyErrorCodes.UNAUTHORIZED : VerifyErrorCodes.FORBIDDEN;

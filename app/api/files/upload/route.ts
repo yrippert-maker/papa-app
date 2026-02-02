@@ -8,6 +8,7 @@ import { WORKSPACE_ROOT } from '@/lib/config';
 import { getDb, withRetry } from '@/lib/db';
 import { computeEventHash, canonicalJSON } from '@/lib/ledger-hash';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
+import { badRequest } from '@/lib/api/error-response';
 
 const AI_INBOX_DIR = 'ai-inbox';
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -41,16 +42,16 @@ function isAllowedFile(name: string, size: number): { ok: true } | { ok: false; 
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.FILES_UPLOAD);
+  const err = requirePermission(session, PERMISSIONS.FILES_UPLOAD, req);
   if (err) return err;
 
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    if (!file) return NextResponse.json({ error: 'Missing file' }, { status: 400 });
+    if (!file) return badRequest('Missing file', req.headers);
 
     const check = isAllowedFile(file.name, file.size);
-    if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+    if (!check.ok) return badRequest(check.error, req.headers);
 
     const dir = join(WORKSPACE_ROOT, AI_INBOX_DIR);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

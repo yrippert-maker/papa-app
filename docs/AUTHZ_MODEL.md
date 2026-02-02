@@ -49,7 +49,10 @@ Endpoints MUST require exactly one primary permission and MUST deny access other
 | ADMIN.MANAGE_USERS | Create, update users; manage roles |
 | TMC.VIEW | View TMC items, lots (read-only) |
 | TMC.MANAGE | Create, update TMC |
-| TMC.REQUEST.VIEW | TMC requests |
+| TMC.REQUEST.VIEW | TMC requests (read) |
+| TMC.REQUEST.MANAGE | TMC requests (create/edit) |
+| INSPECTION.VIEW | Inspection cards (reserved) |
+| INSPECTION.MANAGE | Inspection cards (reserved) |
 | AI_INBOX.VIEW | View AI inbox files |
 
 ### 3.3 Enforcement
@@ -57,7 +60,7 @@ Endpoints MUST require exactly one primary permission and MUST deny access other
 - Every endpoint MUST declare required permission(s).
 - Authorization MUST be evaluated after authentication and before any business logic execution.
 - Deny-by-default: if an endpoint lacks a permission declaration, it MUST fail closed.
-- Errors:
+- Errors (v0.1.8+): All 401/403/400 responses use standardized payload `{ error: { code, message, request_id } }`; `code` is `UNAUTHORIZED`, `FORBIDDEN`, or `BAD_REQUEST`; `request_id` enables correlation with logs/audit.
   - **401 Unauthorized** — not authenticated
   - **403 Forbidden** — authenticated but lacks permission
   - **409 Conflict** — integrity check failed (e.g. ledger verification)

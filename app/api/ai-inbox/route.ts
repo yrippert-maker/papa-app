@@ -8,9 +8,9 @@ import { requirePermission, PERMISSIONS } from '@/lib/authz';
 export const dynamic = 'force-dynamic';
 
 /** GET /api/ai-inbox — список файлов в ai-inbox. Permission: AI_INBOX.VIEW */
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.AI_INBOX_VIEW);
+  const err = requirePermission(session, PERMISSIONS.AI_INBOX_VIEW, req);
   if (err) return err;
 
   try {

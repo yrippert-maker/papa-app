@@ -9,9 +9,9 @@ import { hasDefaultAdminCredentials } from '@/lib/security-checks';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ);
+  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) return err;
 
   if (process.env.NODE_ENV === 'production' && !process.env.E2E_MODE && hasDefaultAdminCredentials()) {

@@ -10,6 +10,7 @@ jest.mock('@/lib/db', () => {
             { perm_code: 'WORKSPACE.READ' },
             { perm_code: 'FILES.LIST' },
             { perm_code: 'LEDGER.READ' },
+            { perm_code: 'TMC.VIEW' },
           ],
           ADMIN: [
             { perm_code: 'WORKSPACE.READ' },
@@ -19,6 +20,13 @@ jest.mock('@/lib/db', () => {
             { perm_code: 'LEDGER.APPEND' },
             { perm_code: 'ADMIN.MANAGE_USERS' },
           ],
+          ENGINEER: [
+            { perm_code: 'WORKSPACE.READ' },
+            { perm_code: 'FILES.LIST' },
+            { perm_code: 'LEDGER.READ' },
+            { perm_code: 'TMC.VIEW' },
+            { perm_code: 'TMC.REQUEST.VIEW' },
+          ],
         };
         return perms[roleCode] ?? [];
       },
@@ -27,7 +35,7 @@ jest.mock('@/lib/db', () => {
   return { getDb: mockDb, getDbReadOnly: mockDb };
 });
 
-import { getPermissionsForRole, requirePermission, can, PERMISSIONS } from '@/lib/authz';
+import { getPermissionsForRole, requirePermission, requirePermissionWithAlias, can, canWithAlias, PERMISSIONS } from '@/lib/authz';
 import type { Session } from 'next-auth';
 
 describe('getPermissionsForRole', () => {
@@ -54,6 +62,15 @@ describe('requirePermission', () => {
     expect(res!.status).toBe(401);
   });
 
+  it('returns 401 with standardized payload (code, message, request_id)', async () => {
+    const res = requirePermission(null, PERMISSIONS.WORKSPACE_READ);
+    expect(res).not.toBeNull();
+    const body = await res!.json();
+    expect(body).toMatchObject({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+    expect(typeof body.error.request_id).toBe('string');
+    expect(body.error.request_id.length).toBeGreaterThan(0);
+  });
+
   it('returns 401 when session has no user id', () => {
     const session = { user: { name: 'x' }, expires: '' } as Session;
     const res = requirePermission(session, PERMISSIONS.WORKSPACE_READ);
@@ -69,6 +86,19 @@ describe('requirePermission', () => {
     const res = requirePermission(session, PERMISSIONS.FILES_UPLOAD);
     expect(res).not.toBeNull();
     expect(res!.status).toBe(403);
+  });
+
+  it('returns 403 with standardized payload (code, message, request_id)', async () => {
+    const session = {
+      user: { id: '1', role: 'AUDITOR' },
+      expires: '',
+    } as Session;
+    const res = requirePermission(session, PERMISSIONS.FILES_UPLOAD);
+    expect(res).not.toBeNull();
+    const body = await res!.json();
+    expect(body).toMatchObject({ error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+    expect(typeof body.error.request_id).toBe('string');
+    expect(body.error.request_id.length).toBeGreaterThan(0);
   });
 
   it('returns null (pass) when user has permission', () => {
@@ -103,5 +133,47 @@ describe('can', () => {
   it('returns true when role has permission', () => {
     const session = { user: { id: '1', role: 'AUDITOR' }, expires: '' } as Session;
     expect(can(session, PERMISSIONS.FILES_LIST)).toBe(true);
+  });
+});
+
+describe('canWithAlias', () => {
+  it('AUDITOR with TMC.VIEW has TMC.REQUEST.VIEW via alias', () => {
+    const session = { user: { id: '1', role: 'AUDITOR' }, expires: '' } as Session;
+    expect(canWithAlias(session, PERMISSIONS.TMC_REQUEST_VIEW)).toBe(true);
+  });
+
+  it('ENGINEER with TMC.REQUEST.VIEW has TMC.REQUEST.VIEW', () => {
+    const session = { user: { id: '1', role: 'ENGINEER' }, expires: '' } as Session;
+    expect(canWithAlias(session, PERMISSIONS.TMC_REQUEST_VIEW)).toBe(true);
+  });
+
+  it('AUDITOR without TMC.REQUEST.MANAGE denied for manage', () => {
+    const session = { user: { id: '1', role: 'AUDITOR' }, expires: '' } as Session;
+    expect(canWithAlias(session, PERMISSIONS.TMC_REQUEST_MANAGE)).toBe(false);
+  });
+});
+
+describe('requirePermissionWithAlias', () => {
+  it('returns null for AUDITOR on TMC.REQUEST.VIEW (via TMC.VIEW alias)', () => {
+    const session = { user: { id: '1', role: 'AUDITOR' }, expires: '' } as Session;
+    const res = requirePermissionWithAlias(session, PERMISSIONS.TMC_REQUEST_VIEW);
+    expect(res).toBeNull();
+  });
+
+  it('returns 403 for role without any TMC permission', () => {
+    const session = { user: { id: '1', role: 'ADMIN' }, expires: '' } as Session;
+    const res = requirePermissionWithAlias(session, PERMISSIONS.TMC_REQUEST_VIEW);
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(403);
+  });
+
+  it('returns 403 with standardized payload (code, message, request_id)', async () => {
+    const session = { user: { id: '1', role: 'ADMIN' }, expires: '' } as Session;
+    const res = requirePermissionWithAlias(session, PERMISSIONS.TMC_REQUEST_VIEW);
+    expect(res).not.toBeNull();
+    const body = await res!.json();
+    expect(body).toMatchObject({ error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+    expect(typeof body.error.request_id).toBe('string');
+    expect(body.error.request_id.length).toBeGreaterThan(0);
   });
 });

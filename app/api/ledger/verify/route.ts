@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.LEDGER_READ);
+  const err = requirePermission(session, PERMISSIONS.LEDGER_READ, req);
   if (err) return err;
 
   const t0 = performance.now();

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
+import { badRequest } from '@/lib/api/error-response';
 import { getDb, getDbReadOnly, withRetry } from '@/lib/db';
 import { hashSync } from 'bcryptjs';
 import { z } from 'zod';
@@ -18,7 +19,7 @@ const createUserSchema = z.object({
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
   if (err) return err;
 
   try {
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
     if (cursor) {
       const afterId = parseInt(cursor, 10);
       if (Number.isNaN(afterId) || afterId < 1) {
-        return NextResponse.json({ error: 'Invalid cursor' }, { status: 400 });
+        return badRequest('Invalid cursor', req.headers);
       }
       rows = db.prepare(`
         SELECT id, email, role_code, created_at
@@ -63,7 +64,7 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     if (e instanceof Error && (e.message === 'Invalid limit' || e.message === 'Invalid cursor' || e.message === 'Invalid offset')) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+      return badRequest(e.message, req.headers);
     }
     console.error('[admin/users]', e);
     return NextResponse.json(
@@ -75,7 +76,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
   if (err) return err;
 
   try {
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
     const parsed = createUserSchema.safeParse(body);
     if (!parsed.success) {
       const msg = parsed.error.issues?.map((i) => i.message).join('; ') ?? 'Validation failed';
-      return NextResponse.json({ error: msg }, { status: 400 });
+      return badRequest(msg, req.headers);
     }
     const { email, password, role_code } = parsed.data;
 

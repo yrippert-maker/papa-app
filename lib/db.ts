@@ -290,6 +290,13 @@ export function getDb(): Database.Database {
     ('CHK-TMC-OUT-002','TMC_GENERIC','OUTPUT',20, 'MARK', 'Маркировка/идентификация', 'Идентификация партии/серийности', 1),
     ('CHK-TMC-OUT-003','TMC_GENERIC','OUTPUT',30, 'PACK', 'Упаковка/консервация', 'Упаковка согласно требованиям', 1);
 
+    -- Seed inspection cards for MVP (read-only API demo)
+    INSERT OR IGNORE INTO tmc_request(tmc_request_id, request_no, request_kind, request_category, title, status) VALUES
+    ('REQ-SEED-001','SEED-001','INCOMING','TECH_CARD','Seed request for inspection', 'SUBMITTED');
+    INSERT OR IGNORE INTO inspection_card(inspection_card_id, tmc_request_id, card_kind, card_no, status, summary) VALUES
+    ('CARD-SEED-001','REQ-SEED-001','INPUT','IC-001','DRAFT','Seed inspection card'),
+    ('CARD-SEED-002','REQ-SEED-001','OUTPUT','IC-002','IN_PROGRESS','Output control seed');
+
     -- Users (US-1, V2026_02_01)
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -319,7 +326,7 @@ export function getDb(): Database.Database {
     ('MANAGER','WORKSPACE.READ'),('MANAGER','FILES.LIST'),('MANAGER','FILES.UPLOAD'),('MANAGER','LEDGER.READ'),
     ('STOREKEEPER','WORKSPACE.READ'),('STOREKEEPER','FILES.LIST'),('STOREKEEPER','FILES.UPLOAD'),('STOREKEEPER','LEDGER.READ'),
     ('ENGINEER','WORKSPACE.READ'),('ENGINEER','FILES.LIST'),('ENGINEER','LEDGER.READ'),
-    ('AUDITOR','WORKSPACE.READ'),('AUDITOR','FILES.LIST'),('AUDITOR','LEDGER.READ');
+    ('AUDITOR','WORKSPACE.READ'),('AUDITOR','FILES.LIST'),('AUDITOR','LEDGER.READ'),('AUDITOR','INSPECTION.VIEW');
   `);
 
   return db;

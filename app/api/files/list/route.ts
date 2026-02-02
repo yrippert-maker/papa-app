@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-options';
 import { listWorkspace } from '@/lib/workspace';
 import { getDbReadOnly } from '@/lib/db';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
+import { badRequest } from '@/lib/api/error-response';
 import { sanitizeForLog } from '@/lib/log-sanitize';
 import { parsePaginationParams } from '@/lib/pagination';
 
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.FILES_LIST);
+  const err = requirePermission(session, PERMISSIONS.FILES_LIST, request);
   if (err) return err;
 
   try {
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     const dir = searchParams.get('dir') || '';
     if (dir.includes('..')) {
       console.warn('[files/list] Path traversal blocked, dir=', sanitizeForLog(dir));
-      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+      return badRequest('Invalid path', request.headers);
     }
     const { limit, offset } = parsePaginationParams(searchParams);
 
@@ -39,11 +40,11 @@ export async function GET(request: Request) {
     });
   } catch (e) {
     if (e instanceof Error && /^Invalid (limit|cursor|offset)$/.test(e.message)) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+      return badRequest(e.message, request.headers);
     }
     if (e instanceof Error && e.message === 'Path traversal blocked') {
       console.warn('[files/list] Path traversal blocked (resolve)');
-      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+      return badRequest('Invalid path', request.headers);
     }
     console.error('[files/list]', e);
     return NextResponse.json(

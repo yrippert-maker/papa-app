@@ -7,9 +7,9 @@ import { requirePermission, PERMISSIONS } from '@/lib/authz';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
+export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ);
+  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) return err;
 
   try {

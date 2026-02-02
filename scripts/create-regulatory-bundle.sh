@@ -6,7 +6,7 @@
 # Guardrails: fail при uncommitted changes; требует точного совпадения tag.
 
 set -e
-TAG="${1:-v0.1.7}"
+TAG="${1:-v0.1.9}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DOCS="$ROOT/docs"
 DIST="$ROOT/dist"
@@ -57,6 +57,8 @@ FILES=(
   docs/ADR-002_SQLite_to_PostgreSQL.md
   docs/ADR-003_Adapter_Contracts.md
   docs/REGULATORY_BUNDLE_MANIFEST.md
+  docs/INSPECTION_API.md
+  docs/RELEASE_NOTES_v0.1.9.md
 )
 
 mkdir -p "$DIST"

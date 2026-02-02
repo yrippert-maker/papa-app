@@ -5,12 +5,13 @@ import { getDb, withRetry } from '@/lib/db';
 import { computeEventHash, canonicalJSON } from '@/lib/ledger-hash';
 import { validateLedgerAppend } from '@/lib/ledger-schema';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
+import { badRequest } from '@/lib/api/error-response';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.LEDGER_APPEND);
+  const err = requirePermission(session, PERMISSIONS.LEDGER_APPEND, req);
   if (err) return err;
 
   try {
@@ -18,12 +19,12 @@ export async function POST(req: Request) {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+      return badRequest('Invalid JSON', req.headers);
     }
     const validated = validateLedgerAppend(body);
     if (!validated.success) {
       console.warn('[ledger/append] Rejected:', validated.error.slice(0, 200));
-      return NextResponse.json({ error: validated.error }, { status: 400 });
+      return badRequest(validated.error, req.headers);
     }
     const { event_type, payload_json } = validated;
     const actorId = (session?.user?.id as string) ?? '';

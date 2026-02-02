@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ);
+  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) return err;
 
   const t0 = performance.now();

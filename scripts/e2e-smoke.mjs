@@ -61,6 +61,15 @@ async function run() {
     failed = true;
   } else {
     console.log('[OK] Unauthenticated request →', res1.status);
+    if (res1.status === 401) {
+      const body = await res1.json();
+      if (!body?.error?.code || !body?.error?.request_id) {
+        console.error('[FAIL] Unauthenticated 401: expected { error: { code, request_id } }, got', JSON.stringify(body));
+        failed = true;
+      } else {
+        console.log('[OK] Unauthenticated 401 → standardized payload (code, request_id)');
+      }
+    }
   }
 
   // 2. Auditor: cookie jar, 200 на read, 403 на write
@@ -117,6 +126,13 @@ async function run() {
     } else {
       console.log('[OK] Auditor: /api/tmc/items → 200 (read-only TMC.VIEW)');
     }
+    const rTmcRequests = await fetchWithJar(auditorJar, `${BASE}/api/tmc/requests`);
+    if (rTmcRequests.status !== 200) {
+      console.error('[FAIL] Auditor: /api/tmc/requests expected 200 (TMC.VIEW alias), got', rTmcRequests.status);
+      failed = true;
+    } else {
+      console.log('[OK] Auditor: /api/tmc/requests → 200 (TMC.VIEW alias for TMC.REQUEST.VIEW)');
+    }
     const rLedger = await fetchWithJar(auditorJar, `${BASE}/api/ledger/append`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -129,14 +145,39 @@ async function run() {
       console.error('[FAIL] Auditor: /api/ledger/append expected 403, got', rLedger.status);
       failed = true;
     } else {
-      console.log('[OK] Auditor: /api/ledger/append → 403 (Forbidden)');
+      const body = await rLedger.json();
+      if (!body?.error?.code || body.error.code !== 'FORBIDDEN' || !body?.error?.request_id) {
+        console.error('[FAIL] Auditor: /api/ledger/append 403 expected { error: { code: FORBIDDEN, request_id } }, got', JSON.stringify(body));
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: /api/ledger/append → 403 (standardized payload)');
+      }
+    }
+    const rInspection = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards`);
+    if (rInspection.status !== 200) {
+      console.error('[FAIL] Auditor: /api/inspection/cards expected 200 (INSPECTION.VIEW), got', rInspection.status);
+      failed = true;
+    } else {
+      const inspBody = await rInspection.json();
+      if (!Array.isArray(inspBody.cards)) {
+        console.error('[FAIL] Auditor: /api/inspection/cards response must have cards array');
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: /api/inspection/cards → 200 (INSPECTION.VIEW)');
+      }
     }
     const rAdminUsers = await fetchWithJar(auditorJar, `${BASE}/api/admin/users`);
     if (rAdminUsers.status !== 403) {
       console.error('[FAIL] Auditor: /api/admin/users expected 403, got', rAdminUsers.status);
       failed = true;
     } else {
-      console.log('[OK] Auditor: /api/admin/users → 403 (Forbidden)');
+      const body = await rAdminUsers.json();
+      if (!body?.error?.code || body.error.code !== 'FORBIDDEN' || !body?.error?.request_id) {
+        console.error('[FAIL] Auditor: /api/admin/users 403 expected { error: { code: FORBIDDEN, request_id } }, got', JSON.stringify(body));
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: /api/admin/users → 403 (standardized payload)');
+      }
     }
   }
 

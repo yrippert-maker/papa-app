@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
+import { badRequest } from '@/lib/api/error-response';
 import { getDb, withRetry } from '@/lib/db';
 import { hashSync } from 'bcryptjs';
 import { z } from 'zod';
@@ -26,13 +27,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
   if (err) return err;
 
   const { id } = await params;
   const userId = parseInt(id, 10);
   if (Number.isNaN(userId) || userId < 1) {
-    return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
+    return badRequest('Invalid user id', req.headers);
   }
 
   try {
@@ -40,11 +41,11 @@ export async function PATCH(
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success) {
       const msg = parsed.error.issues?.map((i) => i.message).join('; ') ?? 'Validation failed';
-      return NextResponse.json({ error: msg }, { status: 400 });
+      return badRequest(msg, req.headers);
     }
     const { role_code, reset_password } = parsed.data;
     if (!role_code && !reset_password) {
-      return NextResponse.json({ error: 'Specify role_code or reset_password' }, { status: 400 });
+      return badRequest('Specify role_code or reset_password', req.headers);
     }
 
     const actorId = (session?.user?.id as string) ?? '0';
@@ -125,10 +126,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     if ('selfDemote' in updated && updated.selfDemote) {
-      return NextResponse.json(
-        { error: 'Cannot change your own role' },
-        { status: 400 }
-      );
+      return badRequest('Cannot change your own role', req.headers);
     }
     const { newPassword: np, ...user } = updated as { id: number; email: string; role_code: string; created_at: string; updated_at: string; newPassword: string | null };
     return NextResponse.json({
