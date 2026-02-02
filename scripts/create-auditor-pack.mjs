@@ -778,20 +778,9 @@ let packSha256 = null;
 try {
   execSync(`cd "${OUTPUT_DIR}" && tar -czf "${PACK_NAME}.tar.gz" "${PACK_NAME}"`, { stdio: 'pipe' });
   
-  // Compute SHA-256 of the tar.gz
+  // Compute SHA-256 of the tar.gz (authoritative: release notes; not stored in manifest — see DRY_RUN_AUDIT)
   const tarContent = readFileSync(tarFile);
   packSha256 = sha256(tarContent);
-  
-  // Update MANIFEST with pack_sha256
-  manifestContent.pack_sha256 = packSha256;
-  writeFileSync(join(PACK_DIR, 'MANIFEST.json'), JSON.stringify(manifestContent, null, 2));
-  
-  // Recreate tar with updated manifest
-  execSync(`cd "${OUTPUT_DIR}" && rm -f "${PACK_NAME}.tar.gz" && tar -czf "${PACK_NAME}.tar.gz" "${PACK_NAME}"`, { stdio: 'pipe' });
-  
-  // Recompute final SHA-256
-  const finalTarContent = readFileSync(tarFile);
-  packSha256 = sha256(finalTarContent);
   
   console.log(`[auditor-pack] ✓ ${PACK_NAME}.tar.gz`);
 } catch (e) {

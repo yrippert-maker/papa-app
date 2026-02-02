@@ -65,10 +65,11 @@ node verify.mjs
   ],
   "trust_anchor_fingerprints": [...],
   "policy_index_sha256": "...",
-  "verifier_sha256": "...",
-  "pack_sha256": "..."
+  "verifier_sha256": "..."
 }
 ```
+
+*Pack SHA-256 is published in release notes (authoritative for pack integrity).*
 
 ### Verification Modes
 
