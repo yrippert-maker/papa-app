@@ -205,6 +205,19 @@ async function run() {
         console.log('[OK] Auditor: /api/inspection/cards/:id/evidence → 200 (INSPECTION.VIEW)');
       }
     }
+    const rEvidenceSigned = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/evidence?signed=1`);
+    if (rEvidenceSigned.status !== 200) {
+      console.error('[FAIL] Auditor: /api/inspection/cards/:id/evidence?signed=1 expected 200, got', rEvidenceSigned.status);
+      failed = true;
+    } else {
+      const signedBody = await rEvidenceSigned.json();
+      if (!signedBody.export_signature || !signedBody.export_public_key) {
+        console.error('[FAIL] Auditor: evidence?signed=1 must have export_signature, export_public_key');
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: /api/inspection/cards/:id/evidence?signed=1 → 200 (signed export)');
+      }
+    }
     const rCheckResults = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/check-results`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

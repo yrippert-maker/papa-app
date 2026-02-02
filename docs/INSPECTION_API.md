@@ -150,7 +150,11 @@ Write API (transitions): `INSPECTION.MANAGE`.
 
 Evidence export для compliance: snapshot карты + check_results + audit events + export_hash. Permission: `INSPECTION.VIEW`.
 
-**Response:**
+**Query params:**
+- `signed=1` — добавить Ed25519 подпись `export_hash` (ключи в `{WORKSPACE_ROOT}/00_SYSTEM/keys/`)
+- `format=bundle` — вернуть ZIP с `export.json`, `export.signature`, `manifest.json`, `public.pem`
+
+**Response (JSON, default):**
 ```json
 {
   "schema_version": "1",
@@ -174,6 +178,13 @@ Evidence export для compliance: snapshot карты + check_results + audit e
 ```
 
 - `export_hash` — SHA-256 canonical JSON всего экспорта (детерминирован для верификации целостности).
+- При `signed=1`: `export_signature` (hex), `export_public_key` (PEM).
+
+**Response (ZIP, format=bundle):** архив содержит:
+- `export.json` — полный evidence export
+- `export.signature` — hex подпись `export_hash` (Ed25519)
+- `manifest.json` — `{ files: { "export.json": { sha256 }, "export.signature": { sha256 } } }`
+- `public.pem` — публичный ключ для верификации
 
 **Errors:** `404` — карта не найдена.
 

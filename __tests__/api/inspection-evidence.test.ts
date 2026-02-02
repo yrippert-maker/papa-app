@@ -43,6 +43,11 @@ jest.mock('@/lib/authz', () => ({
   PERMISSIONS: {},
 }));
 
+jest.mock('@/lib/evidence-signing', () => ({
+  ensureKeys: () => ({ publicKey: '-----BEGIN PUBLIC KEY-----\nMOCK\n-----END PUBLIC KEY-----' }),
+  signExportHash: (hash: string) => `sig_${hash.slice(0, 8)}`,
+}));
+
 jest.mock('@/lib/db', () => ({
   getDbReadOnly: () => ({
     prepare: (sql: string) => ({
@@ -95,5 +100,25 @@ describe('GET /api/inspection/cards/:id/evidence', () => {
     const req = new Request('http://localhost/api/inspection/cards//evidence');
     const res = await GET(req, { params: Promise.resolve({ id: '' }) });
     expect(res.status).toBe(400);
+  });
+
+  it('returns signed export when signed=1', async () => {
+    const req = new Request('http://localhost/api/inspection/cards/CARD-1/evidence?signed=1');
+    const res = await GET(req, { params: Promise.resolve({ id: 'CARD-1' }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.export_signature).toBeDefined();
+    expect(body.export_signature).toMatch(/^sig_/);
+    expect(body.export_public_key).toContain('BEGIN PUBLIC KEY');
+  });
+
+  it('returns ZIP bundle when format=bundle', async () => {
+    const req = new Request('http://localhost/api/inspection/cards/CARD-1/evidence?format=bundle');
+    const res = await GET(req, { params: Promise.resolve({ id: 'CARD-1' }) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('application/zip');
+    expect(res.headers.get('Content-Disposition')).toContain('attachment');
+    const buf = await res.arrayBuffer();
+    expect(buf.byteLength).toBeGreaterThan(0);
   });
 });

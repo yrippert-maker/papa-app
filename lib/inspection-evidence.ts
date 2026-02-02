@@ -39,6 +39,10 @@ export type EvidenceExport = {
     actor_id: string | null;
   }>;
   export_hash: string;
+  /** Present when signed=1: Ed25519 signature of export_hash (hex) */
+  export_signature?: string;
+  /** Present when signed=1: PEM public key for verification */
+  export_public_key?: string;
 };
 
 /**

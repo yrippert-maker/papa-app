@@ -6,12 +6,15 @@ import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
 import { badRequest, notFound, jsonError } from '@/lib/api/error-response';
 import { VerifyErrorCodes } from '@/lib/verify-error-codes';
 import { buildEvidenceExport } from '@/lib/inspection-evidence';
+import { signExportHash, ensureKeys } from '@/lib/evidence-signing';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/inspection/cards/:id/evidence — evidence export for compliance.
  * Returns card snapshot + check_results + audit events + export_hash.
+ * Query: signed=1 — add signature; format=bundle — return ZIP.
  * Permission: INSPECTION.VIEW.
  */
 export async function GET(
@@ -28,6 +31,9 @@ export async function GET(
   }
 
   const cardId = id.trim();
+  const url = new URL(request.url);
+  const signed = url.searchParams.get('signed') === '1';
+  const format = url.searchParams.get('format');
 
   try {
     const db = getDbReadOnly();
@@ -71,7 +77,49 @@ export async function GET(
       actor_id: string | null;
     }>;
 
-    const export_ = buildEvidenceExport(card, checkResults, auditRows);
+    let export_ = buildEvidenceExport(card, checkResults, auditRows);
+
+    if (signed || format === 'bundle') {
+      const { publicKey } = ensureKeys();
+      const signature = signExportHash(export_.export_hash);
+      export_ = { ...export_, export_signature: signature, export_public_key: publicKey };
+    }
+
+    if (format === 'bundle') {
+      const { default: JSZip } = await import('jszip');
+      const jsonStr = JSON.stringify(export_, null, 2);
+      const jsonSha = crypto.createHash('sha256').update(jsonStr, 'utf8').digest('hex');
+      const sigStr = export_.export_signature ?? '';
+      const sigSha = crypto.createHash('sha256').update(sigStr, 'utf8').digest('hex');
+      const manifest = {
+        schema_version: '1',
+        exported_at: export_.exported_at,
+        inspection_card_id: export_.inspection_card_id,
+        export_hash: export_.export_hash,
+        files: {
+          'export.json': { sha256: jsonSha },
+          'export.signature': { sha256: sigSha, content: 'hex signature of export_hash' },
+        },
+      };
+      const manifestStr = JSON.stringify(manifest, null, 2);
+
+      const zip = new JSZip();
+      zip.file('export.json', jsonStr);
+      zip.file('export.signature', sigStr);
+      zip.file('manifest.json', manifestStr);
+      if (export_.export_public_key) {
+        zip.file('public.pem', export_.export_public_key);
+      }
+      const zipBuf = await zip.generateAsync({ type: 'arraybuffer' });
+
+      return new NextResponse(zipBuf, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/zip',
+          'Content-Disposition': `attachment; filename="evidence-${cardId}-${export_.exported_at.slice(0, 10)}.zip"`,
+        },
+      });
+    }
 
     return NextResponse.json(export_);
   } catch (e) {
