@@ -160,6 +160,7 @@ cd /app && npm run retention:json > /var/log/papa-retention-status.json
 
 ## См. также
 
+- [RETENTION_POLICY_MANIFEST.md](./RETENTION_POLICY_MANIFEST.md) — versioned policy manifest
 - [RUNBOOK_LEDGER_DEAD_LETTER.md](./RUNBOOK_LEDGER_DEAD_LETTER.md)
 - [EVIDENCE_SIGNING.md](./EVIDENCE_SIGNING.md)
 - [LEDGER_DEAD_LETTER.md](./LEDGER_DEAD_LETTER.md)

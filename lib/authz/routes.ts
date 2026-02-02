@@ -42,4 +42,5 @@ export const routeRegistry: RouteSpec[] = [
   { method: 'GET', path: '/api/compliance/keys/audit', permission: Permissions.COMPLIANCE_VIEW },
   { method: 'GET', path: '/api/compliance/verify-stats', permission: Permissions.COMPLIANCE_VIEW },
   { method: 'GET', path: '/api/compliance/export', permission: Permissions.COMPLIANCE_VIEW },
+  { method: 'GET', path: '/api/compliance/retention', permission: Permissions.COMPLIANCE_VIEW },
 ];

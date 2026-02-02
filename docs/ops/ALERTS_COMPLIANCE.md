@@ -152,7 +152,106 @@
 
 ---
 
-## 6. Prometheus Targets
+## 6. Retention Enforcement Alerts
+
+**Симптом:** `npm run retention:check` вернул exit code 2 (violations found).
+
+### Bash/Cron Integration
+
+```bash
+#!/bin/bash
+# /etc/cron.daily/papa-retention-check
+
+cd /app
+
+# Run retention check and capture output
+OUTPUT=$(npm run retention:json 2>&1)
+EXIT_CODE=$?
+
+# Log output
+echo "$OUTPUT" >> /var/log/papa-retention.log
+
+# Alert on violations (exit code 2)
+if [ $EXIT_CODE -eq 2 ]; then
+  # Send alert via webhook/email/slack
+  curl -X POST "$ALERT_WEBHOOK_URL" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"alert\": \"RetentionViolation\",
+      \"severity\": \"warning\",
+      \"exit_code\": $EXIT_CODE,
+      \"timestamp\": \"$(date -Iseconds)\",
+      \"report\": $OUTPUT
+    }"
+fi
+
+# Alert on errors (exit code 1)
+if [ $EXIT_CODE -eq 1 ]; then
+  curl -X POST "$ALERT_WEBHOOK_URL" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"alert\": \"RetentionError\",
+      \"severity\": \"critical\",
+      \"exit_code\": $EXIT_CODE,
+      \"timestamp\": \"$(date -Iseconds)\"
+    }"
+fi
+```
+
+### CI/GitHub Actions
+
+```yaml
+# .github/workflows/retention-check.yml
+name: Retention Check
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Retention Check
+        id: retention
+        continue-on-error: true
+        run: |
+          npm run retention:json > retention-report.json
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+      
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: retention-report
+          path: retention-report.json
+      
+      - name: Alert on Violation
+        if: steps.retention.outputs.exit_code == '2'
+        run: |
+          echo "::warning::Retention violations found!"
+          cat retention-report.json
+      
+      - name: Fail on Error
+        if: steps.retention.outputs.exit_code == '1'
+        run: exit 1
+```
+
+### Exit Codes Reference
+
+| Exit Code | Meaning | Severity | Action |
+|-----------|---------|----------|--------|
+| 0 | OK | — | None |
+| 1 | Error | critical | Investigate immediately |
+| 2 | Violations found | warning | Run `npm run retention:run` |
+
+---
+
+## 7. Prometheus Targets
 
 ### Метрики
 
