@@ -50,4 +50,4 @@ keys/
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.17.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **abffb7f664b597504cba5adfe49a5766c588feb892a84519cb34c32d861f8226**
