@@ -59,4 +59,4 @@ v0.1.21 добавляет Compliance Dashboard — UI для мониторин
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.21.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **7f075cfde02b43076941de1f4cb9cf41962a383221858f7523acea73160fed26**
