@@ -251,7 +251,57 @@ jobs:
 
 ---
 
-## 7. Prometheus Targets
+## 7. Policy Drift Detection (Baseline)
+
+**Симптом:** Policy hash differs from repo-backed baseline.
+
+### CI Check
+
+```bash
+npm run retention:baseline:check
+# Exit 0 = OK
+# Exit 2 = Drift detected
+```
+
+### GitHub Actions
+
+```yaml
+- name: Policy Drift Check
+  run: npm run retention:baseline:check
+```
+
+### Workflow Rules
+
+1. **Policy change** → Update `RETENTION_POLICY_MANIFEST.md`
+2. **Then** → Run `npm run retention:baseline:update`
+3. **Commit both** in same PR
+4. CI will fail if policy changes without baseline update
+
+### Updating Baseline
+
+```bash
+# Requires clean git tree
+npm run retention:baseline:update
+git add docs/ops/POLICY_HASH_BASELINE.json
+git commit -m "chore: update policy hash baseline"
+```
+
+### Baseline File
+
+`docs/ops/POLICY_HASH_BASELINE.json`:
+
+```json
+{
+  "policy_version": "1.0.0",
+  "policy_hash": "25c2707addd49c29",
+  "generated_at": "2026-02-02T00:00:00Z",
+  "algorithm": "sha256(canonical json), truncated 16 hex"
+}
+```
+
+---
+
+## 8. Prometheus Targets
 
 ### Метрики
 

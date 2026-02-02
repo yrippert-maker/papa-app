@@ -1,6 +1,6 @@
 {
   "name": "papa-app",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -22,7 +22,9 @@
     "cleanup:dead-letter": "node scripts/cleanup-dead-letter.mjs",
     "retention:check": "node scripts/retention-enforce.mjs --dry-run",
     "retention:run": "node scripts/retention-enforce.mjs --execute",
-    "retention:json": "node scripts/retention-enforce.mjs --dry-run --json"
+    "retention:json": "node scripts/retention-enforce.mjs --dry-run --json",
+    "retention:baseline:check": "node scripts/retention-check-baseline.mjs",
+    "retention:baseline:update": "node scripts/retention-check-baseline.mjs --update"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
