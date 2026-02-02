@@ -117,6 +117,11 @@ export default function InspectionListPage() {
       <PageHeader
         title="Техкарты контроля"
         subtitle="Входной и выходной контроль ТМЦ"
+        actions={
+          <Link href="/inspection/verify" className="btn btn-outline btn-sm">
+            🔍 Проверить Evidence
+          </Link>
+        }
       />
       <main className="flex-1 p-6 lg:p-8 space-y-6">
         {report && (

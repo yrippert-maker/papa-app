@@ -38,3 +38,45 @@ npm run replay:dead-letter -- --base-url=http://localhost:3000
 ## Retry
 
 Ledger append использует `withRetry` с `maxAttempts: 5` и exponential backoff при SQLITE_BUSY.
+
+## Retention и Cleanup
+
+Скрипт `scripts/cleanup-dead-letter.mjs`:
+- Ротирует текущий файл → архив с timestamp
+- Удаляет архивы старше N дней (default: 30)
+- Выводит JSON для интеграции с alerting
+
+```bash
+# Dry-run (без записи)
+npm run cleanup:dead-letter -- --dry-run
+
+# Реальная очистка с retention 14 дней
+npm run cleanup:dead-letter -- --retention-days=14
+```
+
+### Структура архива
+```
+00_SYSTEM/
+├── ledger-dead-letter.jsonl          # текущий файл
+└── dead-letter-archive/
+    ├── dead-letter-2026-02-01T12-00-00-000Z.jsonl
+    └── dead-letter-2026-01-15T08-30-00-000Z.jsonl
+```
+
+### Алерты
+
+Скрипт выводит JSON с полями для alerting:
+```json
+{
+  "alert_high_volume": true,      // >100 entries
+  "alert_growing": true,          // >50 entries + >5 archives
+  "before": {...},
+  "after": {...}
+}
+```
+
+Интеграция с cron + alertmanager:
+```bash
+# /etc/cron.daily/papa-dead-letter-cleanup
+cd /app && npm run cleanup:dead-letter 2>&1 | grep alert-data | logger -t papa-dead-letter
+```

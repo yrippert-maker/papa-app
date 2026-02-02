@@ -2,15 +2,18 @@
  * POST /api/inspection/evidence/verify
  * Verifies an evidence export: checks content hash and signature.
  * Useful for external integrations and offline verification.
+ * Rate-limited: 20 requests per minute per IP.
  */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { verifyExportContent, type EvidenceExport } from '@/lib/inspection-evidence';
 import { verifyExportHashWithDetails, getKeyStatus, type VerifyResult } from '@/lib/evidence-signing';
-import { jsonError } from '@/lib/api/error-response';
+import { jsonError, rateLimitError } from '@/lib/api/error-response';
 import { VerifyErrorCodes } from '@/lib/verify-error-codes';
 import { requirePermission } from '@/lib/authz';
+import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
+import { incEvidenceVerifyMetric } from '@/lib/metrics/evidence-verify';
 
 export type EvidenceVerifyRequest = {
   export_json: EvidenceExport;
@@ -39,9 +42,20 @@ export type EvidenceVerifyResponse = {
 };
 
 export async function POST(request: Request) {
+  // Rate limit: 20 requests per minute
+  const clientKey = getClientKey(request);
+  const rateCheck = checkRateLimit(`evidence-verify:${clientKey}`, { max: 20, windowMs: 60_000 });
+  if (!rateCheck.allowed) {
+    incEvidenceVerifyMetric('rate_limited');
+    return rateLimitError('Too many requests', null, Math.ceil((rateCheck.retryAfterMs ?? 60000) / 1000));
+  }
+
   const session = await getServerSession(authOptions);
   const permError = requirePermission(session, 'INSPECTION.VIEW');
-  if (permError) return permError;
+  if (permError) {
+    incEvidenceVerifyMetric('unauthorized');
+    return permError;
+  }
 
   let body: EvidenceVerifyRequest;
   try {
@@ -106,6 +120,21 @@ export async function POST(request: Request) {
   }
 
   const ok = contentResult.valid && (!sig || signatureResult?.valid === true);
+
+  // Record metrics
+  if (ok) {
+    incEvidenceVerifyMetric('ok');
+  } else if (!contentResult.valid) {
+    incEvidenceVerifyMetric('content_invalid');
+  } else if (signatureResult?.error === 'KEY_REVOKED') {
+    incEvidenceVerifyMetric('key_revoked');
+  } else if (signatureResult?.error === 'KEY_NOT_FOUND') {
+    incEvidenceVerifyMetric('key_not_found');
+  } else if (signatureResult?.error === 'SIGNATURE_INVALID') {
+    incEvidenceVerifyMetric('signature_invalid');
+  } else {
+    incEvidenceVerifyMetric('other_error');
+  }
 
   const response: EvidenceVerifyResponse = {
     ok,

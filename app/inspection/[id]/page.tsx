@@ -67,6 +67,7 @@ export default function InspectionCardDetailPage() {
   const [changedCodes, setChangedCodes] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, { result: string; value: string; unit: string; comment: string }>>({});
+  const [downloading, setDownloading] = useState(false);
 
   const permissions = (session?.user as { permissions?: string[] } | undefined)?.permissions ?? [];
   const hasInspectionView = INSPECTION_VIEW_PERMS.some((p) => permissions.includes(p));
@@ -170,6 +171,30 @@ export default function InspectionCardDetailPage() {
     });
   };
 
+  const handleDownloadBundle = async () => {
+    if (!id || downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/inspection/cards/${id}/evidence?format=bundle`);
+      if (!res.ok) throw new Error('Ошибка скачивания');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = res.headers.get('content-disposition');
+      const filenameMatch = disposition?.match(/filename="(.+)"/);
+      a.download = filenameMatch?.[1] ?? `evidence-${id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ошибка скачивания');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (status === 'loading' || (hasInspectionView && loading && !card)) {
     return (
       <DashboardLayout>
@@ -237,6 +262,14 @@ export default function InspectionCardDetailPage() {
             <Link href={`/inspection/${id}/audit`} className="btn btn-outline btn-sm">
               Журнал событий
             </Link>
+            <button
+              onClick={handleDownloadBundle}
+              disabled={downloading}
+              className="btn btn-outline btn-sm"
+              title="Скачать подписанный evidence bundle (ZIP)"
+            >
+              {downloading ? '...' : '📦 Evidence'}
+            </button>
           </div>
         }
       />
