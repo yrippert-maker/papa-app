@@ -59,4 +59,4 @@ keys/archived/{key_id}/revoked.json
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.18.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **6e6d3cbbcafeb56a6ef5c66776bf9fc77154434b70dc4118e68d5b6e938504ce**
