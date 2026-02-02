@@ -56,4 +56,4 @@ v0.1.22 добавляет audit log для операций с ключами (
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.22.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **c17fa6bdf87cf9849ac473907b1cd4221ca73b772a1794b0c95074718bd03bbd**
