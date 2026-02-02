@@ -4,6 +4,7 @@
  */
 import { existsSync, readdirSync, statSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { createHash } from 'crypto';
 
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || './workspace';
 const SYSTEM_DIR = join(WORKSPACE_ROOT, '00_SYSTEM');
@@ -64,6 +65,8 @@ export type KeysStatus = {
 
 export type RetentionReport = {
   generated_at: string;
+  policy_version: string;
+  policy_hash: string;
   policy: RetentionPolicy;
   status: {
     dead_letter: DeadLetterStatus;
@@ -74,6 +77,14 @@ export type RetentionReport = {
     action_required: boolean;
   };
 };
+
+/**
+ * Computes SHA-256 hash of the policy manifest for drift detection.
+ */
+export function computePolicyHash(policy: RetentionPolicy): string {
+  const canonical = JSON.stringify(policy, Object.keys(policy).sort(), 0);
+  return createHash('sha256').update(canonical).digest('hex').slice(0, 16);
+}
 
 // Current policy manifest
 export const RETENTION_POLICY: RetentionPolicy = {
@@ -248,6 +259,8 @@ export function getRetentionReport(): RetentionReport {
 
   return {
     generated_at: new Date().toISOString(),
+    policy_version: RETENTION_POLICY.version,
+    policy_hash: computePolicyHash(RETENTION_POLICY),
     policy: RETENTION_POLICY,
     status: {
       dead_letter: deadLetter,

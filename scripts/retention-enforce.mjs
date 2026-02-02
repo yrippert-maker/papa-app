@@ -24,6 +24,7 @@
  */
 import { readFileSync, writeFileSync, renameSync, unlinkSync, readdirSync, statSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { createHash } from 'crypto';
 
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || './workspace';
 const SYSTEM_DIR = join(WORKSPACE_ROOT, '00_SYSTEM');
@@ -43,6 +44,32 @@ const TARGET = targetArg ? targetArg.split('=')[1] : 'all';
 
 const KEY_RETENTION_YEARS = 3;
 const KEY_RETENTION_MS = KEY_RETENTION_YEARS * 365 * 24 * 60 * 60 * 1000;
+
+// Policy manifest (must match lib/retention-service.ts)
+const POLICY = {
+  version: '1.0.0',
+  updated_at: '2026-02-02',
+  targets: {
+    dead_letter: {
+      retention_days: RETENTION_DAYS,
+      max_size_mb: 100,
+      rotation_threshold_lines: 1000,
+    },
+    keys: {
+      archived_retention_years: KEY_RETENTION_YEARS,
+      revoked_retention: 'never_delete',
+    },
+    ledger: {
+      retention: 'permanent',
+      deletion: 'prohibited',
+    },
+  },
+};
+
+function computePolicyHash(policy) {
+  const canonical = JSON.stringify(policy, Object.keys(policy).sort(), 0);
+  return createHash('sha256').update(canonical).digest('hex').slice(0, 16);
+}
 
 function log(...msg) {
   if (!JSON_OUTPUT) console.log(...msg);
@@ -277,6 +304,8 @@ function run() {
 
   const report = {
     timestamp: new Date().toISOString(),
+    policy_version: POLICY.version,
+    policy_hash: computePolicyHash(POLICY),
     mode: DRY_RUN ? 'dry-run' : 'execute',
     targets: {},
     summary: {
