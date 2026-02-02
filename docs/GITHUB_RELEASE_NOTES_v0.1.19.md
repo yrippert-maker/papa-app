@@ -58,4 +58,4 @@ v0.1.19 добавляет operational tooling, улучшения UX для evi
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.19.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **3a3c63f1c68ca8b536b15a4c2447a64ba8b326cc2983b2ce1622766430185077**
