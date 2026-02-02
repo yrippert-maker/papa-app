@@ -178,7 +178,7 @@ This document outlines the governance maturity roadmap for Papa App, organized b
 | 1 | Провести Independent Dry-Run Audit по [плану](DRY_RUN_AUDIT_PLAN.md) | ☑ internal ([report](DRY_RUN_AUDIT_REPORT.md)); ☐ 3rd-party |
 | 2 | Получить отчёт (без critical findings) | ☑ internal; ☐ 3rd-party |
 | 3 | Ратифицировать Governance Charter (подписи CTO, CISO, Legal) | ☑ |
-| 4 | Выпустить v1.0.0 как формальное объявление зрелости | ☐ |
+| 4 | Выпустить v1.0.0 как формальное объявление зрелости | ☑ (tag pushed; GitHub Release — attach pack) |
 
 ---
 
