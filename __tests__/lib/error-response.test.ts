@@ -1,7 +1,7 @@
 /**
  * Unit tests for lib/api/error-response — standardized error payload.
  */
-import { badRequest, forbidden, unauthorized, jsonError } from '@/lib/api/error-response';
+import { badRequest, forbidden, unauthorized, jsonError, rateLimitError } from '@/lib/api/error-response';
 
 describe('error-response', () => {
   it('badRequest returns 400 with BAD_REQUEST code and request_id', async () => {
@@ -35,5 +35,14 @@ describe('error-response', () => {
     const body = await res.json();
     expect(body).toMatchObject({ error: { code: 'VALIDATION_ERROR', message: 'Custom message' } });
     expect(typeof body.error.request_id).toBe('string');
+  });
+
+  it('rateLimitError returns 429 with RATE_LIMITED code and Retry-After when provided', async () => {
+    const res = rateLimitError('Too many requests', undefined, 60);
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body).toMatchObject({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } });
+    expect(typeof body.error.request_id).toBe('string');
+    expect(res.headers.get('Retry-After')).toBe('60');
   });
 });

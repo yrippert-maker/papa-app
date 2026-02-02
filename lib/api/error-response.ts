@@ -37,3 +37,19 @@ export function unauthorized(headers?: Headers | null): NextResponse {
 export function badRequest(message: string, headers?: Headers | null): NextResponse {
   return jsonError(400, VerifyErrorCodes.BAD_REQUEST, message, headers);
 }
+
+export function rateLimitError(
+  message: string,
+  headers?: Headers | null,
+  retryAfterSec?: number
+): NextResponse {
+  const rid = requestId(headers);
+  const res = NextResponse.json(
+    { error: { code: VerifyErrorCodes.RATE_LIMITED, message, request_id: rid } },
+    { status: 429 }
+  );
+  if (retryAfterSec != null && retryAfterSec > 0) {
+    res.headers.set('Retry-After', String(Math.ceil(retryAfterSec)));
+  }
+  return res;
+}

@@ -8,7 +8,8 @@ import { WORKSPACE_ROOT } from '@/lib/config';
 import { getDb, withRetry } from '@/lib/db';
 import { computeEventHash, canonicalJSON } from '@/lib/ledger-hash';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
-import { badRequest } from '@/lib/api/error-response';
+import { badRequest, rateLimitError } from '@/lib/api/error-response';
+import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 
 const AI_INBOX_DIR = 'ai-inbox';
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -20,6 +21,8 @@ const DANGEROUS_EXTENSIONS = new Set([
 ]);
 
 export const dynamic = 'force-dynamic';
+
+const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 30 };
 
 function isAllowedFile(name: string, size: number): { ok: true } | { ok: false; error: string } {
   if (size > MAX_FILE_SIZE_BYTES) {
@@ -41,6 +44,16 @@ function isAllowedFile(name: string, size: number): { ok: true } | { ok: false; 
 }
 
 export async function POST(req: Request) {
+  const key = `files-upload:${getClientKey(req)}`;
+  const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
+  if (!allowed) {
+    return rateLimitError(
+      'Too many requests',
+      req.headers,
+      retryAfterMs ? Math.ceil(retryAfterMs / 1000) : undefined
+    );
+  }
+
   const session = await getServerSession(authOptions);
   const err = requirePermission(session, PERMISSIONS.FILES_UPLOAD, req);
   if (err) return err;

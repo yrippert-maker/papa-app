@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
-import { badRequest } from '@/lib/api/error-response';
+import { badRequest, rateLimitError } from '@/lib/api/error-response';
+import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 import { getDb, withRetry } from '@/lib/db';
 import { hashSync } from 'bcryptjs';
 import { z } from 'zod';
@@ -22,10 +23,22 @@ function randomPassword(length = 12): string {
   return Array.from(bytes, (b) => chars[b % chars.length]).join('');
 }
 
+const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 60 };
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const key = `admin-users:${getClientKey(req)}`;
+  const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
+  if (!allowed) {
+    return rateLimitError(
+      'Too many requests',
+      req.headers,
+      retryAfterMs ? Math.ceil(retryAfterMs / 1000) : undefined
+    );
+  }
+
   const session = await getServerSession(authOptions);
   const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
   if (err) return err;

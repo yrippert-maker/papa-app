@@ -3,11 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getDb, withRetry } from '@/lib/db';
 import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
-import { badRequest } from '@/lib/api/error-response';
+import { badRequest, rateLimitError } from '@/lib/api/error-response';
+import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 import { validateTransition, type InspectionCardStatus } from '@/lib/inspection/transitions';
 import { appendInspectionTransitionEvent } from '@/lib/inspection-audit';
 
 export const dynamic = 'force-dynamic';
+
+const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 60 };
 
 /**
  * POST /api/inspection/cards/:id/transition — изменение статуса карты.
@@ -18,6 +21,16 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const key = `inspection-transition:${getClientKey(req)}`;
+  const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
+  if (!allowed) {
+    return rateLimitError(
+      'Too many requests',
+      req.headers,
+      retryAfterMs ? Math.ceil(retryAfterMs / 1000) : undefined
+    );
+  }
+
   const session = await getServerSession(authOptions);
   const err = requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_MANAGE, req);
   if (err) return err;
@@ -38,7 +51,8 @@ export async function POST(
     const actorEmail = (session?.user?.email as string) ?? 'unknown';
     const transitionedAt = new Date().toISOString();
 
-    const result = await withRetry(() => {
+    const result = await withRetry(
+      () => {
       const db = getDb();
       const card = db
         .prepare('SELECT inspection_card_id, status, card_no FROM inspection_card WHERE inspection_card_id = ?')
@@ -75,7 +89,9 @@ export async function POST(
         .get(card.inspection_card_id) as Record<string, unknown>;
 
       return { ...updated, from_status: card.status };
-    });
+    },
+      { maxAttempts: 5 }
+    );
 
     if ('notFound' in result && result.notFound) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 });
