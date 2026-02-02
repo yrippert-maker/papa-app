@@ -250,6 +250,21 @@ async function run() {
     }
   }
 
+  // 5. Metrics endpoint (no auth)
+  const rMetrics = await fetch(`${BASE}/api/metrics`);
+  if (rMetrics.status !== 200) {
+    console.error('[FAIL] /api/metrics expected 200, got', rMetrics.status);
+    failed = true;
+  } else {
+    const text = await rMetrics.text();
+    if (!text.includes('verify_aggregator_requests_total')) {
+      console.error('[FAIL] /api/metrics missing verify_aggregator metrics');
+      failed = true;
+    } else {
+      console.log('[OK] /api/metrics → 200 (Prometheus format)');
+    }
+  }
+
   if (failed) process.exit(1);
   console.log('E2E smoke: all passed');
 }

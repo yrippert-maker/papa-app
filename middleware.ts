@@ -24,9 +24,10 @@ export default function middleware(req: NextRequest, event: { next: (r: NextRequ
 export const config = {
   // Защита всех маршрутов, кроме:
   // - api/auth (NextAuth callbacks)
+  // - api/metrics (Prometheus scrape; restrict at proxy/ingress)
   // - login (страница входа)
   // - _next/static, _next/image, favicon.ico (static assets)
   matcher: [
-    '/((?!api/auth|login|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|api/metrics|login|_next/static|_next/image|favicon.ico).*)',
   ],
 };
