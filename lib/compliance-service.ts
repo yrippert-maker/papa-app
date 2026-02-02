@@ -197,6 +197,21 @@ export type KeyAuditEvent = {
   block_hash: string;
 };
 
+export type KeyAuditFilter = {
+  from?: string;        // ISO date string
+  to?: string;          // ISO date string
+  action?: 'KEY_ROTATED' | 'KEY_REVOKED';
+  limit?: number;       // default 50, max 1000
+  cursor?: number;      // last seen id for pagination
+};
+
+export type KeyAuditResponse = {
+  events: KeyAuditEvent[];
+  total: number;
+  next_cursor: number | null;
+  has_more: boolean;
+};
+
 /**
  * Logs a key action to the ledger.
  */
@@ -229,17 +244,56 @@ export function logKeyAction(
 }
 
 /**
- * Gets key audit events from ledger.
+ * Gets key audit events from ledger with filters and pagination.
  */
-export function getKeyAuditEvents(limit = 50): KeyAuditEvent[] {
+export function getKeyAuditEvents(filter: KeyAuditFilter = {}): KeyAuditResponse {
   const db = getDbReadOnly();
-  const rows = db.prepare(`
+  const limit = Math.min(filter.limit ?? 50, 1000);
+  
+  // Build WHERE clause
+  const conditions: string[] = ['event_type LIKE \'COMPLIANCE_KEY_%\''];
+  const params: (string | number)[] = [];
+  
+  if (filter.from) {
+    conditions.push('created_at >= ?');
+    params.push(filter.from);
+  }
+  
+  if (filter.to) {
+    conditions.push('created_at <= ?');
+    params.push(filter.to);
+  }
+  
+  if (filter.action) {
+    conditions.push('event_type = ?');
+    params.push(`COMPLIANCE_${filter.action}`);
+  }
+  
+  if (filter.cursor) {
+    conditions.push('id < ?');
+    params.push(filter.cursor);
+  }
+  
+  const whereClause = conditions.join(' AND ');
+  
+  // Get total count (without cursor/limit for accurate total)
+  const countConditions = conditions.filter(c => !c.startsWith('id <'));
+  const countParams = params.filter((_, i) => !conditions[i]?.startsWith('id <'));
+  const countQuery = `SELECT COUNT(*) as count FROM ledger_events WHERE ${countConditions.join(' AND ')}`;
+  const totalRow = db.prepare(countQuery).get(...countParams) as { count: number };
+  const total = totalRow.count;
+  
+  // Get events
+  const query = `
     SELECT id, event_type, payload_json, actor_id, created_at, block_hash
     FROM ledger_events
-    WHERE event_type LIKE 'COMPLIANCE_KEY_%'
+    WHERE ${whereClause}
     ORDER BY id DESC
     LIMIT ?
-  `).all(limit) as Array<{
+  `;
+  params.push(limit + 1); // +1 to detect has_more
+  
+  const rows = db.prepare(query).all(...params) as Array<{
     id: number;
     event_type: string;
     payload_json: string;
@@ -248,7 +302,8 @@ export function getKeyAuditEvents(limit = 50): KeyAuditEvent[] {
     block_hash: string;
   }>;
   
-  return rows.map((row) => {
+  const hasMore = rows.length > limit;
+  const events = rows.slice(0, limit).map((row) => {
     const payload = JSON.parse(row.payload_json);
     const action = row.event_type.replace('COMPLIANCE_', '') as 'KEY_ROTATED' | 'KEY_REVOKED';
     return {
@@ -263,6 +318,15 @@ export function getKeyAuditEvents(limit = 50): KeyAuditEvent[] {
       block_hash: row.block_hash,
     };
   });
+  
+  const nextCursor = hasMore && events.length > 0 ? events[events.length - 1].id : null;
+  
+  return {
+    events,
+    total,
+    next_cursor: nextCursor,
+    has_more: hasMore,
+  };
 }
 
 // ========== CSV Export ==========
@@ -297,10 +361,10 @@ export function getVerifyStatsCSV(): string {
 }
 
 /**
- * Generates CSV string for key audit events.
+ * Generates CSV string for key audit events with optional filters.
  */
-export function getKeyAuditCSV(): string {
-  const events = getKeyAuditEvents(1000);
+export function getKeyAuditCSV(filter: Omit<KeyAuditFilter, 'cursor'> = {}): string {
+  const { events } = getKeyAuditEvents({ ...filter, limit: 10000 });
   
   const lines: string[] = [
     'timestamp,action,key_id,new_key_id,reason,actor_id,block_hash',

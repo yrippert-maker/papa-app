@@ -1,14 +1,17 @@
 /**
  * GET /api/compliance/export
  * Exports compliance data as CSV.
- * Query params: type=verify-stats|key-audit
+ * Query params:
+ *   type=verify-stats|key-audit
+ *   from, to (ISO dates) - for key-audit
+ *   action (KEY_ROTATED|KEY_REVOKED) - for key-audit
  * Permission: COMPLIANCE.VIEW or ADMIN.MANAGE_USERS
  */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS, hasPermission } from '@/lib/authz';
-import { getVerifyStatsCSV, getKeyAuditCSV } from '@/lib/compliance-service';
+import { getVerifyStatsCSV, getKeyAuditCSV, type KeyAuditFilter } from '@/lib/compliance-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,10 +36,29 @@ export async function GET(request: Request) {
     const timestamp = new Date().toISOString().slice(0, 10);
     
     switch (type) {
-      case 'key-audit':
-        csv = getKeyAuditCSV();
-        filename = `key-audit-${timestamp}.csv`;
+      case 'key-audit': {
+        // Parse filters for key-audit
+        const filter: Omit<KeyAuditFilter, 'cursor'> = {};
+        
+        const from = url.searchParams.get('from');
+        if (from) filter.from = from;
+        
+        const to = url.searchParams.get('to');
+        if (to) filter.to = to;
+        
+        const action = url.searchParams.get('action');
+        if (action === 'KEY_ROTATED' || action === 'KEY_REVOKED') {
+          filter.action = action;
+        }
+        
+        csv = getKeyAuditCSV(filter);
+        
+        // Include filter info in filename
+        const parts = ['key-audit', timestamp];
+        if (filter.action) parts.push(filter.action.toLowerCase());
+        filename = `${parts.join('-')}.csv`;
         break;
+      }
       case 'verify-stats':
       default:
         csv = getVerifyStatsCSV();

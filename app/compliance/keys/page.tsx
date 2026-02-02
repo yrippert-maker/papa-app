@@ -35,10 +35,23 @@ type AuditEvent = {
   block_hash: string;
 };
 
+type AuditResponse = {
+  events: AuditEvent[];
+  total: number;
+  next_cursor: number | null;
+  has_more: boolean;
+};
+
+type AuditFilters = {
+  from: string;
+  to: string;
+  action: '' | 'KEY_ROTATED' | 'KEY_REVOKED';
+};
+
 export default function ComplianceKeysPage() {
   const { data: session, status } = useSession();
   const [keys, setKeys] = useState<KeysResponse | null>(null);
-  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [auditData, setAuditData] = useState<AuditResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -46,6 +59,10 @@ export default function ComplianceKeysPage() {
   const [revokeReason, setRevokeReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Audit filters
+  const [filters, setFilters] = useState<AuditFilters>({ from: '', to: '', action: '' });
+  const [auditCursor, setAuditCursor] = useState<number | null>(null);
 
   const permissions = (session?.user as { permissions?: string[] } | undefined)?.permissions ?? [];
   const hasView = COMPLIANCE_PERMS.some((p) => permissions.includes(p));
@@ -65,12 +82,26 @@ export default function ComplianceKeysPage() {
     }
   };
 
-  const fetchAudit = async () => {
+  const fetchAudit = async (cursor?: number | null, append = false) => {
     try {
-      const res = await fetch('/api/compliance/keys/audit?limit=20');
+      const params = new URLSearchParams({ limit: '20' });
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
+      if (filters.action) params.set('action', filters.action);
+      if (cursor) params.set('cursor', cursor.toString());
+      
+      const res = await fetch(`/api/compliance/keys/audit?${params}`);
       if (res.ok) {
-        const data = await res.json();
-        setAuditEvents(data.events ?? []);
+        const data: AuditResponse = await res.json();
+        if (append && auditData) {
+          setAuditData({
+            ...data,
+            events: [...auditData.events, ...data.events],
+          });
+        } else {
+          setAuditData(data);
+        }
+        setAuditCursor(data.next_cursor);
       }
     } catch (err) {
       console.error('Failed to fetch audit:', err);
@@ -86,6 +117,13 @@ export default function ComplianceKeysPage() {
     }
     Promise.all([fetchKeys(), fetchAudit()]).finally(() => setLoading(false));
   }, [status, hasView]);
+
+  // Refetch when filters change
+  useEffect(() => {
+    if (!loading && hasView) {
+      fetchAudit();
+    }
+  }, [filters]);
 
   const handleRotate = async () => {
     if (!confirm('Вы уверены, что хотите ротировать ключ? Текущий ключ будет архивирован.')) {
@@ -294,53 +332,111 @@ export default function ComplianceKeysPage() {
 
         {/* Audit Log */}
         <div className="card">
-          <div className="card-header flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-[#0F172A] dark:text-slate-100">Журнал действий</h3>
-            <a
-              href="/api/compliance/export?type=key-audit"
-              className="btn btn-ghost btn-xs"
-              download
-            >
-              📥 CSV
-            </a>
+          <div className="card-header flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-[#0F172A] dark:text-slate-100">
+                Журнал действий
+                {auditData && <span className="text-sm font-normal text-[#64748B] ml-2">({auditData.total} записей)</span>}
+              </h3>
+              <a
+                href={`/api/compliance/export?type=key-audit${filters.from ? `&from=${filters.from}` : ''}${filters.to ? `&to=${filters.to}` : ''}${filters.action ? `&action=${filters.action}` : ''}`}
+                className="btn btn-ghost btn-xs"
+                download
+              >
+                📥 CSV
+              </a>
+            </div>
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 items-end">
+              <div>
+                <label className="label text-xs py-0">От</label>
+                <input
+                  type="date"
+                  className="input input-bordered input-sm w-36"
+                  value={filters.from}
+                  onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label text-xs py-0">До</label>
+                <input
+                  type="date"
+                  className="input input-bordered input-sm w-36"
+                  value={filters.to}
+                  onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label text-xs py-0">Действие</label>
+                <select
+                  className="select select-bordered select-sm w-36"
+                  value={filters.action}
+                  onChange={(e) => setFilters({ ...filters, action: e.target.value as AuditFilters['action'] })}
+                >
+                  <option value="">Все</option>
+                  <option value="KEY_ROTATED">Ротация</option>
+                  <option value="KEY_REVOKED">Отзыв</option>
+                </select>
+              </div>
+              {(filters.from || filters.to || filters.action) && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setFilters({ from: '', to: '', action: '' })}
+                >
+                  Сбросить
+                </button>
+              )}
+            </div>
           </div>
           <div className="card-body">
-            {auditEvents.length === 0 ? (
+            {!auditData?.events?.length ? (
               <p className="text-[#64748B] dark:text-slate-400">Нет записей</p>
             ) : (
-              <table className="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Время</th>
-                    <th>Действие</th>
-                    <th>Key ID</th>
-                    <th>Детали</th>
-                    <th>Актор</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditEvents.map((e) => (
-                    <tr key={e.id}>
-                      <td className="text-xs whitespace-nowrap">{formatDate(e.created_at)}</td>
-                      <td>
-                        <span className={`badge badge-sm ${e.action === 'KEY_ROTATED' ? 'badge-info' : 'badge-error'}`}>
-                          {e.action === 'KEY_ROTATED' ? 'Ротация' : 'Отзыв'}
-                        </span>
-                      </td>
-                      <td className="font-mono text-xs">{e.key_id}</td>
-                      <td className="text-xs max-w-xs truncate">
-                        {e.action === 'KEY_ROTATED' && e.new_key_id && (
-                          <span>→ {e.new_key_id}</span>
-                        )}
-                        {e.action === 'KEY_REVOKED' && e.reason && (
-                          <span title={e.reason}>{e.reason}</span>
-                        )}
-                      </td>
-                      <td className="text-xs">{e.actor_id ?? '—'}</td>
+              <>
+                <table className="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Время</th>
+                      <th>Действие</th>
+                      <th>Key ID</th>
+                      <th>Детали</th>
+                      <th>Актор</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {auditData.events.map((e) => (
+                      <tr key={e.id}>
+                        <td className="text-xs whitespace-nowrap">{formatDate(e.created_at)}</td>
+                        <td>
+                          <span className={`badge badge-sm ${e.action === 'KEY_ROTATED' ? 'badge-info' : 'badge-error'}`}>
+                            {e.action === 'KEY_ROTATED' ? 'Ротация' : 'Отзыв'}
+                          </span>
+                        </td>
+                        <td className="font-mono text-xs">{e.key_id}</td>
+                        <td className="text-xs max-w-xs truncate">
+                          {e.action === 'KEY_ROTATED' && e.new_key_id && (
+                            <span>→ {e.new_key_id}</span>
+                          )}
+                          {e.action === 'KEY_REVOKED' && e.reason && (
+                            <span title={e.reason}>{e.reason}</span>
+                          )}
+                        </td>
+                        <td className="text-xs">{e.actor_id ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {auditData.has_more && (
+                  <div className="mt-4 text-center">
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => fetchAudit(auditCursor, true)}
+                    >
+                      Загрузить ещё
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
