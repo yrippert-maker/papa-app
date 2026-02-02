@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const ALLOWED_LEDGER_EVENT_TYPES = [
   'FILE_REGISTERED',
   'INSPECTION_CARD_TRANSITION',
+  'INSPECTION_CHECK_RECORDED',
   // Добавлять сюда при необходимости: 'TMC_MOVEMENT', 'REQUEST_STATUS_CHANGE' и т.п.
 ] as const;
 
@@ -22,9 +23,22 @@ const inspectionCardTransitionPayload = z.object({
   transitioned_at: z.string(),
 });
 
+const inspectionCheckRecordedPayload = z.object({
+  inspection_card_id: z.string().min(1),
+  card_no: z.string().optional(),
+  check_code: z.string().min(1),
+  result: z.string(),
+  value: z.string().optional(),
+  unit: z.string().optional(),
+  comment: z.string().nullable(),
+  recorded_at: z.string(),
+  recorded_by: z.string(),
+});
+
 const eventSchemas: Record<(typeof ALLOWED_LEDGER_EVENT_TYPES)[number], z.ZodType> = {
   FILE_REGISTERED: fileRegisteredPayload,
   INSPECTION_CARD_TRANSITION: inspectionCardTransitionPayload,
+  INSPECTION_CHECK_RECORDED: inspectionCheckRecordedPayload,
 };
 
 export const ledgerAppendSchema = z.object({

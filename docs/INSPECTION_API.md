@@ -70,6 +70,32 @@ Write API (transitions): `INSPECTION.MANAGE`.
 
 **Errors:** `400` — invalid status, invalid transition, or card is immutable. См. [INSPECTION_TRANSITIONS.md](INSPECTION_TRANSITIONS.md).
 
+### POST /api/inspection/cards/:id/check-results
+
+Запись результатов проверок. Permission: `INSPECTION.MANAGE`.
+
+**Body:**
+```json
+{
+  "results": [
+    { "check_code": "DOCS", "result": "PASS", "value": "12.3", "unit": "kg", "comment": "" },
+    { "check_code": "QTY", "result": "FAIL", "comment": "Несоответствие" }
+  ]
+}
+```
+
+- `check_code` — код из шаблона для `card_kind` карты (DOCS, PACK, QTY, VIS для INPUT; QTY, MARK, PACK для OUTPUT).
+- `result` — `PASS` | `FAIL` | `NA`.
+- `value` — опционально, строковое значение (например вес, количество).
+- `unit` — опционально, единица измерения (kg, pcs и т.д.).
+- `comment` — опционально.
+
+**Response 200:** `{ card, check_results, changed }`
+
+**Errors:**
+- `400` — card COMPLETED/CANCELLED (immutable), invalid check_code, invalid payload.
+- `403` — нет INSPECTION.MANAGE.
+
 ## Roles
 
 | Role | INSPECTION.VIEW | INSPECTION.MANAGE |

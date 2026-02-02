@@ -201,6 +201,8 @@ export function getDb(): Database.Database {
       check_item_id TEXT REFERENCES inspection_check_item_template(check_item_id) ON DELETE SET NULL,
       check_code TEXT NOT NULL,
       result TEXT NOT NULL CHECK (result IN ('PASS','FAIL','NA')),
+      value TEXT,
+      unit TEXT,
       comment TEXT,
       evidence_attachment_id TEXT REFERENCES tmc_request_attachment(tmc_request_attachment_id) ON DELETE SET NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))

@@ -22,6 +22,7 @@ export const routeRegistry: RouteSpec[] = [
   { method: 'GET', path: '/api/inspection/cards', permission: Permissions.INSPECTION_VIEW },
   { method: 'GET', path: '/api/inspection/cards/:id', permission: Permissions.INSPECTION_VIEW },
   { method: 'POST', path: '/api/inspection/cards/:id/transition', permission: Permissions.INSPECTION_MANAGE },
+  { method: 'POST', path: '/api/inspection/cards/:id/check-results', permission: Permissions.INSPECTION_MANAGE },
   { method: 'GET', path: '/api/files/list', permission: Permissions.FILES_LIST },
   { method: 'GET', path: '/api/ai-inbox', permission: Permissions.AI_INBOX_VIEW },
   { method: 'POST', path: '/api/files/upload', permission: Permissions.FILES_UPLOAD },

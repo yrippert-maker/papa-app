@@ -6,7 +6,7 @@
 # Guardrails: fail при uncommitted changes; требует точного совпадения tag.
 
 set -e
-TAG="${1:-v0.1.11}"
+TAG="${1:-v0.1.12}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DOCS="$ROOT/docs"
 DIST="$ROOT/dist"
@@ -62,6 +62,7 @@ FILES=(
   docs/RELEASE_NOTES_v0.1.9.md
   docs/RELEASE_NOTES_v0.1.10.md
   docs/RELEASE_NOTES_v0.1.11.md
+  docs/RELEASE_NOTES_v0.1.12.md
 )
 
 mkdir -p "$DIST"

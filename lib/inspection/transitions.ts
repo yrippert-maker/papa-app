@@ -39,6 +39,14 @@ export function isImmutable(status: InspectionCardStatus): boolean {
 }
 
 /**
+ * Returns true if check results can be written (DRAFT or IN_PROGRESS).
+ * COMPLETED and CANCELLED are terminal — no writes.
+ */
+export function canWriteCheckResults(status: InspectionCardStatus): boolean {
+  return status === 'DRAFT' || status === 'IN_PROGRESS';
+}
+
+/**
  * Validates transition request. Throws error if invalid.
  */
 export function validateTransition(

@@ -44,6 +44,7 @@ Legacy aliases (backward compatible):
 | Inspection | `/api/inspection/cards` | GET | `INSPECTION.VIEW` | list |
 | Inspection | `/api/inspection/cards/:id` | GET | `INSPECTION.VIEW` | detail |
 | Inspection | `/api/inspection/cards/:id/transition` | POST | `INSPECTION.MANAGE` | status change |
+| Inspection | `/api/inspection/cards/:id/check-results` | POST | `INSPECTION.MANAGE` | record check results |
 
 ## Deprecation plan (legacy permissions)
 

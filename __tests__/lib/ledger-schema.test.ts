@@ -54,6 +54,27 @@ describe('validateLedgerAppend', () => {
     expect(validateLedgerAppend({ event_type: 'FILE_REGISTERED' }).success).toBe(false);
   });
 
+  it('accepts valid INSPECTION_CHECK_RECORDED payload', () => {
+    const result = validateLedgerAppend({
+      event_type: 'INSPECTION_CHECK_RECORDED',
+      payload_json: {
+        inspection_card_id: 'CARD-001',
+        card_no: 'IC-001',
+        check_code: 'DOCS',
+        result: 'PASS',
+        value: '12.3',
+        unit: 'kg',
+        comment: null,
+        recorded_at: '2026-02-02T12:00:00.000Z',
+        recorded_by: 'user@example.com',
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.event_type).toBe('INSPECTION_CHECK_RECORDED');
+    }
+  });
+
   it('accepts valid INSPECTION_CARD_TRANSITION payload', () => {
     const result = validateLedgerAppend({
       event_type: 'INSPECTION_CARD_TRANSITION',

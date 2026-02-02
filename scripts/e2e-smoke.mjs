@@ -166,6 +166,23 @@ async function run() {
         console.log('[OK] Auditor: /api/inspection/cards → 200 (INSPECTION.VIEW)');
       }
     }
+    const rCheckResults = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/check-results`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ results: [{ check_code: 'DOCS', result: 'PASS', comment: '' }] }),
+    });
+    if (rCheckResults.status !== 403) {
+      console.error('[FAIL] Auditor: POST /api/inspection/cards/:id/check-results expected 403 (no INSPECTION.MANAGE), got', rCheckResults.status);
+      failed = true;
+    } else {
+      const body = await rCheckResults.json();
+      if (!body?.error?.code || body.error.code !== 'FORBIDDEN' || !body?.error?.request_id) {
+        console.error('[FAIL] Auditor: check-results 403 expected { error: { code: FORBIDDEN, request_id } }, got', JSON.stringify(body));
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: POST /api/inspection/cards/:id/check-results → 403 (standardized payload)');
+      }
+    }
     const rTransition = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/transition`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -304,6 +321,24 @@ async function run() {
         failed = true;
       } else {
         console.log('[OK] Admin: POST /api/inspection/cards/:id/transition → 200 (DRAFT→IN_PROGRESS)');
+      }
+    }
+    const rCheckAdmin = await fetchWithJar(adminJar, `${BASE}/api/inspection/cards/CARD-SEED-001/check-results`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ results: [{ check_code: 'DOCS', result: 'PASS', comment: 'E2E test' }] }),
+    });
+    if (rCheckAdmin.status !== 200) {
+      const body = await rCheckAdmin.text();
+      console.error('[FAIL] Admin: POST /api/inspection/cards/:id/check-results expected 200, got', rCheckAdmin.status, body);
+      failed = true;
+    } else {
+      const cBody = await rCheckAdmin.json();
+      if (!Array.isArray(cBody.check_results)) {
+        console.error('[FAIL] Admin: check-results response must have check_results array');
+        failed = true;
+      } else {
+        console.log('[OK] Admin: POST /api/inspection/cards/:id/check-results → 200');
       }
     }
   }

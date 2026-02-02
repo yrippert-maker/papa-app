@@ -1,7 +1,7 @@
 /**
  * Unit tests for lib/inspection/transitions — state machine.
  */
-import { isValidTransition, isImmutable, validateTransition } from '@/lib/inspection/transitions';
+import { isValidTransition, isImmutable, validateTransition, canWriteCheckResults } from '@/lib/inspection/transitions';
 
 describe('inspection transitions', () => {
   describe('isValidTransition', () => {
@@ -67,6 +67,21 @@ describe('inspection transitions', () => {
 
     it('throws for invalid transition COMPLETED → CANCELLED', () => {
       expect(() => validateTransition('COMPLETED', 'CANCELLED')).toThrow('Card is COMPLETED');
+    });
+  });
+
+  describe('canWriteCheckResults', () => {
+    it('returns true for DRAFT', () => {
+      expect(canWriteCheckResults('DRAFT')).toBe(true);
+    });
+    it('returns true for IN_PROGRESS', () => {
+      expect(canWriteCheckResults('IN_PROGRESS')).toBe(true);
+    });
+    it('returns false for COMPLETED', () => {
+      expect(canWriteCheckResults('COMPLETED')).toBe(false);
+    });
+    it('returns false for CANCELLED', () => {
+      expect(canWriteCheckResults('CANCELLED')).toBe(false);
     });
   });
 });
