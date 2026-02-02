@@ -47,9 +47,29 @@ export async function GET(
       )
       .all(id.trim()) as Array<Record<string, unknown>>;
 
+    const cardKind = (card.card_kind as string) ?? 'INPUT';
+    const templates = db
+      .prepare(
+        `SELECT check_code, check_title, check_description, mandatory
+         FROM inspection_check_item_template
+         WHERE card_kind = ?
+         ORDER BY item_order`
+      )
+      .all(cardKind) as Array<{ check_code: string; check_title: string; check_description: string | null; mandatory: number }>;
+
+    const hints: Record<string, { title: string; description: string | null; mandatory: boolean }> = {};
+    for (const t of templates) {
+      hints[t.check_code] = {
+        title: t.check_title,
+        description: t.check_description,
+        mandatory: !!t.mandatory,
+      };
+    }
+
     return NextResponse.json({
       ...card,
       check_results: results,
+      template_hints: hints,
     });
   } catch (e) {
     console.error('[inspection/cards/:id]', e);

@@ -166,6 +166,32 @@ async function run() {
         console.log('[OK] Auditor: /api/inspection/cards → 200 (INSPECTION.VIEW)');
       }
     }
+    const rReport = await fetchWithJar(auditorJar, `${BASE}/api/inspection/report`);
+    if (rReport.status !== 200) {
+      console.error('[FAIL] Auditor: /api/inspection/report expected 200 (INSPECTION.VIEW), got', rReport.status);
+      failed = true;
+    } else {
+      const reportBody = await rReport.json();
+      if (typeof reportBody.total_cards !== 'number' || !reportBody.by_status || !reportBody.breakdown_by_check_code) {
+        console.error('[FAIL] Auditor: /api/inspection/report response must have total_cards, by_status, breakdown_by_check_code');
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: /api/inspection/report → 200 (INSPECTION.VIEW)');
+      }
+    }
+    const rAudit = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/audit`);
+    if (rAudit.status !== 200) {
+      console.error('[FAIL] Auditor: /api/inspection/cards/:id/audit expected 200 (INSPECTION.VIEW), got', rAudit.status);
+      failed = true;
+    } else {
+      const auditBody = await rAudit.json();
+      if (!Array.isArray(auditBody.events)) {
+        console.error('[FAIL] Auditor: /api/inspection/cards/:id/audit response must have events array');
+        failed = true;
+      } else {
+        console.log('[OK] Auditor: /api/inspection/cards/:id/audit → 200 (INSPECTION.VIEW)');
+      }
+    }
     const rCheckResults = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/check-results`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

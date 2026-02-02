@@ -34,9 +34,37 @@ Write API (transitions): `INSPECTION.MANAGE`.
 }
 ```
 
+### GET /api/inspection/report
+
+Агрегированный отчёт по техкартам. Permission: `INSPECTION.VIEW`.
+
+**Query params:**
+- `kind` — `INPUT` | `OUTPUT` (опционально)
+- `status` — `DRAFT` | `IN_PROGRESS` | `COMPLETED` | `CANCELLED` (опционально)
+- `from_date`, `to_date` — ISO date `YYYY-MM-DD` (опционально, фильтр по `created_at`)
+
+**Response:**
+```json
+{
+  "total_cards": 10,
+  "by_status": { "DRAFT": 2, "IN_PROGRESS": 3, "COMPLETED": 4, "CANCELLED": 1 },
+  "completion_rate_pct": 57,
+  "fail_rate_pct": 5,
+  "breakdown_by_check_code": {
+    "DOCS": { "PASS": 8, "FAIL": 1, "NA": 0 },
+    "QTY": { "PASS": 6, "FAIL": 0, "NA": 2 }
+  },
+  "filters": { "kind": null, "status": null, "from_date": null, "to_date": null }
+}
+```
+
+- `completion_rate_pct` — процент завершённых среди активных (без CANCELLED).
+- `fail_rate_pct` — процент FAIL среди всех результатов проверок.
+- `breakdown_by_check_code` — разбивка по коду проверки и результату (PASS/FAIL/NA).
+
 ### GET /api/inspection/cards/:id
 
-Деталь техкарты с результатами проверок.
+Деталь техкарты с результатами проверок и подсказками из шаблона.
 
 **Response:**
 ```json
@@ -53,12 +81,70 @@ Write API (transitions): `INSPECTION.MANAGE`.
       "inspection_check_result_id": "...",
       "check_code": "DOCS",
       "result": "PASS",
+      "value": null,
+      "unit": null,
       "comment": null,
       ...
     }
-  ]
+  ],
+  "template_hints": {
+    "DOCS": { "title": "Проверка документов", "description": "Сопроводительные документы...", "mandatory": true },
+    "QTY": { "title": "Проверка количества", "description": "...", "mandatory": true }
+  }
 }
 ```
+
+- `template_hints` — подсказки по кодам проверок из шаблона для `card_kind` (для UI: заголовок, описание, обязательность).
+
+### GET /api/inspection/cards/:id/audit
+
+История событий журнала по техкарте (INSPECTION_CARD_TRANSITION, INSPECTION_CHECK_RECORDED). Permission: `INSPECTION.VIEW`.
+
+**Query params:**
+- `limit` — макс. событий (default 100, max 500)
+- `offset` — смещение для пагинации (default 0)
+
+**Response:**
+```json
+{
+  "events": [
+    {
+      "id": 1,
+      "event_type": "INSPECTION_CARD_TRANSITION",
+      "payload": {
+        "inspection_card_id": "...",
+        "from_status": "DRAFT",
+        "to_status": "IN_PROGRESS",
+        "transitioned_by": "admin@local",
+        "transitioned_at": "2025-01-15T10:00:00.000Z"
+      },
+      "created_at": "2025-01-15T10:00:00.000Z",
+      "block_hash": "...",
+      "actor_id": "..."
+    },
+    {
+      "id": 2,
+      "event_type": "INSPECTION_CHECK_RECORDED",
+      "payload": {
+        "inspection_card_id": "...",
+        "check_code": "DOCS",
+        "result": "PASS",
+        "recorded_by": "admin@local",
+        "recorded_at": "2025-01-15T10:05:00.000Z"
+      },
+      "created_at": "2025-01-15T10:05:00.000Z",
+      "block_hash": "...",
+      "actor_id": "..."
+    }
+  ],
+  "total": 2,
+  "hasMore": false,
+  "limit": 100,
+  "offset": 0
+}
+```
+
+**Errors:** `404` — карта не найдена.
 
 ### POST /api/inspection/cards/:id/transition
 

@@ -70,7 +70,22 @@ describe('sidebar-nav RBAC gating', () => {
 
   it('navGroups structure matches expected item count', () => {
     const total = navGroups.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(9);
+    expect(total).toBe(10);
+  });
+
+  it('shows Техкарты with INSPECTION.VIEW', () => {
+    const perms = ['INSPECTION.VIEW'];
+    const visible = getVisibleNavItems(perms);
+    const insp = visible.find((i) => i.href === '/inspection');
+    expect(insp).toBeDefined();
+    expect(insp?.label).toBe('Техкарты');
+  });
+
+  it('hides Техкарты without INSPECTION.VIEW', () => {
+    const perms = ['WORKSPACE.READ', 'FILES.LIST'];
+    const visible = getVisibleNavItems(perms);
+    const insp = visible.find((i) => i.href === '/inspection');
+    expect(insp).toBeUndefined();
   });
 
   it('getVisibleNavGroups hides groups with no visible items', () => {

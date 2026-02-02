@@ -39,6 +39,10 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Контроль',
+    items: [{ href: '/inspection', label: 'Техкарты', permission: 'INSPECTION.VIEW' }],
+  },
+  {
     label: 'Система',
     items: [
       { href: '/system/verify', label: 'Verify', permission: 'WORKSPACE.READ' },
