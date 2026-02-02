@@ -111,20 +111,50 @@ keys/
 
 ## 5. Автоматизация
 
+### Unified Retention Enforcement
+
+```bash
+# Check retention status (dry-run, safe)
+npm run retention:check
+
+# Execute retention enforcement
+npm run retention:run
+
+# JSON output for monitoring/CI
+npm run retention:json
+```
+
+**Доступные опции:**
+| Опция | Описание |
+|-------|----------|
+| `--dry-run` | Только проверка (default) |
+| `--execute` | Применить изменения |
+| `--retention-days=N` | Dead-letter retention (default: 90) |
+| `--target=TARGET` | `dead-letter`, `keys`, `all` (default: all) |
+| `--json` | JSON output для CI |
+
+**Exit codes:**
+| Code | Значение |
+|------|----------|
+| 0 | Success |
+| 1 | Error |
+| 2 | Violations found (dry-run) |
+
 ### Cron jobs (пример)
 ```bash
 # /etc/cron.daily/papa-retention
 
-# Dead-letter cleanup (90 дней)
-cd /app && npm run cleanup:dead-letter -- --retention-days=90
+# Check and enforce retention (90 дней)
+cd /app && npm run retention:run -- --retention-days=90 >> /var/log/papa-retention.log 2>&1
 
-# Log for audit
-echo "$(date -Iseconds) retention-cleanup completed" >> /var/log/papa-ops.log
+# JSON report for monitoring
+cd /app && npm run retention:json > /var/log/papa-retention-status.json
 ```
 
 ### Мониторинг
 - Алерт на рост dead-letter: см. [ALERTS_COMPLIANCE.md](./ALERTS_COMPLIANCE.md)
 - Метрика `ledger_dead_letter_events_total`
+- JSON report: `npm run retention:json`
 
 ---
 

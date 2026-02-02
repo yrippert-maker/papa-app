@@ -1,6 +1,6 @@
 {
   "name": "papa-app",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,7 +19,10 @@
     "bundle:regulatory": "bash scripts/create-regulatory-bundle.sh",
     "smoke:auth": "node scripts/smoke-auth.mjs",
     "replay:dead-letter": "node scripts/replay-ledger-dead-letter.mjs",
-    "cleanup:dead-letter": "node scripts/cleanup-dead-letter.mjs"
+    "cleanup:dead-letter": "node scripts/cleanup-dead-letter.mjs",
+    "retention:check": "node scripts/retention-enforce.mjs --dry-run",
+    "retention:run": "node scripts/retention-enforce.mjs --execute",
+    "retention:json": "node scripts/retention-enforce.mjs --dry-run --json"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
