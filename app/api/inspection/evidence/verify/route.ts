@@ -3,7 +3,10 @@
  * Verifies an evidence export: checks content hash and signature.
  * Useful for external integrations and offline verification.
  * Rate-limited: 20 requests per minute per IP.
+ * Payload size cap: 5 MB.
  */
+
+const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5 MB
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
@@ -57,11 +60,23 @@ export async function POST(request: Request) {
     return permError;
   }
 
+  // Check payload size
+  const contentLength = request.headers.get('content-length');
+  if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_SIZE) {
+    return jsonError(400, VerifyErrorCodes.BAD_REQUEST, `Payload too large (max ${MAX_PAYLOAD_SIZE / 1024 / 1024} MB)`);
+  }
+
   let body: EvidenceVerifyRequest;
   try {
     body = await request.json();
   } catch {
     return jsonError(400, VerifyErrorCodes.BAD_REQUEST, 'Invalid JSON body');
+  }
+
+  // Double-check parsed body size
+  const bodyStr = JSON.stringify(body);
+  if (bodyStr.length > MAX_PAYLOAD_SIZE) {
+    return jsonError(400, VerifyErrorCodes.BAD_REQUEST, `Payload too large (max ${MAX_PAYLOAD_SIZE / 1024 / 1024} MB)`);
   }
 
   const { export_json, signature, key_id } = body;

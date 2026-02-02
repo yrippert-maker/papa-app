@@ -5,6 +5,7 @@
 import { appendFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { WORKSPACE_ROOT } from './config';
+import { incDeadLetterEvent } from './metrics/dead-letter';
 
 const DEAD_LETTER_DIR = join(WORKSPACE_ROOT, '00_SYSTEM');
 const DEAD_LETTER_FILE = join(DEAD_LETTER_DIR, 'ledger-dead-letter.jsonl');
@@ -28,6 +29,7 @@ export function appendToDeadLetter(entry: DeadLetterEntry): boolean {
     }
     const line = JSON.stringify(entry) + '\n';
     appendFileSync(DEAD_LETTER_FILE, line, 'utf8');
+    incDeadLetterEvent();
     console.warn('[ledger-dead-letter] Recorded failed event:', entry.event_type, entry.error);
     return true;
   } catch (e) {

@@ -6,13 +6,15 @@
 import { NextResponse } from 'next/server';
 import { getPrometheusExposition } from '@/lib/verify-aggregator-metrics';
 import { getEvidenceVerifyMetricsPrometheus } from '@/lib/metrics/evidence-verify';
+import { getDeadLetterMetricsPrometheus } from '@/lib/metrics/dead-letter';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const aggregatorMetrics = getPrometheusExposition();
   const evidenceVerifyMetrics = getEvidenceVerifyMetricsPrometheus();
-  const body = [aggregatorMetrics, '', evidenceVerifyMetrics].join('\n');
+  const deadLetterMetrics = getDeadLetterMetricsPrometheus();
+  const body = [aggregatorMetrics, '', evidenceVerifyMetrics, '', deadLetterMetrics].join('\n');
   return new NextResponse(body, {
     status: 200,
     headers: {

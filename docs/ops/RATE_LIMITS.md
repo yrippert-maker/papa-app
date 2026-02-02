@@ -1,30 +1,135 @@
-# Rate Limits — Write Paths
+# Rate Limits
 
 ## Обзор
 
-Все write-endpoint'ы защищены in-memory rate limiter (60 req/min по умолчанию, кроме workspace/init и files/upload).
+Rate limits защищают API от abuse и обеспечивают справедливое распределение ресурсов.
 
-## Лимиты по endpoint
+---
 
-| Endpoint | Limit | Окно |
-|----------|-------|------|
-| POST /api/ledger/append | 60 | 1 min |
-| POST /api/inspection/cards/:id/transition | 60 | 1 min |
-| POST /api/inspection/cards/:id/check-results | 60 | 1 min |
-| POST /api/admin/users | 60 | 1 min |
-| PATCH /api/admin/users/:id | 60 | 1 min |
-| POST /api/workspace/init | 10 | 1 min |
-| POST /api/files/upload | 30 | 1 min |
+## Endpoints с Rate Limits
 
-## Ключ
+| Endpoint | Limit | Window | Per |
+|----------|-------|--------|-----|
+| `POST /api/ledger/append` | 10 req | 1 min | IP |
+| `POST /api/inspection/cards/:id/transition` | 10 req | 1 min | IP |
+| `POST /api/inspection/cards/:id/check-results` | 10 req | 1 min | IP |
+| `POST /api/inspection/evidence/verify` | 20 req | 1 min | IP |
 
-Rate limit применяется по `x-forwarded-for` или `x-real-ip` (первый IP при прокси). При отсутствии — `unknown`.
+---
 
-## Ответ 429
+## Payload Size Limits
 
-- `{ error: { code: "RATE_LIMITED", message: "Too many requests", request_id: "..." } }`
-- Header `Retry-After` (секунды до сброса окна)
+| Endpoint | Max Size |
+|----------|----------|
+| `POST /api/inspection/evidence/verify` | 5 MB |
+| `POST /api/files/upload` | 50 MB |
 
-## Multi-instance
+---
 
-In-memory store не разделяется между инстансами. Для production с несколькими репликами — Redis или аналог.
+## Response при превышении
+
+### Rate Limit (429)
+
+```json
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Too many requests",
+    "request_id": "..."
+  }
+}
+```
+
+Headers:
+```
+Retry-After: 45
+```
+
+### Payload Too Large (400)
+
+```json
+{
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Payload too large (max 5 MB)",
+    "request_id": "..."
+  }
+}
+```
+
+---
+
+## Реализация
+
+### In-memory store
+
+```typescript
+// lib/rate-limit.ts
+const store = new Map<string, { count: number; resetAt: number }>();
+
+export function checkRateLimit(key: string, opts: { windowMs?: number; max?: number })
+```
+
+### Client identification
+
+```typescript
+// По IP (X-Forwarded-For или X-Real-IP)
+export function getClientKey(req: Request): string
+```
+
+---
+
+## Ограничения текущей реализации
+
+1. **In-memory store**
+   - Сбрасывается при рестарте
+   - Не работает для multi-instance deployments
+
+2. **Решение для production**
+   - Redis-based rate limiter
+   - Или rate limiting на уровне ingress/WAF
+
+---
+
+## Мониторинг
+
+### Метрики
+
+```
+papa_evidence_verify_total{result="rate_limited"}
+```
+
+### Алерты
+
+```yaml
+- alert: RateLimitTriggered
+  expr: increase(papa_evidence_verify_total{result="rate_limited"}[5m]) > 10
+  labels:
+    severity: info
+```
+
+---
+
+## Изменение лимитов
+
+### Через код
+
+```typescript
+// В route.ts
+const rateCheck = checkRateLimit(`key:${clientKey}`, { max: 30, windowMs: 60_000 });
+```
+
+### Рекомендации
+
+| Сценарий | Рекомендация |
+|----------|--------------|
+| High legitimate traffic | Увеличить `max` |
+| Abuse detected | Уменьшить `max` или добавить ban |
+| Batch operations | Выделенный endpoint без лимита |
+
+---
+
+## См. также
+
+- [ALERTS_COMPLIANCE.md](./ALERTS_COMPLIANCE.md)
+- [RUNBOOK_EVIDENCE_VERIFY.md](./RUNBOOK_EVIDENCE_VERIFY.md)
