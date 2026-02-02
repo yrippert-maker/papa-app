@@ -89,4 +89,4 @@ cd /app && npm run retention:run >> /var/log/papa-retention.log 2>&1
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.24.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **4cac1c5794d46be4c77eb4103b255727ee774084b7376387a98c13ed07d2a330**
