@@ -42,4 +42,4 @@ v0.1.13 завершает пользовательский контур Inspect
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.13.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **95ce039ace5ae5c6f7c67632db2e302c3070ef732c0245f2021e9467ad9a88af**
