@@ -38,6 +38,10 @@ export function badRequest(message: string, headers?: Headers | null): NextRespo
   return jsonError(400, VerifyErrorCodes.BAD_REQUEST, message, headers);
 }
 
+export function notFound(message: string, headers?: Headers | null): NextResponse {
+  return jsonError(404, VerifyErrorCodes.NOT_FOUND, message, headers);
+}
+
 export function rateLimitError(
   message: string,
   headers?: Headers | null,

@@ -24,6 +24,8 @@ Endpoint → Permission → Roles → DB Mode → Evidence.
 | /api/tmc/requests | GET | TMC.REQUEST.VIEW | AUDITOR (via TMC.VIEW), ENGINEER, MANAGER, ADMIN | readonly | E2E: auditor 200 (alias) |
 | /api/inspection/cards | GET | INSPECTION.VIEW | AUDITOR, ENGINEER, STOREKEEPER, MANAGER, ADMIN | readonly | Inspection MVP |
 | /api/inspection/cards/[id] | GET | INSPECTION.VIEW | AUDITOR, ENGINEER, STOREKEEPER, MANAGER, ADMIN | readonly | Inspection MVP |
+| /api/inspection/cards/[id]/audit | GET | INSPECTION.VIEW | AUDITOR, ENGINEER, STOREKEEPER, MANAGER, ADMIN | readonly | v0.1.10 |
+| /api/inspection/cards/[id]/evidence | GET | INSPECTION.VIEW | AUDITOR, ENGINEER, STOREKEEPER, MANAGER, ADMIN | readonly | Evidence export (compliance) |
 | /api/inspection/cards/[id]/transition | POST | INSPECTION.MANAGE | MANAGER, STOREKEEPER, ADMIN | readwrite | E2E: auditor 403, admin 200 |
 | /api/inspection/cards/[id]/check-results | POST | INSPECTION.MANAGE | MANAGER, STOREKEEPER, ADMIN | readwrite | E2E: auditor 403, admin 200 |
 | /api/files/list | GET | FILES.LIST | ENGINEER, STOREKEEPER, MANAGER, ADMIN, AUDITOR | readonly | E2E |

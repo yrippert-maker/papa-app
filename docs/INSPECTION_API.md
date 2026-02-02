@@ -146,6 +146,37 @@ Write API (transitions): `INSPECTION.MANAGE`.
 
 **Errors:** `404` — карта не найдена.
 
+### GET /api/inspection/cards/:id/evidence
+
+Evidence export для compliance: snapshot карты + check_results + audit events + export_hash. Permission: `INSPECTION.VIEW`.
+
+**Response:**
+```json
+{
+  "schema_version": "1",
+  "exported_at": "2026-02-02T12:00:00.000Z",
+  "inspection_card_id": "CARD-001",
+  "card": { "inspection_card_id": "...", "status": "...", ... },
+  "check_results": [ { "check_code": "DOCS", "result": "PASS", ... } ],
+  "audit_events": [
+    {
+      "id": 1,
+      "event_type": "INSPECTION_CARD_TRANSITION",
+      "payload": { ... },
+      "created_at": "...",
+      "block_hash": "...",
+      "prev_hash": null,
+      "actor_id": "..."
+    }
+  ],
+  "export_hash": "sha256 hex (64 chars)"
+}
+```
+
+- `export_hash` — SHA-256 canonical JSON всего экспорта (детерминирован для верификации целостности).
+
+**Errors:** `404` — карта не найдена.
+
 ### POST /api/inspection/cards/:id/transition
 
 Изменение статуса техкарты. Permission: `INSPECTION.MANAGE`.
