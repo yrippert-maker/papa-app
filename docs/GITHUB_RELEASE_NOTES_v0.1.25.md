@@ -90,4 +90,4 @@ Returns: RetentionReport JSON
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.25.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **d230fe0d83e9482bf21c247f384e0032d6f805eb2dbebd9634308a0efe7dba49**
