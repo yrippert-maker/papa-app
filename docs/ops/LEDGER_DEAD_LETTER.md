@@ -15,7 +15,25 @@
 
 ## Replay
 
-Ручной процесс: прочитать строки, для каждой вызвать `POST /api/ledger/append` с `event_type` и `payload_json` (parsed). Удалить обработанные строки из файла.
+Скрипт `scripts/replay-ledger-dead-letter.mjs` читает dead-letter, вызывает `POST /api/ledger/append` для каждой строки и удаляет успешно обработанные.
+
+```bash
+# Приложение должно быть запущено (npm run dev или npm run start)
+WORKSPACE_ROOT=/path/to/workspace npm run replay:dead-letter
+
+# Только показать, что будет переиграно (без запросов)
+npm run replay:dead-letter -- --dry-run
+
+# Указать URL приложения
+npm run replay:dead-letter -- --base-url=http://localhost:3000
+```
+
+Переменные окружения:
+- `WORKSPACE_ROOT` — корень workspace (по умолчанию `./data`)
+- `AUTH_EMAIL`, `AUTH_PASSWORD` — учётные данные admin (по умолчанию `admin@local` / `admin`)
+- `E2E_BASE_URL` — URL приложения, если не передан `--base-url=`
+
+Код выхода: 0 — все события переиграны; 1 — часть не удалась (оставшиеся строки остаются в файле).
 
 ## Retry
 

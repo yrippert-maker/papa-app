@@ -30,6 +30,10 @@ v0.1.14 усиливает операционную надёжность сис�
   - JSONL format (one event per line).
 - Dead-letter payload включает:
   - `event_type`, `payload_json`, `actor_id`, `error`, `ts_utc`.
+- Dead-letter replay:
+  - `lib/dead-letter-replay.mjs` — safe parsing JSONL + normalization of `payload_json`
+  - `scripts/replay-ledger-dead-letter.mjs` — replay tool updated to use shared parser
+  - `--dry-run` — preview events without writing to ledger
 
 ### Documentation
 - `docs/ops/RATE_LIMITS.md`
@@ -38,8 +42,8 @@ v0.1.14 усиливает операционную надёжность сис�
 ---
 
 ## Tests
-- Unit tests для `rateLimitError`.
-- Total: **170 tests passed**
+- Unit tests для `rateLimitError`, dead-letter replay parser, `appendToDeadLetter`.
+- Total: **181 tests passed**
 - Build: ✅
 
 ---

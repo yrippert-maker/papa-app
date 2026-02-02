@@ -17,7 +17,8 @@
     "seed:admin": "node scripts/seed-admin.mjs",
     "check:db-imports": "bash scripts/check-no-direct-db-imports.sh",
     "bundle:regulatory": "bash scripts/create-regulatory-bundle.sh",
-    "smoke:auth": "node scripts/smoke-auth.mjs"
+    "smoke:auth": "node scripts/smoke-auth.mjs",
+    "replay:dead-letter": "node scripts/replay-ledger-dead-letter.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
