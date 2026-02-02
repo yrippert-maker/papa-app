@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
+    "prestart": "node scripts/prestart-check.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "jest --runInBand",
@@ -36,7 +37,14 @@
     "trust-anchors:keys": "node scripts/export-trust-anchors.mjs --keys-only",
     "trust-anchors:list": "node scripts/export-trust-anchors.mjs --list",
     "verify:independent": "node scripts/independent-verify.mjs",
-    "auditor-pack:create": "node scripts/create-auditor-pack.mjs"
+    "auditor-pack:create": "node scripts/create-auditor-pack.mjs",
+    "governance-debt:check": "node scripts/governance-debt-check.mjs",
+    "docs:index": "node scripts/docs-index.mjs",
+    "monitor:run": "node scripts/monitor-run.mjs",
+    "anchoring:run": "node scripts/anchoring-run.mjs",
+    "anchoring:publish": "npx tsx scripts/anchoring-publish.ts",
+    "anchoring:confirm": "npx tsx scripts/anchoring-confirm.ts",
+    "anchoring:reconcile": "node scripts/anchoring-reconcile.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -49,6 +57,8 @@
     "jszip": "^3.10.1"
   },
   "devDependencies": {
+    "tsx": "^4.19.0",
+    "viem": "^2.21.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/bcryptjs": "^2.4.6",

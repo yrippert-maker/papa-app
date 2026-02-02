@@ -1,15 +1,18 @@
 /**
  * Unit tests for lib/inspection-audit — ledger append for transitions.
  */
-import Database from 'better-sqlite3';
+import { createSqliteAdapterInMemory } from '@/lib/adapters/sqlite-adapter';
 import { appendInspectionTransitionEvent } from '@/lib/inspection-audit';
 import { verifyLedgerChain } from '@/lib/ledger-hash';
 
 describe('inspection-audit', () => {
-  let db: Database.Database;
+  let db: ReturnType<typeof createSqliteAdapterInMemory>['adapter'];
+  let close: () => void;
 
   beforeEach(() => {
-    db = new Database(':memory:');
+    const { adapter, close: closeFn } = createSqliteAdapterInMemory();
+    db = adapter;
+    close = closeFn;
     db.exec(`
       CREATE TABLE ledger_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,7 +27,7 @@ describe('inspection-audit', () => {
   });
 
   afterEach(() => {
-    db.close();
+    close();
   });
 
   it('appends INSPECTION_CARD_TRANSITION event', () => {
@@ -65,6 +68,7 @@ describe('inspection-audit', () => {
     });
 
     const events = db.prepare('SELECT * FROM ledger_events ORDER BY id').all();
-    expect(() => verifyLedgerChain(events)).not.toThrow();
+    type LedgerEventRow = { event_type: string; payload_json: string; prev_hash: string | null; block_hash: string; created_at?: string; actor_id?: string | null };
+    expect(() => verifyLedgerChain(events as LedgerEventRow[])).not.toThrow();
   });
 });

@@ -24,6 +24,7 @@ const mockResultsByCheck = [
   { check_code: 'QTY', result: 'PASS', cnt: 2 },
 ];
 
+type DbGetResult = Record<string, unknown> | null;
 jest.mock('@/lib/db', () => ({
   getDbReadOnly: () => ({
     prepare: (sql: string) => {
@@ -34,9 +35,9 @@ jest.mock('@/lib/db', () => ({
         return { all: () => mockResultsByCheck };
       }
       if (sql.includes('COUNT(*)') && sql.includes('inspection_card')) {
-        return { get: () => mockCount };
+        return { get: (): DbGetResult => mockCount as DbGetResult };
       }
-      return { get: () => null, all: () => [] };
+      return { get: (): DbGetResult => null, all: () => [] };
     },
   }),
 }));

@@ -20,14 +20,15 @@ jest.mock('@/lib/db', () => {
     { check_code: 'QTY' },
     { check_code: 'VIS' },
   ];
+  type GetResult = Record<string, unknown> | null;
   return {
     getDb: () => ({
       prepare: (sql: string) => {
         if (sql.includes('SELECT inspection_card_id') && sql.includes('inspection_card')) {
-          return { get: () => mockCard };
+          return { get: (): GetResult => mockCard as GetResult };
         }
         if (sql.includes('inspection_check_item_template') && sql.includes('AND check_code')) {
-          return { get: () => ({ check_item_id: 'CHK-TMC-IN-001' }) };
+          return { get: (): GetResult => ({ check_item_id: 'CHK-TMC-IN-001' }) };
         }
         if (sql.includes('inspection_check_item_template')) {
           return { all: () => mockTemplates };
@@ -43,9 +44,9 @@ jest.mock('@/lib/db', () => {
           return { all: () => mockDbResults };
         }
         if (sql.includes('inspection_check_result') && sql.includes('inspection_card_id') && sql.includes('check_code') && !sql.includes('INSERT')) {
-          return { get: () => null };
+          return { get: (): GetResult => null };
         }
-        return { get: () => null, run: () => {}, all: () => [] };
+        return { get: (): GetResult => null, run: () => {}, all: () => [] };
       },
     }),
     getDbReadOnly: () => ({}),

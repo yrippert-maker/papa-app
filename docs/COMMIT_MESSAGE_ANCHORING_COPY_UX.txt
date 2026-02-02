@@ -1,0 +1,19 @@
+feat(governance): add unified copy UX to anchoring issues panel
+
+- Copy tx / anchor / link → ✓ (ok) / ⚠︎ (error), 1.5s lock, aria-live
+- CopyChip component, severity-based highlight, prestart-check guard
+- Barrel _components/index.ts, unit test CopyChip
+
+---
+
+Alternative (verbose):
+feat(governance): IssuesPanel copy UX + CopyChip + prestart guard
+
+- Add CopyChip component for tx/anchor/link copy with unified feedback
+- Copy states: Copy → ✓ (ok) / ⚠︎ (error), 1.5s lock, aria-live
+- Severity-based highlight: critical→amber, major→emerald, error→rose
+- prestart-check.mjs: block next start without build artifacts
+- Barrel export _components/index.ts, unit test CopyChip
+- CHANGELOG_ANCHORING_2026-02_STEPS: document Copy UX contract
+
+BREAKING CHANGE: none
