@@ -321,8 +321,14 @@ async function run() {
     } else if (!vBody.ledger_verification || !('ok' in vBody.ledger_verification)) {
       console.error('[FAIL] Auditor: /api/system/verify expected ledger_verification.ok field, got', vBody);
       failed = true;
+    } else if (!vBody.inspection_verification || vBody.inspection_verification.skipped) {
+      console.error('[FAIL] Auditor: /api/system/verify expected inspection included (INSPECTION.VIEW), got', vBody.inspection_verification);
+      failed = true;
+    } else if (!vBody.inspection_verification.ok) {
+      console.error('[FAIL] Auditor: /api/system/verify inspection_verification.ok expected true, got', vBody.inspection_verification);
+      failed = true;
     } else {
-      console.log('[OK] Auditor: /api/system/verify → 200 (AuthZ + Ledger included)');
+      console.log('[OK] Auditor: /api/system/verify → 200 (AuthZ + Inspection + Ledger included)');
     }
   }
 

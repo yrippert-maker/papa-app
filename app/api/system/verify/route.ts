@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { requirePermission, PERMISSIONS } from '@/lib/authz';
+import { requirePermission, PERMISSIONS, canWithAlias } from '@/lib/authz';
 import { runAuthzVerification } from '@/lib/authz-verify-runner';
 import { getDbReadOnly } from '@/lib/db';
 import { verifyLedgerChain } from '@/lib/ledger-hash';
@@ -37,6 +37,27 @@ function errorResponse(
 type LedgerResult =
   | { ok: true; message: string; scope: { event_count: number; id_min: number | null; id_max: number | null } }
   | { ok: false; error: string };
+
+type InspectionResult =
+  | { ok: true; message: string; scope: { card_count: number } }
+  | { ok: false; error: string };
+
+function runInspectionVerification(): InspectionResult {
+  const db = getDbReadOnly();
+  try {
+    const row = db.prepare('SELECT COUNT(*) as c FROM inspection_card').get() as { c: number } | undefined;
+    const cardCount = row?.c ?? 0;
+    return { ok: true, message: 'Inspection subsystem ok', scope: { card_count: cardCount } };
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    const normalized =
+      /no such table|table.*not found/i.test(raw) ? 'inspection schema missing' : 'Inspection verification failed';
+    if (raw !== normalized) {
+      console.warn('[system/verify] inspection verification raw error:', raw.slice(0, 100));
+    }
+    return { ok: false, error: normalized };
+  }
+}
 
 function runLedgerVerification(): LedgerResult {
   const db = getDbReadOnly();
@@ -99,6 +120,7 @@ export async function GET(req: NextRequest) {
   const hasLedgerRead = (session?.user as { permissions?: string[] } | undefined)?.permissions?.includes(
     'LEDGER.READ'
   );
+  const hasInspectionView = canWithAlias(session, PERMISSIONS.INSPECTION_VIEW);
 
   const t0 = performance.now();
   const generatedAt = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -115,6 +137,15 @@ export async function GET(req: NextRequest) {
     return errorResponse(rid, VerifyErrorCodes.UPSTREAM_AUTHZ_ERROR, msg, 503);
   }
   const tAuthzEnd = performance.now();
+
+  // Inspection: only if permission; read-only health check
+  let inspectionResult: InspectionResult | null = null;
+  let tInspectionMs = 0;
+  if (hasInspectionView) {
+    const tInspection = performance.now();
+    inspectionResult = runInspectionVerification();
+    tInspectionMs = Math.round(performance.now() - tInspection);
+  }
 
   // Ledger: only if permission; may throw
   let ledgerResult: LedgerResult | null = null;
@@ -135,7 +166,10 @@ export async function GET(req: NextRequest) {
   const totalMs = Math.round(performance.now() - t0);
   const authzMs = Math.round(tAuthzEnd - tAuthz);
 
-  const overallOk = authzResult.authz_ok && (ledgerResult === null || ledgerResult.ok);
+  const overallOk =
+    authzResult.authz_ok &&
+    (inspectionResult === null || inspectionResult.ok) &&
+    (ledgerResult === null || ledgerResult.ok);
 
   const ledgerSkipped = ledgerResult === null;
   const skipReason = ledgerSkipped ? VERIFY_SKIP_REASONS.LEDGER_READ_NOT_GRANTED : undefined;
@@ -155,7 +189,13 @@ export async function GET(req: NextRequest) {
     timingMs: totalMs,
     ledgerIncluded: !ledgerSkipped,
     ledgerSkippedReason: skipReason,
-    sourceError: !authzResult.authz_ok ? 'authz' : ledgerResult && !ledgerResult.ok ? 'ledger' : undefined,
+    sourceError: !authzResult.authz_ok
+      ? 'authz'
+      : inspectionResult && !inspectionResult.ok
+        ? 'inspection'
+        : ledgerResult && !ledgerResult.ok
+          ? 'ledger'
+          : undefined,
   });
 
   return NextResponse.json(
@@ -169,13 +209,19 @@ export async function GET(req: NextRequest) {
         message: authzResult.message,
         scope: authzResult.scope,
       },
+      inspection_verification:
+        inspectionResult === null
+          ? { skipped: true, reason: VERIFY_SKIP_REASONS.INSPECTION_VIEW_NOT_GRANTED }
+          : inspectionResult.ok
+            ? { ok: true, message: inspectionResult.message, scope: inspectionResult.scope }
+            : { ok: false, error: inspectionResult.error },
       ledger_verification:
         ledgerResult === null
           ? { skipped: true, reason: VERIFY_SKIP_REASONS.LEDGER_READ_NOT_GRANTED }
           : ledgerResult.ok
             ? { ok: true, message: ledgerResult.message, scope: ledgerResult.scope }
             : { ok: false, error: ledgerResult.error },
-      timing_ms: { total: totalMs, authz: authzMs, ledger: tLedgerMs },
+      timing_ms: { total: totalMs, authz: authzMs, inspection: tInspectionMs, ledger: tLedgerMs },
     },
     { headers: { 'Cache-Control': 'no-store' } }
   );

@@ -6,7 +6,7 @@ import { VERIFY_SKIP_REASONS } from '@/lib/verify-constants';
 
 describe('/api/system/verify aggregator', () => {
   describe('contract shape', () => {
-    it('response includes authz_verification and ledger_verification', () => {
+    it('response includes authz_verification, inspection_verification, ledger_verification', () => {
       // Mock session/db — minimal shape test
       const mockResponse = {
         ok: true,
@@ -25,14 +25,20 @@ describe('/api/system/verify aggregator', () => {
             deny_by_default_scope: 'route_registry_only',
           },
         },
+        inspection_verification: {
+          ok: true,
+          message: 'Inspection subsystem ok',
+          scope: { card_count: 2 },
+        },
         ledger_verification: {
           skipped: true,
           reason: VERIFY_SKIP_REASONS.LEDGER_READ_NOT_GRANTED,
         },
-        timing_ms: { total: 5, authz: 2, ledger: 0 },
+        timing_ms: { total: 5, authz: 2, inspection: 0, ledger: 0 },
       };
 
       expect(mockResponse.authz_verification).toBeDefined();
+      expect(mockResponse.inspection_verification).toBeDefined();
       expect(mockResponse.ledger_verification).toBeDefined();
       expect(mockResponse.timing_ms).toBeDefined();
       expect(mockResponse.schema_version).toBe(1);
@@ -41,6 +47,11 @@ describe('/api/system/verify aggregator', () => {
     it('ledger_verification.skipped uses constant reason', () => {
       const skipReason = VERIFY_SKIP_REASONS.LEDGER_READ_NOT_GRANTED;
       expect(skipReason).toBe('LEDGER.READ not granted');
+    });
+
+    it('inspection_verification.skipped uses constant reason', () => {
+      const skipReason = VERIFY_SKIP_REASONS.INSPECTION_VIEW_NOT_GRANTED;
+      expect(skipReason).toBe('INSPECTION.VIEW not granted');
     });
   });
 
@@ -82,28 +93,41 @@ describe('/api/system/verify aggregator', () => {
   });
 
   describe('overall ok logic', () => {
-    it('authz ok + ledger skipped → overall ok', () => {
+    it('authz ok + inspection skipped + ledger skipped → overall ok', () => {
       const response = {
         ok: true,
         authz_verification: { authz_ok: true },
+        inspection_verification: { skipped: true, reason: VERIFY_SKIP_REASONS.INSPECTION_VIEW_NOT_GRANTED },
         ledger_verification: { skipped: true, reason: VERIFY_SKIP_REASONS.LEDGER_READ_NOT_GRANTED },
       };
       expect(response.ok).toBe(true);
     });
 
-    it('authz ok + ledger ok → overall ok', () => {
+    it('authz ok + inspection ok + ledger ok → overall ok', () => {
       const response = {
         ok: true,
         authz_verification: { authz_ok: true },
+        inspection_verification: { ok: true, message: 'Inspection subsystem ok', scope: { card_count: 0 } },
         ledger_verification: { ok: true, message: 'OK', scope: { event_count: 0, id_min: null, id_max: null } },
       };
       expect(response.ok).toBe(true);
+    });
+
+    it('authz ok + inspection failed → overall failed', () => {
+      const response = {
+        ok: false,
+        authz_verification: { authz_ok: true },
+        inspection_verification: { ok: false, error: 'inspection schema missing' },
+        ledger_verification: { skipped: true, reason: VERIFY_SKIP_REASONS.LEDGER_READ_NOT_GRANTED },
+      };
+      expect(response.ok).toBe(false);
     });
 
     it('authz ok + ledger failed → overall failed', () => {
       const response = {
         ok: false,
         authz_verification: { authz_ok: true },
+        inspection_verification: { ok: true, message: 'OK', scope: { card_count: 0 } },
         ledger_verification: { ok: false, error: 'Hash mismatch' },
       };
       expect(response.ok).toBe(false);

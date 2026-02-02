@@ -39,7 +39,7 @@ export function recordVerifyRequest(params: {
   ledgerIncluded: boolean;
   ledgerSkippedReason?: string;
   rateLimited?: boolean;
-  sourceError?: 'authz' | 'ledger';
+  sourceError?: 'authz' | 'inspection' | 'ledger';
 }): void {
   const { httpStatus, timingMs, ledgerIncluded, ledgerSkippedReason, rateLimited, sourceError } = params;
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-`GET /api/system/verify` is the unified verification endpoint (AuthZ + Ledger). This document describes how to observe, interpret, and troubleshoot it in production.
+`GET /api/system/verify` is the unified verification endpoint (AuthZ + Inspection + Ledger). This document describes how to observe, interpret, and troubleshoot it in production.
 
 ## Metrics
 
@@ -16,7 +16,7 @@
 | `verify_aggregator_requests_total{status}` | counter | Total requests by HTTP status (200, 401, 403, 429) |
 | `verify_aggregator_rate_limited_total` | counter | Requests that returned 429 |
 | `verify_aggregator_ledger_skipped_total{reason}` | counter | Ledger skipped by reason (e.g. `LEDGER.READ not granted`) |
-| `verify_aggregator_source_errors_total{source}` | counter | AuthZ or Ledger verification failures |
+| `verify_aggregator_source_errors_total{source}` | counter | AuthZ, Inspection, or Ledger verification failures |
 | `verify_aggregator_request_duration_ms_sum` | counter | Sum of successful request durations (ms) |
 | `verify_aggregator_request_duration_ms_count` | counter | Count of successful (200) requests |
 | `verify_aggregator_request_duration_ms_bucket{le}` | histogram | Latency distribution (buckets: 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, +Inf ms) |
@@ -136,6 +136,12 @@ Typical values for a healthy deployment. Use to calibrate alert thresholds:
 - **Cause:** AuthZ verification failure (e.g. duplicate route, invalid policy)
 - **Check:** `verify_aggregator_source_errors_total{source="authz"}`
 - **Action:** Review route registry, run `scripts/verify-authz.mjs`
+
+### High source errors (inspection)
+
+- **Cause:** Inspection subsystem error (e.g. `inspection_card` table missing)
+- **Check:** `verify_aggregator_source_errors_total{source="inspection"}`
+- **Action:** Ensure workspace init has run; verify `inspection_card` table exists
 
 ### High source errors (ledger)
 

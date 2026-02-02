@@ -51,7 +51,22 @@
 
 ---
 
-## 4. AuthZ Source Errors
+## 4. Inspection Source Errors
+
+**Symptom:** `verify_aggregator_source_errors_total{source="inspection"}` rising.
+
+**Possible causes:**
+- `inspection_card` table missing (DB created before workspace init)
+- DB read error
+
+**Steps:**
+1. Verify `inspection_card` exists: `SELECT COUNT(*) FROM inspection_card`
+2. If missing: run workspace init (POST `/api/workspace/init`) or ensure DB schema includes inspection tables
+3. Check logs for `[system/verify]` inspection-related errors
+
+---
+
+## 5. AuthZ Source Errors
 
 **Symptom:** `verify_aggregator_source_errors_total{source="authz"}` rising.
 
@@ -68,7 +83,7 @@
 
 ---
 
-## 5. Latency Spike
+## 6. Latency Spike
 
 **Symptom:** p95 latency > 500 ms (or baseline + 2x).
 
