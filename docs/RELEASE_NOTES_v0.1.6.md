@@ -229,7 +229,7 @@ Additionally, this release includes critical permission fixes for TMC endpoints,
 ## 11. Release Artifact
 
 **Bundle:** `dist/regulatory-bundle-v0.1.6.zip`  
-**SHA-256:** (to be added after bundle creation)
+**SHA-256:** `dc9a5025c97ef4cffc15981ea43a779eef30ecfd9b89c0c3880aeed9374a8809`
 
 ---
 
