@@ -80,9 +80,14 @@ export async function GET(
     let export_ = buildEvidenceExport(card, checkResults, auditRows);
 
     if (signed || format === 'bundle') {
-      const { publicKey } = ensureKeys();
-      const signature = signExportHash(export_.export_hash);
-      export_ = { ...export_, export_signature: signature, export_public_key: publicKey };
+      const { publicKey, keyId } = ensureKeys();
+      const { signature } = signExportHash(export_.export_hash);
+      export_ = {
+        ...export_,
+        export_signature: signature,
+        export_key_id: keyId,
+        export_public_key: publicKey,
+      };
     }
 
     if (format === 'bundle') {
@@ -96,6 +101,7 @@ export async function GET(
         exported_at: export_.exported_at,
         inspection_card_id: export_.inspection_card_id,
         export_hash: export_.export_hash,
+        export_key_id: export_.export_key_id,
         files: {
           'export.json': { sha256: jsonSha },
           'export.signature': { sha256: sigSha, content: 'hex signature of export_hash' },

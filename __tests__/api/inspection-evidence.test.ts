@@ -44,8 +44,14 @@ jest.mock('@/lib/authz', () => ({
 }));
 
 jest.mock('@/lib/evidence-signing', () => ({
-  ensureKeys: () => ({ publicKey: '-----BEGIN PUBLIC KEY-----\nMOCK\n-----END PUBLIC KEY-----' }),
-  signExportHash: (hash: string) => `sig_${hash.slice(0, 8)}`,
+  ensureKeys: () => ({
+    publicKey: '-----BEGIN PUBLIC KEY-----\nMOCK\n-----END PUBLIC KEY-----',
+    keyId: 'mock_key_id_1234',
+  }),
+  signExportHash: (hash: string) => ({
+    signature: `sig_${hash.slice(0, 8)}`,
+    keyId: 'mock_key_id_1234',
+  }),
 }));
 
 jest.mock('@/lib/db', () => ({
@@ -109,6 +115,7 @@ describe('GET /api/inspection/cards/:id/evidence', () => {
     const body = await res.json();
     expect(body.export_signature).toBeDefined();
     expect(body.export_signature).toMatch(/^sig_/);
+    expect(body.export_key_id).toBe('mock_key_id_1234');
     expect(body.export_public_key).toContain('BEGIN PUBLIC KEY');
   });
 

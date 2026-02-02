@@ -41,6 +41,8 @@ export type EvidenceExport = {
   export_hash: string;
   /** Present when signed=1: Ed25519 signature of export_hash (hex) */
   export_signature?: string;
+  /** Present when signed=1: key_id for signature verification (SHA-256 fingerprint, 16 hex chars) */
+  export_key_id?: string;
   /** Present when signed=1: PEM public key for verification */
   export_public_key?: string;
 };

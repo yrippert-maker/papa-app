@@ -1,11 +1,11 @@
 /**
- * Unit tests for lib/evidence-signing — sign/verify export_hash.
+ * Unit tests for lib/evidence-signing — sign/verify export_hash with key_id.
  */
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-const originalEnv = process.env;
+const originalEnv = { ...process.env };
 
 describe('evidence-signing', () => {
   let tmpKeysDir: string;
@@ -17,45 +17,73 @@ describe('evidence-signing', () => {
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    Object.assign(process.env, originalEnv);
   });
 
-  it('ensureKeys generates key pair when missing', () => {
+  it('ensureKeys generates key pair with key_id when missing', () => {
     const { ensureKeys: ensure } = require('@/lib/evidence-signing');
-    const { publicKey } = ensure();
+    const { publicKey, keyId } = ensure();
     expect(publicKey).toMatch(/-----BEGIN PUBLIC KEY-----/);
     expect(publicKey).toMatch(/-----END PUBLIC KEY-----/);
-    const keysDir = join(process.env.WORKSPACE_ROOT!, '00_SYSTEM', 'keys');
+    expect(keyId).toMatch(/^[a-f0-9]{16}$/);
+    const keysDir = join(process.env.WORKSPACE_ROOT!, '00_SYSTEM', 'keys', 'active');
     expect(existsSync(join(keysDir, 'evidence-signing.key'))).toBe(true);
     expect(existsSync(join(keysDir, 'evidence-signing.pub'))).toBe(true);
+    expect(existsSync(join(keysDir, 'key_id.txt'))).toBe(true);
   });
 
-  it('signExportHash returns hex string', () => {
-    const { signExportHash: sign } = require('@/lib/evidence-signing');
+  it('signExportHash returns { signature, keyId }', () => {
+    const { signExportHash: sign, ensureKeys } = require('@/lib/evidence-signing');
+    const { keyId: expectedKeyId } = ensureKeys();
     const hash = 'a'.repeat(64);
-    const sig = sign(hash);
-    expect(sig).toMatch(/^[a-f0-9]+$/);
-    expect(sig.length).toBeGreaterThan(0);
+    const { signature, keyId } = sign(hash);
+    expect(signature).toMatch(/^[a-f0-9]+$/);
+    expect(signature.length).toBeGreaterThan(0);
+    expect(keyId).toBe(expectedKeyId);
   });
 
-  it('verifyExportHash returns true for valid signature', () => {
+  it('verifyExportHash returns true for valid signature with keyId', () => {
     const { signExportHash: sign, verifyExportHash: verify } = require('@/lib/evidence-signing');
     const hash = 'b'.repeat(64);
-    const sig = sign(hash);
-    expect(verify(hash, sig)).toBe(true);
+    const { signature, keyId } = sign(hash);
+    expect(verify(hash, signature, keyId)).toBe(true);
   });
 
   it('verifyExportHash returns false for tampered hash', () => {
     const { signExportHash: sign, verifyExportHash: verify } = require('@/lib/evidence-signing');
     const hash = 'c'.repeat(64);
-    const sig = sign(hash);
-    expect(verify('d'.repeat(64), sig)).toBe(false);
+    const { signature, keyId } = sign(hash);
+    expect(verify('d'.repeat(64), signature, keyId)).toBe(false);
   });
 
   it('verifyExportHash returns false for tampered signature', () => {
     const { signExportHash: sign, verifyExportHash: verify } = require('@/lib/evidence-signing');
     const hash = 'e'.repeat(64);
-    const sig = sign(hash);
-    expect(verify(hash, sig.slice(0, -2) + 'ff')).toBe(false);
+    const { signature, keyId } = sign(hash);
+    expect(verify(hash, signature.slice(0, -2) + 'ff', keyId)).toBe(false);
+  });
+
+  it('rotateKeys archives old key and generates new', () => {
+    const { ensureKeys, rotateKeys, verifyExportHash, signExportHash, listKeyIds } = require('@/lib/evidence-signing');
+    const { keyId: oldKeyId, publicKey: oldPublicKey } = ensureKeys();
+    const hash = 'f'.repeat(64);
+    const { signature: oldSig } = signExportHash(hash);
+    
+    const { keyId: newKeyId, publicKey: newPublicKey } = rotateKeys();
+    expect(newKeyId).not.toBe(oldKeyId);
+    expect(newPublicKey).not.toBe(oldPublicKey);
+    
+    // Old signature should still verify with old keyId
+    expect(verifyExportHash(hash, oldSig, oldKeyId)).toBe(true);
+    
+    // New key can sign
+    const { signature: newSig, keyId: signKeyId } = signExportHash(hash);
+    expect(signKeyId).toBe(newKeyId);
+    expect(verifyExportHash(hash, newSig, newKeyId)).toBe(true);
+    
+    // List shows both
+    const { active, archived } = listKeyIds();
+    expect(active).toBe(newKeyId);
+    expect(archived).toContain(oldKeyId);
   });
 });

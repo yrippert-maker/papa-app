@@ -8,10 +8,25 @@
 
 `{WORKSPACE_ROOT}/00_SYSTEM/keys/`
 
-- `evidence-signing.key` — приватный ключ (PEM, mode 0600)
-- `evidence-signing.pub` — публичный ключ (PEM, mode 0644)
+```
+keys/
+├── active/
+│   ├── evidence-signing.key   # приватный ключ (PEM, mode 0600)
+│   ├── evidence-signing.pub   # публичный ключ (PEM, mode 0644)
+│   └── key_id.txt             # идентификатор ключа (16 hex chars)
+└── archived/
+    └── {key_id}/
+        ├── evidence-signing.pub  # архивный публичный ключ
+        └── archived_at.txt       # дата архивации
+```
 
 Ключи генерируются автоматически при первом запросе с `signed=1` или `format=bundle`.
+
+## Key ID
+
+Каждый ключ имеет уникальный `key_id` — первые 16 символов SHA-256 хеша публичного ключа. Это позволяет:
+- Идентифицировать, каким ключом подписан экспорт
+- Поддерживать ротацию ключей без ломания верификации старых экспортов
 
 ## Использование
 
@@ -20,22 +35,46 @@ GET /api/inspection/cards/:id/evidence?signed=1
 GET /api/inspection/cards/:id/evidence?format=bundle
 ```
 
-При `format=bundle` возвращается ZIP с подписанным экспортом.
+Ответ включает:
+- `export_signature` — hex подпись
+- `export_key_id` — идентификатор ключа
+- `export_public_key` — PEM публичный ключ
 
 ## Верификация
 
-```bash
-# export_hash из export.json
-# signature из export.signature (hex)
-# public key из public.pem
-
-# Node.js:
+```javascript
+// Node.js
 const crypto = require('crypto');
-const ok = crypto.verify(null, Buffer.from(exportHash, 'utf8'), publicKeyPem, Buffer.from(signatureHex, 'hex'));
+const ok = crypto.verify(
+  null,
+  Buffer.from(exportHash, 'utf8'),
+  publicKeyPem,
+  Buffer.from(signatureHex, 'hex')
+);
 ```
+
+## Key Rotation
+
+Ротация ключей выполняется программно:
+
+```typescript
+import { rotateKeys, listKeyIds } from '@/lib/evidence-signing';
+
+// Создать новый ключ, архивировать старый
+const { publicKey, keyId } = rotateKeys();
+
+// Посмотреть все ключи
+const { active, archived } = listKeyIds();
+```
+
+После ротации:
+- Новые экспорты подписываются новым ключом
+- Старые подписи верифицируются по `key_id` (публичный ключ хранится в `archived/{key_id}/`)
+- Приватный ключ НЕ архивируется (security best practice)
 
 ## Безопасность
 
-- Приватный ключ хранится только на сервере
-- Регулярная ротация ключей — по политике организации
-- При компрометации — перегенерировать ключи (удалить `evidence-signing.key` и `.pub`)
+- Приватный ключ хранится только на сервере (mode 0600)
+- `key_id` позволяет отслеживать, каким ключом подписан каждый экспорт
+- При компрометации — вызвать `rotateKeys()` (старый ключ архивируется)
+- Регулярная ротация — по политике организации (рекомендуется: ежеквартально или при смене персонала)

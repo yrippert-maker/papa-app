@@ -211,11 +211,11 @@ async function run() {
       failed = true;
     } else {
       const signedBody = await rEvidenceSigned.json();
-      if (!signedBody.export_signature || !signedBody.export_public_key) {
-        console.error('[FAIL] Auditor: evidence?signed=1 must have export_signature, export_public_key');
+      if (!signedBody.export_signature || !signedBody.export_public_key || !signedBody.export_key_id) {
+        console.error('[FAIL] Auditor: evidence?signed=1 must have export_signature, export_public_key, export_key_id');
         failed = true;
       } else {
-        console.log('[OK] Auditor: /api/inspection/cards/:id/evidence?signed=1 → 200 (signed export)');
+        console.log('[OK] Auditor: /api/inspection/cards/:id/evidence?signed=1 → 200 (signed export with key_id)');
       }
     }
     const rCheckResults = await fetchWithJar(auditorJar, `${BASE}/api/inspection/cards/CARD-SEED-001/check-results`, {

@@ -178,12 +178,15 @@ Evidence export для compliance: snapshot карты + check_results + audit e
 ```
 
 - `export_hash` — SHA-256 canonical JSON всего экспорта (детерминирован для верификации целостности).
-- При `signed=1`: `export_signature` (hex), `export_public_key` (PEM).
+- При `signed=1`:
+  - `export_signature` — hex подпись `export_hash` (Ed25519)
+  - `export_key_id` — идентификатор ключа (16 hex chars, SHA-256 fingerprint публичного ключа)
+  - `export_public_key` — PEM публичный ключ
 
 **Response (ZIP, format=bundle):** архив содержит:
-- `export.json` — полный evidence export
+- `export.json` — полный evidence export (включая `export_key_id`)
 - `export.signature` — hex подпись `export_hash` (Ed25519)
-- `manifest.json` — `{ files: { "export.json": { sha256 }, "export.signature": { sha256 } } }`
+- `manifest.json` — `{ export_key_id, files: { "export.json": { sha256 }, "export.signature": { sha256 } } }`
 - `public.pem` — публичный ключ для верификации
 
 **Errors:** `404` — карта не найдена.

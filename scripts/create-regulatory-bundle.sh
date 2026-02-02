@@ -67,6 +67,7 @@ FILES=(
   docs/RELEASE_NOTES_v0.1.14.md
   docs/RELEASE_NOTES_v0.1.15.md
   docs/RELEASE_NOTES_v0.1.16.md
+  docs/RELEASE_NOTES_v0.1.17.md
 )
 
 mkdir -p "$DIST"
