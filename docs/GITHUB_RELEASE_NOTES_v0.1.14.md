@@ -50,4 +50,4 @@ v0.1.14 усиливает операционную надёжность сис�
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.14.zip`
-- SHA-256: **9223983e40cb20051823a002eb4980c1274904b04e85d2cacd4fcf0bfa5fa7ec**
+- SHA-256: **e9f5c28b8fba51033fe6af70bde95f6a850b63881741a64103d5f92bcb6fffc2**
