@@ -36,4 +36,8 @@ export const routeRegistry: RouteSpec[] = [
   { method: 'POST', path: '/api/ledger/append', permission: Permissions.LEDGER_APPEND },
   { method: 'GET', path: '/api/authz/verify', permission: Permissions.WORKSPACE_READ },
   { method: 'GET', path: '/api/system/verify', permission: Permissions.WORKSPACE_READ },
+  { method: 'GET', path: '/api/compliance/keys', permission: Permissions.COMPLIANCE_VIEW },
+  { method: 'POST', path: '/api/compliance/keys/rotate', permission: Permissions.COMPLIANCE_MANAGE },
+  { method: 'POST', path: '/api/compliance/keys/:keyId/revoke', permission: Permissions.COMPLIANCE_MANAGE },
+  { method: 'GET', path: '/api/compliance/verify-stats', permission: Permissions.COMPLIANCE_VIEW },
 ];

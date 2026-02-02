@@ -16,6 +16,8 @@ export const Permissions = {
   TMC_REQUEST_MANAGE: 'TMC.REQUEST.MANAGE',
   INSPECTION_VIEW: 'INSPECTION.VIEW',
   INSPECTION_MANAGE: 'INSPECTION.MANAGE',
+  COMPLIANCE_VIEW: 'COMPLIANCE.VIEW',
+  COMPLIANCE_MANAGE: 'COMPLIANCE.MANAGE',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];

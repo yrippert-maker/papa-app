@@ -32,6 +32,11 @@ export function can(session: Session | null, permission: Permission): boolean {
   return perms.has(permission);
 }
 
+/** Alias for can() — checks if user has permission. */
+export function hasPermission(session: Session | null, permission: Permission): boolean {
+  return can(session, permission);
+}
+
 /** Проверяет permission с учётом aliases (TMC.REQUEST.*, TMC.VIEW, INSPECTION.*). */
 export function canWithAlias(session: Session | null, permission: Perm): boolean {
   if (!session?.user?.id) return false;
