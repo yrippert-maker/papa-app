@@ -6,7 +6,7 @@ import { ROUTE_REGISTRY, VALID_PERMISSIONS } from '../../lib/authz/routes-export
 
 describe('routes-export sync', () => {
   it('route count matches expected (29)', () => {
-    expect(ROUTE_REGISTRY.length).toBe(38);
+    expect(ROUTE_REGISTRY.length).toBe(52);
   });
 
   it('all permissions in registry are valid', () => {

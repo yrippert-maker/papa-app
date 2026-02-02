@@ -70,6 +70,20 @@ describe('route registry', () => {
       { method: 'GET', path: '/api/compliance/snapshots' },
       { method: 'GET', path: '/api/compliance/break-glass' },
       { method: 'POST', path: '/api/compliance/break-glass' },
+      { method: 'GET', path: '/api/compliance/audit-pack' },
+      { method: 'POST', path: '/api/compliance/audit-pack' },
+      { method: 'GET', path: '/api/compliance/legal-holds' },
+      { method: 'POST', path: '/api/compliance/legal-holds' },
+      { method: 'GET', path: '/api/compliance/postmortems' },
+      { method: 'POST', path: '/api/compliance/postmortems' },
+      { method: 'GET', path: '/api/compliance/anomalies' },
+      { method: 'POST', path: '/api/compliance/anomalies' },
+      { method: 'GET', path: '/api/compliance/policies' },
+      { method: 'POST', path: '/api/compliance/policies' },
+      { method: 'GET', path: '/api/compliance/delegations' },
+      { method: 'POST', path: '/api/compliance/delegations' },
+      { method: 'GET', path: '/api/compliance/org' },
+      { method: 'POST', path: '/api/compliance/org' },
     ];
     const reg = new Set(routeRegistry.map((r) => `${r.method} ${r.path}`));
     for (const e of expected) {

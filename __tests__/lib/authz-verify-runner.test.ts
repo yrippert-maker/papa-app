@@ -15,7 +15,7 @@ describe('authz-verify-runner', () => {
   it('scope contains expected fields', () => {
     const r = runAuthzVerification();
     expect(r.scope.route_registry_file).toBe('lib/authz/routes.ts');
-    expect(r.scope.route_count).toBe(38);
+    expect(r.scope.route_count).toBe(52);
     expect(r.scope.permission_count).toBe(15);
     expect(r.scope.role_count).toBe(5);
     expect(r.scope.unique_routes).toBe(true);

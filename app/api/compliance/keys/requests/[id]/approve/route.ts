@@ -1,12 +1,14 @@
 /**
  * POST /api/compliance/keys/requests/:id/approve
  * Approves a pending request (must be different user from initiator).
+ * Includes rate limiting per approver.
  */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS, hasPermission } from '@/lib/authz';
 import { approveRequest, getRequest } from '@/lib/key-lifecycle-service';
+import { checkApproverRateLimit, recordApproval } from '@/lib/governance-resilience-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +35,22 @@ export async function POST(
     );
   }
 
+  const approverId = (session?.user?.id as string) ?? 'unknown';
+  
+  // Check rate limit
+  const rateLimit = checkApproverRateLimit(approverId);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'RATE_LIMITED',
+          message: `Approval rate limit exceeded (${rateLimit.current}/${rateLimit.max} in 24h). Blocked until ${rateLimit.blocked_until}`,
+        },
+      },
+      { status: 429 }
+    );
+  }
+
   try {
     const existing = getRequest(id);
     if (!existing) {
@@ -42,17 +60,22 @@ export async function POST(
       );
     }
     
-    const approverId = (session?.user?.id as string) ?? 'unknown';
-    
     const req = approveRequest({
       request_id: id,
       approver_id: approverId,
     });
     
+    // Record approval for rate limiting
+    recordApproval(approverId);
+    
     return NextResponse.json({
       success: true,
       request: req,
       message: 'Request approved. Ready for execution.',
+      rate_limit: {
+        current: rateLimit.current + 1,
+        max: rateLimit.max,
+      },
     });
   } catch (error) {
     console.error('[compliance/keys/requests/approve] error:', error);
