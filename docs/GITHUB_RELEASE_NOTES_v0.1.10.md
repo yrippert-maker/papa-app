@@ -52,4 +52,4 @@ v0.1.10 добавляет управляемые transitions для техка�
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.10.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **769e1c3538dab3c36d26a08f63a5bd0b249b5fc82e9af38f848fc018a91261ab**
