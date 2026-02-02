@@ -40,4 +40,4 @@ v0.1.11 расширяет `/api/system/verify`, добавляя проверк
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.11.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **46a7f2217a37fcf99f4f7de25d1806fdb3eb4baf1fe222d9c71d2fb9bc7697fe**
