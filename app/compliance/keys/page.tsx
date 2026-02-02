@@ -125,53 +125,14 @@ export default function ComplianceKeysPage() {
     }
   }, [filters]);
 
-  const handleRotate = async () => {
-    if (!confirm('Вы уверены, что хотите ротировать ключ? Текущий ключ будет архивирован.')) {
-      return;
-    }
-    setActionLoading(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const res = await fetch('/api/compliance/keys/rotate', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error?.message || 'Failed to rotate key');
-        return;
-      }
-      setSuccess('Ключ успешно ротирован');
-      await Promise.all([fetchKeys(), fetchAudit()]);
-    } catch (err) {
-      setError('Network error');
-    } finally {
-      setActionLoading(false);
-    }
+  const handleRotate = () => {
+    // Redirect to requests page - direct rotation is disabled
+    window.location.href = '/compliance/requests';
   };
 
-  const handleRevoke = async (keyId: string) => {
-    setActionLoading(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const res = await fetch(`/api/compliance/keys/${keyId}/revoke`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: revokeReason || 'Manual revocation' }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error?.message || 'Failed to revoke key');
-        return;
-      }
-      setSuccess(`Ключ ${keyId} успешно отозван`);
-      setShowRevokeModal(null);
-      setRevokeReason('');
-      await Promise.all([fetchKeys(), fetchAudit()]);
-    } catch (err) {
-      setError('Network error');
-    } finally {
-      setActionLoading(false);
-    }
+  const handleRevoke = (keyId: string) => {
+    // Redirect to requests page with key ID - direct revocation is disabled
+    window.location.href = `/compliance/requests?action=REVOKE&target_key_id=${keyId}`;
   };
 
   if (status === 'loading' || (hasView && loading && !forbidden)) {
@@ -238,9 +199,8 @@ export default function ComplianceKeysPage() {
             <button
               className="btn btn-primary btn-sm"
               onClick={handleRotate}
-              disabled={actionLoading}
             >
-              {actionLoading ? 'Ротация...' : '🔄 Ротировать ключ'}
+              🔄 Запрос на ротацию
             </button>
           )
         }
@@ -314,10 +274,9 @@ export default function ComplianceKeysPage() {
                           {k.status === 'archived' && (
                             <button
                               className="btn btn-ghost btn-xs text-error"
-                              onClick={() => setShowRevokeModal(k.key_id)}
-                              disabled={actionLoading}
+                              onClick={() => handleRevoke(k.key_id)}
                             >
-                              Отозвать
+                              Запрос отзыва
                             </button>
                           )}
                         </td>

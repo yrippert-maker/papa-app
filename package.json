@@ -1,6 +1,6 @@
 {
   "name": "papa-app",
-  "version": "0.1.27",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -24,7 +24,11 @@
     "retention:run": "node scripts/retention-enforce.mjs --execute",
     "retention:json": "node scripts/retention-enforce.mjs --dry-run --json",
     "retention:baseline:check": "node scripts/retention-check-baseline.mjs",
-    "retention:baseline:update": "node scripts/retention-check-baseline.mjs --update"
+    "retention:baseline:update": "node scripts/retention-check-baseline.mjs --update",
+    "audit:snapshot:daily": "node scripts/generate-audit-snapshot.mjs --daily",
+    "audit:snapshot:weekly": "node scripts/generate-audit-snapshot.mjs --weekly",
+    "audit:snapshot:verify": "node scripts/verify-audit-snapshots.mjs --all",
+    "expire:requests": "node scripts/expire-requests.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

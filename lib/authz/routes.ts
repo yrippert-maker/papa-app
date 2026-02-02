@@ -43,4 +43,12 @@ export const routeRegistry: RouteSpec[] = [
   { method: 'GET', path: '/api/compliance/verify-stats', permission: Permissions.COMPLIANCE_VIEW },
   { method: 'GET', path: '/api/compliance/export', permission: Permissions.COMPLIANCE_VIEW },
   { method: 'GET', path: '/api/compliance/retention', permission: Permissions.COMPLIANCE_VIEW },
+  { method: 'GET', path: '/api/compliance/keys/requests', permission: Permissions.COMPLIANCE_VIEW },
+  { method: 'POST', path: '/api/compliance/keys/requests', permission: Permissions.COMPLIANCE_MANAGE },
+  { method: 'POST', path: '/api/compliance/keys/requests/:id/approve', permission: Permissions.COMPLIANCE_MANAGE },
+  { method: 'POST', path: '/api/compliance/keys/requests/:id/reject', permission: Permissions.COMPLIANCE_MANAGE },
+  { method: 'POST', path: '/api/compliance/keys/requests/:id/execute', permission: Permissions.COMPLIANCE_MANAGE },
+  { method: 'GET', path: '/api/compliance/snapshots', permission: Permissions.COMPLIANCE_VIEW },
+  { method: 'GET', path: '/api/compliance/break-glass', permission: Permissions.COMPLIANCE_VIEW },
+  { method: 'POST', path: '/api/compliance/break-glass', permission: Permissions.ADMIN_MANAGE_USERS },
 ];

@@ -62,6 +62,14 @@ describe('route registry', () => {
       { method: 'GET', path: '/api/compliance/verify-stats' },
       { method: 'GET', path: '/api/compliance/export' },
       { method: 'GET', path: '/api/compliance/retention' },
+      { method: 'GET', path: '/api/compliance/keys/requests' },
+      { method: 'POST', path: '/api/compliance/keys/requests' },
+      { method: 'POST', path: '/api/compliance/keys/requests/:id/approve' },
+      { method: 'POST', path: '/api/compliance/keys/requests/:id/reject' },
+      { method: 'POST', path: '/api/compliance/keys/requests/:id/execute' },
+      { method: 'GET', path: '/api/compliance/snapshots' },
+      { method: 'GET', path: '/api/compliance/break-glass' },
+      { method: 'POST', path: '/api/compliance/break-glass' },
     ];
     const reg = new Set(routeRegistry.map((r) => `${r.method} ${r.path}`));
     for (const e of expected) {

@@ -1,6 +1,16 @@
 /**
  * POST /api/compliance/keys/:keyId/revoke
- * Revokes an archived signing key.
+ * Direct revocation requires break-glass mode or approval flow.
+ * 
+ * Normal flow:
+ * 1. POST /api/compliance/keys/requests { action: "REVOKE", target_key_id: "..." }
+ * 2. Another user: POST /api/compliance/keys/requests/:id/approve
+ * 3. POST /api/compliance/keys/requests/:id/execute
+ * 
+ * Break-glass flow:
+ * 1. POST /api/compliance/break-glass { action: "activate", reason: "..." }
+ * 2. POST /api/compliance/keys/:keyId/revoke (this endpoint)
+ * 
  * Permission: COMPLIANCE.MANAGE or ADMIN.MANAGE_USERS
  */
 import { NextResponse } from 'next/server';
@@ -9,6 +19,7 @@ import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS, hasPermission } from '@/lib/authz';
 import { revokeKey, logKeyAction } from '@/lib/compliance-service';
 import { getActiveKeyId } from '@/lib/evidence-signing';
+import { isBreakGlassActive, recordBreakGlassAction } from '@/lib/key-lifecycle-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +46,19 @@ export async function POST(
       { status: 400 }
     );
   }
+
+  // Check break-glass mode
+  if (!isBreakGlassActive()) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'APPROVAL_REQUIRED',
+          message: `Direct key revocation requires break-glass mode or approval flow. Use POST /api/compliance/keys/requests with action=REVOKE and target_key_id=${keyId}, or activate break-glass first.`,
+        },
+      },
+      { status: 403 }
+    );
+  }
   
   // Check if trying to revoke active key
   const activeKeyId = getActiveKeyId();
@@ -49,10 +73,10 @@ export async function POST(
   try {
     body = await request.json();
   } catch {
-    // Empty body is ok, reason is optional
+    // Empty body is ok
   }
   
-  const reason = body.reason || 'Manual revocation';
+  const reason = body.reason || 'Break-glass emergency revocation';
 
   try {
     const success = revokeKey(keyId, reason);
@@ -64,15 +88,19 @@ export async function POST(
       );
     }
     
-    // Log to ledger
+    // Log to ledger with break-glass flag
     const actorId = (session?.user?.id as string) ?? null;
-    logKeyAction('KEY_REVOKED', { key_id: keyId, reason }, actorId);
+    logKeyAction('KEY_REVOKED', { key_id: keyId, reason, break_glass: true }, actorId);
+    
+    // Record action
+    recordBreakGlassAction('REVOKE', `Revoked key ${keyId}: ${reason}`);
     
     return NextResponse.json({
       success: true,
       key_id: keyId,
-      message: 'Key revoked successfully',
+      message: 'Key revoked via break-glass',
       reason,
+      break_glass: true,
     });
   } catch (error) {
     console.error('[compliance/keys/revoke] Error:', error);

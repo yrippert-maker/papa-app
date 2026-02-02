@@ -217,7 +217,7 @@ export type KeyAuditResponse = {
  */
 export function logKeyAction(
   action: 'KEY_ROTATED' | 'KEY_REVOKED',
-  payload: { key_id: string; new_key_id?: string; reason?: string },
+  payload: { key_id: string; new_key_id?: string; reason?: string; approval_request_id?: string; break_glass?: boolean },
   actorId: string | null
 ): string {
   const db = getDb();
