@@ -59,4 +59,4 @@ fi
 
 ## Release Artifacts
 - `dist/regulatory-bundle-v0.1.26.zip`
-- SHA-256: **<ADD_SHA256_HERE>**
+- SHA-256: **36d536dc891e309229c5a1c123f9cb8643718a44eedd52796cd712703e7b5b56**
