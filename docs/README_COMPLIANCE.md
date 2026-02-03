@@ -39,7 +39,8 @@ See **[AUDITOR_CHECKLIST_1DAY.md](./AUDITOR_CHECKLIST_1DAY.md)** for a concise �
 
 ## Release baseline (audit-grade)
 
-- **v1.0.0** — Audit-grade baseline: strict config ledger, unified rollup, mail governance. См. [AUDIT_GRADE_STATUS.md](./AUDIT_GRADE_STATUS.md). Regulatory bundle: `regulatory-bundle-v1.0.0.zip` (см. [REGULATORY_SUBMISSION_CHECKLIST.md](./REGULATORY_SUBMISSION_CHECKLIST.md)).
+- **v1.0.0** — Первый audit-grade baseline: strict config ledger, unified rollup, mail governance. См. [AUDIT_GRADE_STATUS.md](./AUDIT_GRADE_STATUS.md).
+- **v1.0.1** — Финальный baseline (full delivery): dashboard, health alerts, trust package. Regulatory bundle: `regulatory-bundle-v1.0.1.zip`; SHA-256: `b63972e0175bb74af1a77e4c7fe87b7b073221fb1990c2cf4f307a6d2cbf168e` (сборка на чистом дереве).
 
 ## External Trust Package (versioned)
 
@@ -98,3 +99,12 @@ When offering audit integrity as a product or to external parties:
 - [AUDIT_PACK_RETENTION.md](./AUDIT_PACK_RETENTION.md) — Ledger and rollup retention
 - [AUDITOR_PORTAL.md](./AUDITOR_PORTAL.md) — Portal setup and API
 - [VERIFY_POLICY.md](./VERIFY_POLICY.md) — Verification policy and fail rules
+
+---
+
+## Status
+
+- **Baseline:** v1.0.1
+- **State:** Audit-grade baseline frozen
+- **Date:** 2026-02-03
+- **Bundle SHA-256:** b63972e0175bb74af1a77e4c7fe87b7b073221fb1990c2cf4f307a6d2cbf168e
