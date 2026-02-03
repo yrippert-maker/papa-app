@@ -1,8 +1,23 @@
 # Governance Roadmap
 
 **Document ID:** GOV-ROADMAP-001  
-**Version:** 1.1.1  
+**Version:** 1.2.0  
 **Last Updated:** 2026-02-02
+
+---
+
+## ⏸ Pause (Variant D)
+
+**Status:** Roadmap **FROZEN** as of 2026-02-02  
+**Policy:** [PAUSE_POLICY](PAUSE_POLICY.md)
+
+| Active | Inactive |
+|--------|----------|
+| Operational cadence (CI) | Roadmap execution (v0.4.x+) |
+| Reactive response (security, audit) | New features |
+| Governance debt monitoring | Roadmap edits |
+
+**Next review:** 2026-08-02 (6 months) or 2027-02-02 (12 months)
 
 ---
 
@@ -46,12 +61,11 @@ This document outlines the governance maturity roadmap for Papa App, organized b
 | **Auditor pack publishing** | On schedule (e.g. quarterly) | CI: `auditor-pack:create` + GitHub Release |
 | **Trust anchors export** | On key rotation | Manual or CI-triggered |
 
-### CI Integration (Planned)
+### CI Integration
 
-- [ ] Scheduled workflow: quarterly attestation generation
-- [ ] Scheduled workflow: annual attestation generation
-- [ ] Scheduled workflow: fresh auditor pack build + publish
-- [ ] Artifact retention policy for packs
+- [x] Scheduled workflow: [governance-cadence.yml](../../.github/workflows/governance-cadence.yml) — quarterly attestation + annual (Jan) + auditor pack
+- [x] Artifact retention: 90 days (pack), 365 days (attestations)
+- [ ] Optional: publish pack to GitHub Release (manual or automation)
 
 ---
 
@@ -77,7 +91,8 @@ This document outlines the governance maturity roadmap for Papa App, organized b
 
 ## v0.4.0 — Security Enhancement
 
-**Target:** Q2 2026
+**Target:** Q2 2026  
+**Status:** ⏸ Deferred (Pause)
 
 ### Features
 
@@ -100,7 +115,8 @@ This document outlines the governance maturity roadmap for Papa App, organized b
 
 ## v0.5.0 — Enterprise Readiness
 
-**Target:** Q3 2026
+**Target:** Q3 2026  
+**Status:** ⏸ Deferred (Pause)
 
 ### Features
 
@@ -123,7 +139,8 @@ This document outlines the governance maturity roadmap for Papa App, organized b
 
 ## v0.6.0 — Automation & Intelligence
 
-**Target:** Q4 2026
+**Target:** Q4 2026  
+**Status:** ⏸ Deferred (Pause)
 
 ### Features
 
@@ -241,12 +258,13 @@ This document outlines the governance maturity roadmap for Papa App, organized b
 
 ## Review Schedule
 
-| Review | Frequency | Owner |
-|--------|-----------|-------|
-| Roadmap update | Quarterly | Security Council |
-| Feature prioritization | Monthly | Product + Security |
-| Metrics review | Monthly | Compliance Team |
-| External audit | Annually | External Auditor |
+| Review | Frequency | Owner | Pause |
+|--------|-----------|-------|-------|
+| **Pause reassessment** | 6–12 months | Security Council | Next: 2026-08-02 |
+| Roadmap update | Quarterly | Security Council | ⏸ Deferred |
+| Feature prioritization | Monthly | Product + Security | ⏸ Deferred |
+| Metrics review | Monthly | Compliance Team | ✓ Active |
+| External audit | Annually | External Auditor | ✓ Active |
 
 ---
 
@@ -284,3 +302,4 @@ This document outlines the governance maturity roadmap for Papa App, organized b
 | 1.0.0 | 2026-02-02 | Initial roadmap |
 | 1.1.0 | 2026-02-02 | LTS baseline (v0.3.x), operational cadence, v1.0.0 governance charter + 3rd-party audit |
 | 1.1.1 | 2026-02-02 | Explicit LTS policy, link to v0.3.1, v1.0.0 target clarification |
+| 1.2.0 | 2026-02-02 | Pause (Variant D): roadmap frozen, cadence + reactive only, review 6–12mo |

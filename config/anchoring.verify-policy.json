@@ -1,0 +1,11 @@
+{
+  "$schema": "https://example.com/anchoring-verify-policy.schema.json",
+  "version": 1,
+  "failSeverity": ["critical"],
+  "failTypes": [
+    "RECEIPT_INTEGRITY_MISMATCH",
+    "RECEIPT_MISSING_FOR_CONFIRMED",
+    "ANCHOR_FAILED"
+  ],
+  "warnTypes": ["GAP_IN_PERIODS"]
+}

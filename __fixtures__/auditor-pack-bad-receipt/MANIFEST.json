@@ -1,0 +1,12 @@
+{
+  "pack_version": "1.0.0",
+  "pack_id": "fixture-bad-receipt",
+  "created_at": "2026-02-02T00:00:00.000Z",
+  "organization": "Fixture",
+  "checksums": {
+    "trust-anchors.json": "fd7c15b4c3f396dbbefaa70be3c805290fd1c1a4709f366cf57a8efc4ef3186f",
+    "anchors.json": "f425de6af6f072bacc719279fe00c62c58a734968a838f9237f0a2fb0dd8c8ac",
+    "ANCHORING_STATUS.json": "21e69648070728f2af22978c78fe5a213c38036cfa96006372d99cd1d09a750a",
+    "ANCHORING_ISSUES.json": "f78fe5c6962fc4017a1d4bf9df15d23784dc5361330b0d8a07fcc35ec4921a27"
+  }
+}

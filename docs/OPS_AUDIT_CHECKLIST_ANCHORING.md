@@ -27,9 +27,22 @@
    ```
    - [ ] Exit code 0
 
+   Verify checks `ANCHORING_ISSUES.json` and fails CI when disallowed issue types or critical severity are present (see env `VERIFY_FAIL_TYPES` / `VERIFY_FAIL_SEVERITY`).
+
 3. **No critical errors**
    - [ ] No `RECEIPT_MISSING_FOR_CONFIRMED`
    - [ ] No `RECEIPT_INTEGRITY_MISMATCH` (critical)
 
 4. **CI artefact** (if needed for auditors)
    - [ ] Verify output saved as CI artefact (`verify-output`) on main/tags
+
+5. **Audit Monitor** (scheduled)
+   - [ ] Workflow `audit-monitor` runs daily (06:15 UTC); failures can notify #channel if `SLACK_WEBHOOK_URL` is configured
+
+---
+
+## C3) Compliance / External Audit
+
+- [AUDIT_ATTESTATION.md](AUDIT_ATTESTATION.md) — One-paragraph attestation (SOC/ISO ready)
+- [SOX_MAPPING.md](SOX_MAPPING.md) — SOX 404 ITGC mapping
+- [ISO27001_MAPPING.md](ISO27001_MAPPING.md) — ISO 27001 controls mapping

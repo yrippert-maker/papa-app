@@ -88,12 +88,45 @@ jobs:
         run: npm run auditor-pack:create -- --output dist
         env:
           WORKSPACE_ROOT: ${{ github.workspace }}/.tmp/verify-workspace
+          PACK_SIGN_PRIVATE_KEY_PEM: ${{ secrets.PACK_SIGN_PRIVATE_KEY_PEM }}
+          PACK_SIGN_KEY_ID: ${{ vars.PACK_SIGN_KEY_ID }}
 
       - name: Audit verify (strict)
+        env:
+          STRICT_VERIFY: "1"
+          REQUIRE_ANCHORING_ISSUES: "1"
+          REQUIRE_PACK_SIGNATURE: "1"
+          VERIFY_SUMMARY_PATH: verify-summary.json
+          PACK_SIGN_PUBLIC_KEY_PEM: ${{ secrets.PACK_SIGN_PUBLIC_KEY_PEM }}
+          PACK_SIGN_PUBLIC_KEYS_PEM: ${{ secrets.PACK_SIGN_PUBLIC_KEYS_PEM }}
         run: |
           PACK=$(ls -td dist/auditor-pack-* 2>/dev/null | head -1)
           if [ -z "$PACK" ]; then echo "No auditor pack found"; exit 1; fi
-          STRICT_VERIFY=1 node scripts/independent-verify.mjs --audit-pack "$PACK" 2>&1 | tee verify-output.txt
+          node scripts/independent-verify.mjs --audit-pack "$PACK" 2>&1 | tee verify-output.txt
+          cp "$PACK/verify-summary.json" verify-summary.json 2>/dev/null || true
+          test -f "$PACK/ledger-entry.json" || true
+          cp "$PACK/slack-payload.json" slack-payload.json 2>/dev/null || true
+
+      - name: Configure AWS (ledger)
+        if: always() && vars.LEDGER_BUCKET != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Publish ledger entry (S3)
+        if: always() && vars.LEDGER_BUCKET != ''
+        env:
+          LEDGER_BACKEND: s3
+          LEDGER_BUCKET: ${{ vars.LEDGER_BUCKET }}
+          LEDGER_PREFIX: ledger
+        run: |
+          PACK=$(ls -td dist/auditor-pack-* 2>/dev/null | head -1)
+          if [ -n "$PACK" ] && [ -f "$PACK/ledger-entry.json" ]; then
+            node scripts/ledger-publish.mjs --pack "$PACK" --backend s3 --bucket "$LEDGER_BUCKET" --prefix "$LEDGER_PREFIX"
+          fi
+        continue-on-error: true
 
       - name: Upload verify output
         uses: actions/upload-artifact@v4
@@ -101,3 +134,30 @@ jobs:
         with:
           name: verify-output
           path: verify-output.txt
+
+      - name: Upload verify summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: verify-summary
+          path: |
+            verify-summary.json
+            slack-payload.json
+
+      - name: Slack notify on FAIL
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -f slack-payload.json ] && [ -n "$SLACK_WEBHOOK_URL" ]; then
+            node scripts/slack-notify.mjs --payload slack-payload.json
+          fi
+        continue-on-error: true
+
+      - name: Upload auditor pack
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: auditor-pack
+          path: dist/

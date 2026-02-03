@@ -107,8 +107,7 @@ export interface ChangelogEntry {
  * Computes policy hash excluding metadata for integrity verification.
  */
 export function computePolicyHash(policy: ApprovalPolicy): string {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { metadata, ...policyWithoutMeta } = policy;
+  const { metadata: _m, ...policyWithoutMeta } = policy;
   const canonical = canonicalJSON(policyWithoutMeta as Record<string, unknown>);
   return createHash('sha256').update(canonical).digest('hex');
 }
@@ -258,7 +257,7 @@ function regenerateChangelogMarkdown(entries: ChangelogEntry[]): void {
     byDate.get(date)!.push(e);
   }
   
-  for (const [date, dateEntries] of byDate) {
+  for (const [date, dateEntries] of Array.from(byDate)) {
     lines.push(`## ${date}`);
     lines.push('');
     

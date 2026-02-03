@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "triage_result",
+  "description": "Mail MVP — результат AI triage (MAIL_MVP_SPEC C2)",
+  "type": "object",
+  "required": ["version", "mail_id", "category", "confidence", "summary", "risk_flags", "entities", "suggested_operator", "proposed_changes"],
+  "properties": {
+    "version": { "const": 1 },
+    "mail_id": { "type": "string", "format": "uuid" },
+    "category": { "enum": ["finance_payment", "doc_mura_menasa", "other"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "summary": { "type": "string" },
+    "risk_flags": { "type": "array", "items": { "type": "string" } },
+    "entities": {
+      "type": "object",
+      "properties": {
+        "payment": {
+          "type": "object",
+          "properties": {
+            "amount": { "type": "number" },
+            "currency": { "type": "string" },
+            "date": { "type": "string" },
+            "counterparty": { "type": "string" },
+            "invoice": { "type": ["string", "null"] },
+            "bank_ref": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "suggested_operator": { "type": "string" },
+    "proposed_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target", "mode", "patch", "explanation"],
+        "properties": {
+          "target": { "enum": ["finance_payments_register", "mura_menasa_doc"] },
+          "mode": { "enum": ["append", "patch"] },
+          "patch": { "type": "string" },
+          "explanation": { "type": "string" }
+        }
+      }
+    }
+  }
+}

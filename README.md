@@ -49,6 +49,12 @@ npm run dev
 | [docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md) | Архитектура, ADR-lite, scalability |
 | [docs/BACKLOG_P1.md](docs/BACKLOG_P1.md) | Backlog P1, User Stories |
 | [docs/SECURITY_POSTURE.md](docs/SECURITY_POSTURE.md) | Безопасность, production checklist |
+| [docs/ASSURANCE.md](docs/ASSURANCE.md) | Security & Compliance Assurance (auditor pack, attestation, disclosure) |
+| [docs/OPS_AUDIT_CHECKLIST_ANCHORING.md](docs/OPS_AUDIT_CHECKLIST_ANCHORING.md) | **Anchoring audit & verification** — start here; auditor pack, CI gate |
+| [docs/AUDIT_ATTESTATION.md](docs/AUDIT_ATTESTATION.md) | Audit attestation (anchoring governance) — ready for SOC/ISO |
+| [docs/SOX_MAPPING.md](docs/SOX_MAPPING.md) | SOX 404 ITGC mapping |
+| [docs/ISO27001_MAPPING.md](docs/ISO27001_MAPPING.md) | ISO 27001 controls mapping |
+| [docs/DOMAIN_ROLLOUT_PLAYBOOK.md](docs/DOMAIN_ROLLOUT_PLAYBOOK.md) | Domain rollout playbook — audit-ready template |
 | [docs/DEMO_TABLE_M1_M2.md](docs/DEMO_TABLE_M1_M2.md) | M1/M2 acceptance |
 | [docs/BRANCHING_STRATEGY.md](docs/BRANCHING_STRATEGY.md) | Ветки, feature flow |
 | [docs/GITHUB_ISSUES_P1.md](docs/GITHUB_ISSUES_P1.md) | Issues из backlog |

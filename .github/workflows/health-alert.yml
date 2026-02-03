@@ -36,7 +36,7 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Health check + Slack on alert
+      - name: Health check (JSON artifact + Slack on alert)
         id: health
         continue-on-error: true
         env:
@@ -50,11 +50,13 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           node scripts/health-alert.mjs --slack 2>&1 | tee health-output.txt
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          node scripts/health-alert.mjs 2>/dev/null > health-result.json || true
 
-      - name: Upload health output
+      - name: Upload health artifact (audit trail)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: health-alert-output
-          path: health-output.txt
+          path: |
+            health-output.txt
+            health-result.json

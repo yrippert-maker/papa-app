@@ -116,6 +116,7 @@ export default function ComplianceKeysPage() {
       return;
     }
     Promise.all([fetchKeys(), fetchAudit()]).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, hasView]);
 
   // Refetch when filters change
@@ -123,6 +124,7 @@ export default function ComplianceKeysPage() {
     if (!loading && hasView) {
       fetchAudit();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const handleRotate = () => {

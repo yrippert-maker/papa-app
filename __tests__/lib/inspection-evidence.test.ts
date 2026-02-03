@@ -40,8 +40,9 @@ describe('buildEvidenceExport', () => {
       prev_hash: string | null;
       actor_id: string | null;
     }> = [];
-    const a = buildEvidenceExport(card, checkResults, auditRows);
-    const b = buildEvidenceExport(card, checkResults, auditRows);
+    const opts = { exportedAt: '2026-02-02T12:00:00.000Z' };
+    const a = buildEvidenceExport(card, checkResults, auditRows, opts);
+    const b = buildEvidenceExport(card, checkResults, auditRows, opts);
     expect(a.export_hash).toBe(b.export_hash);
   });
 
@@ -57,8 +58,9 @@ describe('buildEvidenceExport', () => {
       prev_hash: string | null;
       actor_id: string | null;
     }> = [];
-    const a = buildEvidenceExport(card, checkResults, auditRows);
-    const b = buildEvidenceExport({ ...card, status: 'DRAFT' }, checkResults, auditRows);
+    const opts = { exportedAt: '2026-02-02T12:00:00.000Z' };
+    const a = buildEvidenceExport(card, checkResults, auditRows, opts);
+    const b = buildEvidenceExport({ ...card, status: 'DRAFT' }, checkResults, auditRows, opts);
     expect(a.export_hash).not.toBe(b.export_hash);
   });
 
@@ -70,8 +72,9 @@ describe('buildEvidenceExport', () => {
       { id: 2, event_type: 'Y', payload_json: '{}', created_at: '2026-01-01T00:01:00Z', block_hash: 'h2', prev_hash: 'h1', actor_id: null },
     ];
     const auditRowsB = [...auditRowsA].reverse();
-    const expA = buildEvidenceExport(card, checkResults, auditRowsA);
-    const expB = buildEvidenceExport(card, checkResults, auditRowsB);
+    const opts = { exportedAt: '2026-02-02T12:00:00.000Z' };
+    const expA = buildEvidenceExport(card, checkResults, auditRowsA, opts);
+    const expB = buildEvidenceExport(card, checkResults, auditRowsB, opts);
     expect(expA.export_hash).not.toBe(expB.export_hash);
   });
 });

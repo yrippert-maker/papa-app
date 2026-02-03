@@ -62,3 +62,9 @@ This enables tamper-evidence:
 ### Recommended retention
 
 - Keep rollups ≥ ledger retention (often 365+ days).
+
+## Config ledger `_pending` (atomic-ish allowlist save)
+
+- **`doc-ledger/_pending/`** — temporary zone for prepare-phase ledger entries; config change is committed only after a durable ledger write.
+- **Rollup** ignores `_pending` (only `doc-ledger/YYYY/MM/DD/*.json` are included in the daily Merkle root).
+- **GC:** Run `npm run ledger:pending:gc` (or the `pending-gc` workflow) to delete pending objects older than N hours (default 24). This prevents `_pending` from growing indefinitely if finalize or delete fails. Supports `--backend s3|gcs` (same as ledger-rollup); GCS auth via ADC (e.g. `GOOGLE_APPLICATION_CREDENTIALS` or Workload Identity in CI).

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "generated_at": "2026-02-03T07:44:17.961Z",
+  "title": "Independent verify: FAIL",
+  "status": "fail",
+  "pack_sha256": null,
+  "pack_dir": "__fixtures__/auditor-pack-minimal",
+  "signature": {
+    "required": false,
+    "present": false,
+    "ok": false,
+    "reason": "missing pack_hash.json or pack_signature.json",
+    "key_id": null
+  },
+  "policy": {
+    "strict_verify": false,
+    "loaded_from": "/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json",
+    "require_anchoring_issues": false,
+    "fail_severity": [],
+    "fail_types": []
+  },
+  "anchoring": {
+    "status": "OK",
+    "issues_total": 0,
+    "issues_deduped": 0,
+    "issues_hits": 0,
+    "top": []
+  }
+}

@@ -87,10 +87,39 @@
 
 ---
 
+## Шаг 6: Anchoring Governance (Final)
+
+**Anchoring Governance**
+
+* Added unified copy UX for anchoring issues (tx / anchor / link).
+* Introduced auditor pack with independent offline verification.
+* Enforced CI release gate on critical anchoring issues.
+* Pack integrity: pack_hash.json + pack_signature.json (Ed25519).
+* Audit Monitor: daily scheduled verify + optional Slack notify.
+* Ops UX: Export JSON/CSV, Copy all tx, Acknowledge (localStorage).
+* docs/VERIFY_POLICY.md — env documentation.
+
+---
+
+## Шаг 7: Audit Attestation & Compliance (Final)
+
+**Документация для внешнего аудита:**
+
+- `docs/AUDIT_ATTESTATION.md` — One-paragraph attestation (SOC/ISO ready)
+- `docs/SOX_MAPPING.md` — SOX 404 ITGC mapping
+- `docs/ISO27001_MAPPING.md` — ISO 27001 controls mapping
+- `docs/DOMAIN_ROLLOUT_PLAYBOOK.md` — Reusable template для других доменов
+
+**README / OPS checklist** — добавлены ссылки на compliance docs.
+
+---
+
 ## Итог
 
 - Сборка проходит успешно.
 - `IssuesPanel` — минимальный drop-in, без shadcn.
 - Страница `/governance/anchoring` использует `IssuesPanel` в header.
 - Copy UX: tx / anchor / link — единообразно, production-grade.
+- Auditor pack: immutable, optionally signed, CI-gated.
+- Audit attestation + SOX/ISO mappings — готовы для external audit.
 - Все ранее выявленные ошибки типов и линтера исправлены.

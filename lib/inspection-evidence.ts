@@ -60,6 +60,11 @@ function computeExportHash(body: Omit<EvidenceExport, 'export_hash'>): string {
  * Builds the evidence export structure (without export_hash).
  * Caller adds export_hash after building.
  */
+export type BuildEvidenceExportOptions = {
+  /** Fixed timestamp for deterministic hashing (e.g. in tests). */
+  exportedAt?: string;
+};
+
 export function buildEvidenceExport(
   card: Record<string, unknown>,
   checkResults: Array<Record<string, unknown>>,
@@ -71,9 +76,10 @@ export function buildEvidenceExport(
     block_hash: string;
     prev_hash: string | null;
     actor_id: string | null;
-  }>
+  }>,
+  options?: BuildEvidenceExportOptions
 ): EvidenceExport {
-  const exportedAt = new Date().toISOString();
+  const exportedAt = options?.exportedAt ?? new Date().toISOString();
   const cardId = (card.inspection_card_id as string) ?? '';
 
   const audit_events = auditRows.map((r) => {

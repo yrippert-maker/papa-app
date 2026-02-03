@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "generated_at": "2026-02-03T07:44:16.019Z",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v24.13.0"
+  },
+  "pack_dir": "/Users/yrippertgmail.com/Desktop/papa-app/__fixtures__/auditor-pack-bad-receipt",
+  "pack_id": "fixture-bad-receipt",
+  "pack_sha256": null,
+  "signature": {
+    "required": false,
+    "present": false,
+    "ok": false,
+    "reason": "not present",
+    "key_id": null
+  },
+  "policy": {
+    "strict_verify": true,
+    "loaded_from": "/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json",
+    "require_anchoring_issues": true,
+    "fail_severity": [
+      "critical"
+    ],
+    "fail_types": [
+      "RECEIPT_INTEGRITY_MISMATCH"
+    ]
+  },
+  "anchoring": {
+    "status": "OK",
+    "issues_total": 1,
+    "issues_deduped": 0,
+    "issues_hits": 1,
+    "top": [
+      {
+        "severity": "critical",
+        "type": "RECEIPT_INTEGRITY_MISMATCH",
+        "count": 1,
+        "runbook": "docs/runbook/anchoring-issues.md#receipt_integrity_mismatch"
+      }
+    ]
+  },
+  "ack": {
+    "checked": false,
+    "acknowledged": null,
+    "unacknowledged": null,
+    "server_url": null
+  },
+  "result": {
+    "passed": false,
+    "exit_code": 2
+  }
+}

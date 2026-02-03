@@ -1,0 +1,48 @@
+name: Ledger rollup
+
+on:
+  schedule:
+    - cron: '30 2 * * *'  # daily 02:30 UTC
+  workflow_dispatch:
+
+jobs:
+  rollup:
+    runs-on: ubuntu-latest
+    if: vars.LEDGER_BUCKET != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure AWS (ledger rollup)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Compute date (yesterday UTC)
+        id: d
+        run: |
+          echo "DATE_UTC=$(date -u -d 'yesterday' +%F)" >> $GITHUB_OUTPUT
+
+      - name: Build daily rollup
+        env:
+          LEDGER_BACKEND: s3
+          LEDGER_BUCKET: ${{ vars.LEDGER_BUCKET }}
+          LEDGER_PREFIX: ledger
+          LEDGER_ROLLUP_PREFIX: ledger-rollups
+          LEDGER_ROLLUP_WRITE_ANCHOR_REQUEST: '1'
+          # Optional: set LEDGER_ROLLUP_ANCHOR=1 and ANCHOR_* + ANCHORING_PUBLISH_ENABLED to publish rollup Merkle root and write ROLLUP_ANCHORING_STATUS.json
+          LEDGER_ROLLUP_ANCHOR: ${{ vars.LEDGER_ROLLUP_ANCHOR || '0' }}
+          ANCHORING_PUBLISH_ENABLED: ${{ vars.ANCHORING_PUBLISH_ENABLED || 'false' }}
+          ANCHOR_RPC_URL: ${{ secrets.ANCHOR_RPC_URL }}
+          ANCHOR_CHAIN_ID: ${{ vars.ANCHOR_CHAIN_ID }}
+          ANCHOR_CONTRACT_ADDRESS: ${{ secrets.ANCHOR_CONTRACT_ADDRESS }}
+          ANCHOR_PUBLISHER_PRIVATE_KEY: ${{ secrets.ANCHOR_PUBLISHER_PRIVATE_KEY }}
+        run: |
+          node scripts/ledger-rollup.mjs --backend s3 --bucket "$LEDGER_BUCKET" --date "${{ steps.d.outputs.DATE_UTC }}"
+        continue-on-error: true

@@ -1,6 +1,7 @@
 'use client';
 
 import { Sidebar } from '@/components/layout/Sidebar';
+import { Topbar } from '@/components/shell/Topbar';
 import { useSidebar } from '@/components/context/SidebarContext';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -13,7 +14,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           collapsed ? 'ml-20' : 'ml-64'
         }`}
       >
-        {children}
+        <Topbar />
+        <div className="flex-1 overflow-auto">{children}</div>
       </div>
     </div>
   );

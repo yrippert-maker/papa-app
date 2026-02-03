@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "domain": "anchoring",
+  "generated_at": "2026-02-02T00:00:00.000Z",
+  "require_pack_signature": true,
+  "require_anchoring_issues": true,
+  "fail_severity": ["critical"],
+  "fail_types": [
+    "RECEIPT_INTEGRITY_MISMATCH",
+    "RECEIPT_MISSING_FOR_CONFIRMED",
+    "ANCHOR_FAILED"
+  ],
+  "warn_types": ["GAP_IN_PERIODS"]
+}

@@ -1,0 +1,104 @@
+# Operational Cadence — LTS governance automation
+# Runs quarterly (attestation + auditor pack) and annually (attestation on Jan 1)
+# See: docs/governance/GOVERNANCE_ROADMAP.md, docs/ops/GOVERNANCE_CADENCE.md
+
+name: Governance Cadence
+
+on:
+  schedule:
+    # Quarterly: 1st of Jan, Apr, Jul, Oct at 00:00 UTC
+    - cron: '0 0 1 1,4,7,10 *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  cadence:
+    name: Quarterly attestation + auditor pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Prepare workspace
+        run: |
+          mkdir -p workspace/00_SYSTEM/attestations
+          mkdir -p workspace/00_SYSTEM/trust-anchors
+          mkdir -p workspace/00_SYSTEM/audit-snapshots
+          mkdir -p workspace/00_SYSTEM/keys/active
+          echo "ci-cadence" > workspace/00_SYSTEM/keys/active/key_id.txt 2>/dev/null || true
+
+      - name: Get month (for annual)
+        id: date
+        run: echo "month=$(date +%m)" >> $GITHUB_OUTPUT
+
+      - name: Quarterly attestation
+        run: npm run attestation:quarterly
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/workspace
+          CI: '1'
+        continue-on-error: true # May fail if keys/signing not configured
+
+      - name: Annual attestation (Jan only)
+        if: steps.date.outputs.month == '01'
+        run: npm run attestation:annual
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/workspace
+          CI: '1'
+        continue-on-error: true
+
+      - name: Run anchoring (create Merkle anchors)
+        run: npm run anchoring:run
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/workspace
+        continue-on-error: true
+
+      # anchoring:publish + confirm — только при secrets (prod: ANCHORING_PUBLISH_ENABLED=true)
+      - name: Anchoring publish
+        if: ${{ secrets.ANCHORING_PUBLISH_ENABLED == 'true' }}
+        run: npm run anchoring:publish -- --latest
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/workspace
+          ANCHORING_PUBLISH_ENABLED: ${{ secrets.ANCHORING_PUBLISH_ENABLED }}
+          ANCHOR_RPC_URL: ${{ secrets.ANCHOR_RPC_URL }}
+          ANCHOR_CHAIN_ID: ${{ secrets.ANCHOR_CHAIN_ID }}
+          ANCHOR_CONTRACT_ADDRESS: ${{ secrets.ANCHOR_CONTRACT_ADDRESS }}
+          ANCHOR_PUBLISHER_PRIVATE_KEY: ${{ secrets.ANCHOR_PUBLISHER_PRIVATE_KEY }}
+        continue-on-error: true
+
+      - name: Anchoring confirm
+        if: ${{ secrets.ANCHORING_CONFIRM_ENABLED == 'true' }}
+        run: npm run anchoring:confirm -- --latest
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/workspace
+          ANCHORING_CONFIRM_ENABLED: ${{ secrets.ANCHORING_CONFIRM_ENABLED }}
+          ANCHOR_RPC_URL: ${{ secrets.ANCHOR_RPC_URL }}
+        continue-on-error: true
+
+      - name: Create auditor pack
+        run: npm run auditor-pack:create
+        env:
+          WORKSPACE_ROOT: ${{ github.workspace }}/workspace
+          CI: '1'
+
+      - name: Upload auditor pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditor-pack-quarterly-${{ github.run_id }}
+          path: dist/auditor-pack-*.tar.gz
+          retention-days: 90
+
+      - name: Upload attestations
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: attestations-${{ github.run_id }}
+          path: workspace/00_SYSTEM/attestations/
+          retention-days: 365
+          if-no-files-found: ignore

@@ -21,14 +21,29 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null;
+        const email = credentials.username.trim();
+        const password = credentials.password;
+
+        // Dev admin via env (portal demo / local dev)
+        const devEmail = process.env.AUTH_ADMIN_EMAIL;
+        const devPassword = process.env.AUTH_ADMIN_PASSWORD;
+        if (devEmail && devPassword && email === devEmail && password === devPassword) {
+          return {
+            id: 'dev-admin',
+            name: email.split('@')[0],
+            email,
+            role: 'admin',
+          };
+        }
+
         const db = getDbReadOnly();
         const row = db
           .prepare('SELECT id, email, password_hash, role_code FROM users WHERE email = ?')
-          .get(credentials.username.trim()) as
+          .get(email) as
           | { id: number; email: string; password_hash: string; role_code: string }
           | undefined;
         if (!row) return null;
-        if (!compareSync(credentials.password, row.password_hash)) return null;
+        if (!compareSync(password, row.password_hash)) return null;
         return {
           id: String(row.id),
           name: row.email.split('@')[0],

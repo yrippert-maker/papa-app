@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "mail_event",
+  "description": "Mail MVP — событие письма (MAIL_MVP_SPEC C1)",
+  "type": "object",
+  "required": ["version", "mail_id", "source", "message_id", "received_at", "from", "to", "subject", "body_text", "attachments", "integrity"],
+  "properties": {
+    "version": { "const": 1 },
+    "mail_id": { "type": "string", "format": "uuid" },
+    "source": {
+      "type": "object",
+      "required": ["system", "mailbox", "uid"],
+      "properties": {
+        "system": { "enum": ["gmail", "imap"] },
+        "mailbox": { "type": "string" },
+        "uid": { "type": "string" }
+      }
+    },
+    "message_id": { "type": "string" },
+    "thread_id": { "type": "string" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "from": { "type": "string" },
+    "to": { "type": "array", "items": { "type": "string" } },
+    "cc": { "type": "array", "items": { "type": "string" } },
+    "subject": { "type": "string" },
+    "body_text": { "type": "string" },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["filename", "mime", "size", "sha256"],
+        "properties": {
+          "filename": { "type": "string" },
+          "mime": { "type": "string" },
+          "size": { "type": "integer" },
+          "sha256": { "type": "string" }
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "required": ["sha256_normalized"],
+      "properties": {
+        "sha256_normalized": { "type": "string" }
+      }
+    }
+  }
+}

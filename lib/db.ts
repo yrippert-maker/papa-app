@@ -1,18 +1,19 @@
-import Database from 'better-sqlite3';
-import { existsSync, readFileSync } from 'fs';
-import { DB_PATH } from './config';
+import { readFileSync } from 'fs';
 import { createHash } from 'crypto';
-import { openDb, withRetry, SQLITE_BUSY } from './db/sqlite';
+import { withRetry, SQLITE_BUSY } from './db/sqlite';
+import { createSqliteAdapter } from './adapters/sqlite-adapter';
+import type { DbAdapter } from './adapters/types';
 
 export { withRetry, SQLITE_BUSY };
 
-let db: Database.Database | null = null;
-let dbReadOnly: Database.Database | null = null;
+let db: DbAdapter | null = null;
+let dbReadOnly: DbAdapter | null = null;
 
-export function getDb(): Database.Database {
+export function getDb(): DbAdapter {
   if (db) return db;
-  db = openDb({ mode: 'readwrite' });
+  db = createSqliteAdapter({ mode: 'readwrite' });
 
+  // SQLite bootstrap schema (Postgres uses migrations)
   db.exec(`
     -- File Registry
     CREATE TABLE IF NOT EXISTS file_registry (
@@ -340,9 +341,9 @@ export function getDb(): Database.Database {
  * US-8: Read-only соединение для AI-facing и read-only контекстов.
  * БД должна существовать. Использовать для: списки, пагинация, проверки.
  */
-export function getDbReadOnly(): Database.Database {
+export function getDbReadOnly(): DbAdapter {
   if (dbReadOnly) return dbReadOnly;
-  dbReadOnly = openDb({ mode: 'readonly' });
+  dbReadOnly = createSqliteAdapter({ mode: 'readonly' });
   return dbReadOnly;
 }
 

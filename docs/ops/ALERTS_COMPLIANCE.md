@@ -309,6 +309,7 @@ git commit -m "chore: update policy hash baseline"
 - **Env:** `LEDGER_BUCKET`, `LEDGER_ROLLUP_PREFIX`, `DOC_LEDGER_PENDING_PREFIX`, `ALERT_ROLLUP_MAX_AGE_HOURS` (default 24), `ALERT_PENDING_THRESHOLD` (default 10), `SLACK_WEBHOOK_URL` (при `--slack`)
 - **Slack:** `node scripts/health-alert.mjs --slack` — при алертах POST в Slack
 - **Workflow:** `.github/workflows/health-alert.yml` (07:30 UTC; `vars.HEALTH_ALERT_ENABLED == '1'`)
+- **Включение в GitHub:** Settings → Actions → Variables: `HEALTH_ALERT_ENABLED=1`; Secrets: `SLACK_WEBHOOK_URL` (опционально, для уведомлений в Slack).
 - **Exit:** 0 OK, 1 degraded, 2 error
 
 ---

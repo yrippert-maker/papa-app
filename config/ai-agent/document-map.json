@@ -1,0 +1,27 @@
+{
+  "root_path": "Новая папка",
+  "apply_policy": { "mode": "manual_apply_only" },
+  "documents": [
+    {
+      "id": "QMS_MASTER",
+      "path": "RK_MMF_Izd4_final_corrected_v2 — копия 2.docx",
+      "format": "docx",
+      "editable": true,
+      "tags": ["quality", "qms", "compliance", "part145"]
+    },
+    {
+      "id": "MAINT_PROCEDURES",
+      "path": "Руководство по Процедурам ТОиР_MMF_изд_3_05-2025 (1) — копия 2.docx",
+      "format": "docx",
+      "editable": true,
+      "tags": ["procedures", "maintenance", "records"]
+    },
+    {
+      "id": "SMS_MANUAL",
+      "path": "Руководство_по_СУБП_MMF_изд_1_09-12-2025 — копия 2.docx",
+      "format": "docx",
+      "editable": true,
+      "tags": ["sms", "safety", "risk", "reporting"]
+    }
+  ]
+}

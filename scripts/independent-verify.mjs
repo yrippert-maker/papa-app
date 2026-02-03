@@ -19,10 +19,139 @@
  *   2 = Invalid arguments
  */
 import crypto, { createHash, createVerify } from 'crypto';
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
-import { join, basename } from 'path';
+import os from 'node:os';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
+import { join, basename, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
 
 const VERSION = '1.0.0';
+
+function safeReadJson(p) {
+  try {
+    return JSON.parse(readFileSync(p, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** Load verify policy: pack first (verify-policy.json or anchoring.verify-policy.json), then repo. Env overrides. */
+function loadVerifyPolicy(packPath) {
+  const candidates = [
+    join(packPath, 'verify-policy.json'),
+    join(packPath, 'anchoring.verify-policy.json'),
+    join(ROOT, 'docs', 'verify-policy.default.json'),
+    join(ROOT, 'config', 'anchoring.verify-policy.json'),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      const j = safeReadJson(p);
+      if (j) return { path: p, policy: j };
+    }
+  }
+  return { path: null, policy: null };
+}
+
+function toList(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map(String).filter(Boolean);
+  return String(v).split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function stableStringify(obj) {
+  const seen = new WeakSet();
+  const rec = (v) => {
+    if (v && typeof v === 'object') {
+      if (seen.has(v)) return '[Circular]';
+      seen.add(v);
+      if (Array.isArray(v)) return v.map(rec);
+      const out = {};
+      for (const k of Object.keys(v).sort()) out[k] = rec(v[k]);
+      return out;
+    }
+    return v;
+  };
+  return JSON.stringify(rec(obj));
+}
+
+function issueFingerprint(issue) {
+  const base = {
+    type: issue?.type ?? null,
+    severity: issue?.severity ?? null,
+    period: issue?.period ?? issue?.window ?? null,
+    subject_id: issue?.subject_id ?? issue?.receipt_id ?? issue?.event_id ?? issue?.anchorId ?? null,
+    details: issue?.details ?? issue?.message ?? null,
+  };
+  return createHash('sha256').update(stableStringify(base)).digest('hex').slice(0, 16);
+}
+
+function dedupeIssues(issues) {
+  const out = [];
+  const seen = new Set();
+  for (const it of issues || []) {
+    const fp = issueFingerprint(it);
+    if (seen.has(fp)) continue;
+    seen.add(fp);
+    out.push({ ...it, _fingerprint: fp });
+  }
+  return { issues: out, deduped: (issues?.length || 0) - out.length };
+}
+
+function groupIssues(issues) {
+  const g = {};
+  for (const it of issues || []) {
+    const sev = String(it?.severity || 'unknown').toLowerCase();
+    const typ = String(it?.type || 'UNKNOWN');
+    if (!g[sev]) g[sev] = {};
+    if (!g[sev][typ]) g[sev][typ] = [];
+    g[sev][typ].push(it);
+  }
+  return g;
+}
+
+function loadRunbookIndex() {
+  const baseUrl = (process.env.RUNBOOK_BASE_URL || '').trim();
+  const local = 'docs/runbook/anchoring-issues.md';
+  const mk = (anchor) => (baseUrl ? `${baseUrl}/anchoring-issues#${anchor}` : `${local}#${anchor}`);
+  return {
+    RECEIPT_INTEGRITY_MISMATCH: mk('receipt_integrity_mismatch'),
+    RECEIPT_MISSING_FOR_CONFIRMED: mk('receipt_missing_for_confirmed'),
+    ANCHOR_FAILED: mk('anchor_failed'),
+    GAP_IN_PERIODS: mk('gap_in_periods'),
+    ANCHOR_PENDING_TOO_LONG: mk('anchor_pending_too_long'),
+  };
+}
+
+function runbookLinkFor(type, idx) {
+  return idx?.[type] || null;
+}
+
+function sha256Hex(s) {
+  return createHash('sha256').update(String(s), 'utf8').digest('hex');
+}
+
+function envOrNull(k) {
+  const v = process.env[k];
+  if (v == null) return null;
+  const t = String(v).trim();
+  return t || null;
+}
+
+function buildSourceMeta() {
+  const repo = envOrNull('GITHUB_REPOSITORY');
+  const sha = envOrNull('GITHUB_SHA');
+  const ref = envOrNull('GITHUB_REF_NAME') || envOrNull('GITHUB_REF');
+  const runId = envOrNull('GITHUB_RUN_ID');
+  const runAttempt = envOrNull('GITHUB_RUN_ATTEMPT');
+  const serverUrl = envOrNull('GITHUB_SERVER_URL') || 'https://github.com';
+  const runUrl =
+    repo && runId
+      ? `${serverUrl}/${repo}/actions/runs/${runId}${runAttempt ? `/attempts/${runAttempt}` : ''}`
+      : null;
+  return { repo, commit: sha, ref, run_id: runId, run_url: runUrl };
+}
 
 // ========== Helpers ==========
 
@@ -134,11 +263,14 @@ function verifyManifest(manifest, packDir) {
     }
   }
   
-  // Verify pack hash
-  const { pack_hash, ...rest } = manifest;
-  const computed = sha256(canonicalJSON(rest));
-  if (computed !== pack_hash) {
-    issues.push(`Pack hash mismatch: expected ${pack_hash}, got ${computed}`);
+  // Verify pack hash (optional — some manifest formats omit it)
+  const pack_hash = manifest.pack_hash;
+  if (pack_hash != null) {
+    const { pack_hash: _, ...rest } = manifest;
+    const computed = sha256(canonicalJSON(rest));
+    if (computed !== pack_hash) {
+      issues.push(`Pack hash mismatch: expected ${pack_hash}, got ${computed}`);
+    }
   }
   
   return { valid: issues.length === 0, issues };
@@ -170,7 +302,8 @@ async function verifyAuditPack(packPath) {
   
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   log('info', `Pack ID: ${manifest.pack_id}`);
-  log('info', `Period: ${manifest.period.from} to ${manifest.period.to}`);
+  const period = manifest.period ?? {};
+  log('info', `Period: ${period.from ?? '?'} to ${period.to ?? '?'}`);
   
   // Verify manifest
   const manifestResult = verifyManifest(manifest, packPath);
@@ -266,7 +399,7 @@ async function verifyAuditPack(packPath) {
     }
   }
   
-  // Verify evidence index
+  // Verify evidence index (optional — when absent, consider valid)
   const indexPath = join(packPath, 'evidence-index.json');
   if (existsSync(indexPath)) {
     const index = JSON.parse(readFileSync(indexPath, 'utf8'));
@@ -278,6 +411,8 @@ async function verifyAuditPack(packPath) {
     } else {
       log('error', `Evidence index issues: ${indexResult.issues.join(', ')}`);
     }
+  } else {
+    results.evidence_index = { valid: true };
   }
 
   // Anchoring status summary (if present) + STRICT verify mode
@@ -318,13 +453,186 @@ async function verifyAuditPack(packPath) {
     }
   }
 
+  // ANCHORING ISSUES (hard-fail by type/severity) — policy file overrides env when present
+  const pol = loadVerifyPolicy(packPath);
+  const policy = pol.policy;
+  const policyFailTypes = toList(policy?.fail_types ?? policy?.failTypes);
+  const policyFailSev = toList(policy?.fail_severity ?? policy?.failSeverity);
+  const FAIL_TYPES = process.env.VERIFY_FAIL_TYPES?.trim()
+    ? toList(process.env.VERIFY_FAIL_TYPES)
+    : policyFailTypes;
+  const FAIL_SEVERITY = process.env.VERIFY_FAIL_SEVERITY?.trim()
+    ? toList(process.env.VERIFY_FAIL_SEVERITY)
+    : policyFailSev;
+  const REQUIRE_ISSUES =
+    process.env.REQUIRE_ANCHORING_ISSUES != null
+      ? process.env.REQUIRE_ANCHORING_ISSUES === '1' || process.env.REQUIRE_ANCHORING_ISSUES === 'true'
+      : !!policy?.require_anchoring_issues;
+  if (policy) log('info', `Verify policy loaded (${pol.path})`);
+
+  results.anchoringIssuesFail = false;
+  results.anchoringIssuesTotal = 0;
+  results.anchoringIssuesHits = 0;
+  results.anchoringIssuesDeduped = 0;
+  results.anchoringIssuesGrouped = {};
+  results.anchoringIssuesTop = [];
+  const runbookIndex = loadRunbookIndex();
+  try {
+    const issuesPath = join(packPath, 'ANCHORING_ISSUES.json');
+    const issuesJson = JSON.parse(readFileSync(issuesPath, 'utf8'));
+    const issuesRaw = Array.isArray(issuesJson.issues) ? issuesJson.issues : [];
+    const { issues: issuesDeduped, deduped } = dedupeIssues(issuesRaw);
+    const issuesGrouped = groupIssues(issuesDeduped);
+
+    const failTypesSet = new Set(FAIL_TYPES.map(String));
+    const failSevSet = new Set(FAIL_SEVERITY.map((s) => String(s).toLowerCase()));
+    results.anchoringFailTypesSet = failTypesSet;
+    results.anchoringFailSevSet = failSevSet;
+    const hits = issuesDeduped.filter((i) => {
+      const typeHit = failTypesSet.size > 0 && failTypesSet.has(String(i?.type || ''));
+      const sevHit = failSevSet.size > 0 && failSevSet.has(String(i?.severity || '').toLowerCase());
+      return typeHit || sevHit;
+    });
+
+    results.anchoringIssuesTotal = issuesRaw.length;
+    results.anchoringIssuesHits = hits.length;
+    results.anchoringIssuesDeduped = deduped;
+    results.anchoringIssuesGrouped = issuesGrouped;
+
+    const flat = [];
+    for (const sev of Object.keys(issuesGrouped)) {
+      for (const typ of Object.keys(issuesGrouped[sev])) {
+        const arr = issuesGrouped[sev][typ];
+        flat.push({ severity: sev, type: typ, count: arr.length, runbook: runbookLinkFor(typ, runbookIndex), examples: arr.slice(0, 3) });
+      }
+    }
+    flat.sort((a, b) => (b.count || 0) - (a.count || 0));
+    results.anchoringIssuesTop = flat.slice(0, 5);
+
+    log('info', `ANCHORING ISSUES: total=${issuesRaw.length} (deduped=${deduped}), hits=${hits.length}`);
+
+    if (issuesDeduped.length > 0) {
+      for (const sev of Object.keys(issuesGrouped).sort()) {
+        const byType = issuesGrouped[sev];
+        const sevCount = Object.values(byType).reduce((a, arr) => a + arr.length, 0);
+        log('info', `  severity=${sev}: ${sevCount}`);
+        for (const typ of Object.keys(byType).sort()) {
+          const arr = byType[typ];
+          const link = runbookLinkFor(typ, runbookIndex);
+          const tag = link ? ` runbook=${link}` : '';
+          log('info', `    - ${typ}: ${arr.length}${tag}`);
+        }
+      }
+    }
+
+    if (hits.length > 0) {
+      log('error', 'VERIFY FAIL: disallowed anchoring issues detected:');
+      for (const h of hits.slice(0, 20)) {
+        log('error', `  - ${h.severity} ${h.type} id=${h.id} tx=${h.txHash ?? '-'} anchor=${h.anchorId ?? '-'}`);
+      }
+      results.anchoringIssuesFail = true;
+    }
+  } catch (e) {
+    log('info', 'ANCHORING ISSUES: (not present)');
+    if (REQUIRE_ISSUES) {
+      log('error', 'VERIFY FAIL: ANCHORING_ISSUES.json is required but missing.');
+      results.anchoringIssuesFail = true;
+    }
+    results.anchoringFailTypesSet = results.anchoringFailTypesSet || new Set();
+    results.anchoringFailSevSet = results.anchoringFailSevSet || new Set();
+  }
+
+  // Pack signature (pack_hash.json + pack_signature.json)
+  results.packSignatureFail = false;
+  const REQUIRE_PACK_SIG =
+    process.env.REQUIRE_PACK_SIGNATURE != null
+      ? process.env.REQUIRE_PACK_SIGNATURE === '1' || process.env.REQUIRE_PACK_SIGNATURE === 'true'
+      : !!policy?.require_pack_signature;
+  const hashPath = join(packPath, 'pack_hash.json');
+  const sigPath = join(packPath, 'pack_signature.json');
+
+  // Collect public keys: single PEM or multiple (PACK_SIGN_PUBLIC_KEYS_PEM = concatenated PEMs)
+  const singlePem =
+    process.env.PACK_SIGN_PUBLIC_KEY_PEM ||
+    (process.env.PACK_SIGN_PUBLIC_KEY_PATH && existsSync(process.env.PACK_SIGN_PUBLIC_KEY_PATH)
+      ? readFileSync(process.env.PACK_SIGN_PUBLIC_KEY_PATH, 'utf8')
+      : null);
+  const multiPem = process.env.PACK_SIGN_PUBLIC_KEYS_PEM || null;
+  const pubKeyList = [];
+  if (singlePem) pubKeyList.push({ pem: singlePem.trim(), id: 'default' });
+  if (multiPem) {
+    const blocks = multiPem.split(/(?=-----BEGIN [A-Z0-9 ]+-----)/).map((s) => s.trim()).filter(Boolean);
+    for (const pem of blocks) {
+      if (pem.includes('PUBLIC KEY') && pem.length > 100) pubKeyList.push({ pem, id: null });
+    }
+  }
+
+  const sigPresent = existsSync(hashPath) && existsSync(sigPath);
+  let sigOk = false;
+  let sigKeyId = null;
+  let sigReason = 'not checked';
+
+  if (sigPresent && pubKeyList.length > 0) {
+    try {
+      const payload = readFileSync(hashPath);
+      const sigObj = JSON.parse(readFileSync(sigPath, 'utf8'));
+      const sig = Buffer.from(sigObj.signature_base64 || '', 'base64');
+      const keyIdFromSig = sigObj.key_id || null;
+      for (const { pem, id } of pubKeyList) {
+        if (keyIdFromSig && id !== 'default' && id !== keyIdFromSig) continue;
+        try {
+          if (crypto.verify(null, payload, pem, sig)) {
+            sigOk = true;
+            sigKeyId = keyIdFromSig || id;
+            sigReason = 'ok';
+            break;
+          }
+        } catch (_) {}
+      }
+      if (!sigOk) {
+        sigReason = 'invalid signature';
+        log('error', 'Pack signature INVALID');
+        results.packSignatureFail = true;
+      } else {
+        log('ok', sigKeyId ? `Pack signature verified (key_id=${sigKeyId})` : 'Pack signature verified');
+      }
+    } catch (e) {
+      sigReason = `error: ${e.message}`;
+      log('error', `Pack signature verification error: ${e.message}`);
+      results.packSignatureFail = true;
+    }
+  } else {
+    if (REQUIRE_PACK_SIG || (STRICT && pubKeyList.length > 0)) {
+      if (!sigPresent) {
+        sigReason = 'missing pack_hash.json or pack_signature.json';
+        log('error', 'VERIFY FAIL: pack_hash.json or pack_signature.json missing (signature required).');
+        results.packSignatureFail = true;
+      } else if (pubKeyList.length === 0) {
+        sigReason = 'no public key configured';
+        log('error', 'VERIFY FAIL: No public key configured (REQUIRE_PACK_SIGNATURE or STRICT).');
+        results.packSignatureFail = true;
+      }
+    } else {
+      sigReason = sigPresent ? 'no public key' : 'not present';
+      log('info', 'Pack signature: (not present or no public key)');
+    }
+  }
+
+  results.packSignatureOk = sigOk;
+  results.packSignatureKeyId = sigKeyId;
+  results.packSignaturePresent = sigPresent;
+  results.packSignatureReason = sigReason;
+  results.verifyPolicyPath = pol?.path ?? null;
+
   // Overall result
   results.overall =
     results.manifest.valid &&
     results.snapshots.every((s) => s.hash_valid) &&
     results.hash_chain.valid &&
     results.evidence_index.valid &&
-    !results.anchoringStrictFail;
+    !results.anchoringStrictFail &&
+    !results.anchoringIssuesFail &&
+    !results.packSignatureFail;
 
   return results;
 }
@@ -452,8 +760,164 @@ async function main() {
     console.log(JSON.stringify(results, null, 2));
   }
 
-  // Exit: 2 = strict anchoring fail, 1 = general fail, 0 = pass
-  const exitCode = results.anchoringStrictFail ? 2 : results.overall ? 0 : 1;
+  // Machine-readable summary (for CI/dashboards) — always write when pack path exists
+  const packPath = results.pack_path;
+  if (packPath) {
+    const packHashJson = safeReadJson(join(packPath, 'pack_hash.json'));
+    const anchStatus = safeReadJson(join(packPath, 'ANCHORING_STATUS.json'));
+    let packId = null;
+    try {
+      const m = JSON.parse(readFileSync(join(packPath, 'MANIFEST.json'), 'utf8'));
+      packId = m.pack_id ?? null;
+    } catch {}
+
+    const ACK_SERVER_URL = (process.env.ACK_SERVER_URL || '').trim() || null;
+    const ACK_API_KEY = (process.env.ACK_API_KEY || '').trim() || null;
+    let ackChecked = false;
+    let ackedCount = 0;
+    let unackedCount = 0;
+    let unackedCriticalCount = 0;
+    const ackByFp = {};
+    const failTypesSet = results.anchoringFailTypesSet || new Set();
+    const failSevSet = results.anchoringFailSevSet || new Set();
+    if (ACK_SERVER_URL && (results.anchoringIssuesTop || []).length > 0) {
+      try {
+        const { getAck } = await import('./issue-ack-client.mjs');
+        const fpToCritical = {};
+        for (const t of results.anchoringIssuesTop || []) {
+          const isCritical = failTypesSet.has(String(t?.type || '')) || failSevSet.has(String(t?.severity || '').toLowerCase());
+          for (const ex of t.examples || []) {
+            if (ex._fingerprint) fpToCritical[ex._fingerprint] = isCritical;
+          }
+        }
+        const fps = Object.keys(fpToCritical);
+        for (const fp of fps) {
+          try {
+            const a = await getAck(ACK_SERVER_URL, fp, ACK_API_KEY);
+            const critical = fpToCritical[fp];
+            if (a) {
+              ackedCount++;
+              ackByFp[fp] = a;
+            } else {
+              unackedCount++;
+              if (critical) unackedCriticalCount++;
+            }
+          } catch {
+            unackedCount++;
+            if (fpToCritical[fp]) unackedCriticalCount++;
+          }
+        }
+        ackChecked = true;
+      } catch (_) {
+        log('info', 'Ack server check skipped (unavailable)');
+      }
+    }
+
+    const summary = {
+      version: 1,
+      generated_at: new Date().toISOString(),
+      host: { platform: os.platform(), arch: os.arch(), node: process.version },
+      pack_dir: packPath,
+      pack_id: packId,
+      pack_sha256: packHashJson?.pack_sha256 ?? null,
+      signature: {
+        required: results.REQUIRE_PACK_SIG ?? (process.env.REQUIRE_PACK_SIGNATURE === '1'),
+        present: results.packSignaturePresent ?? false,
+        ok: results.packSignatureOk ?? false,
+        reason: results.packSignatureReason ?? 'unknown',
+        key_id: results.packSignatureKeyId ?? null,
+      },
+      policy: {
+        strict_verify: process.env.STRICT_VERIFY === '1',
+        loaded_from: results.verifyPolicyPath ?? null,
+        require_anchoring_issues: process.env.REQUIRE_ANCHORING_ISSUES === '1',
+        fail_severity: (process.env.VERIFY_FAIL_SEVERITY || '').split(',').map((s) => s.trim()).filter(Boolean),
+        fail_types: (process.env.VERIFY_FAIL_TYPES || '').split(',').map((s) => s.trim()).filter(Boolean),
+      },
+      anchoring: {
+        status: anchStatus?.assessment?.status ?? null,
+        issues_total: results.anchoringIssuesTotal ?? 0,
+        issues_deduped: results.anchoringIssuesDeduped ?? null,
+        issues_hits: results.anchoringIssuesHits ?? 0,
+        top: (results.anchoringIssuesTop || []).map((t) => ({
+          severity: t.severity,
+          type: t.type,
+          count: t.count,
+          runbook: t.runbook,
+          examples: (t.examples || []).slice(0, 3).map((ex) => ({
+            fingerprint: ex._fingerprint || null,
+            period: ex.period ?? ex.window ?? null,
+            message: ex.message ?? ex.details ?? null,
+            ack: ackByFp[ex._fingerprint] ? { ack_by: ackByFp[ex._fingerprint].ack_by ?? null, expires_at: ackByFp[ex._fingerprint].expires_at ?? null } : null,
+          })),
+        })),
+      },
+      ack: {
+        checked: ackChecked,
+        acknowledged: ackChecked ? ackedCount : null,
+        unacknowledged: ackChecked ? unackedCount : null,
+        unacknowledged_critical: ackChecked ? unackedCriticalCount : null,
+        server_url: ACK_SERVER_URL || null,
+      },
+      result: {
+        passed: !!results.overall,
+        exit_code: (results.anchoringStrictFail || results.anchoringIssuesFail || results.packSignatureFail) ? 2 : (results.overall ? 0 : 1),
+      },
+    };
+
+    const summaryOutPath = process.env.VERIFY_SUMMARY_PATH || join(packPath, 'verify-summary.json');
+    writeFileSync(summaryOutPath, JSON.stringify(summary, null, 2), 'utf8');
+    console.log(`[independent-verify] VERIFY SUMMARY: ${summaryOutPath}`);
+
+    // Slack payload (for webhook) — includes top issues and ack; unacknowledged_critical drives suppression
+    const slackPayload = {
+      version: 1,
+      generated_at: summary.generated_at,
+      title: `Independent verify: ${summary.result.passed ? 'PASS' : 'FAIL'}`,
+      status: summary.result.passed ? 'pass' : 'fail',
+      pack_sha256: summary.pack_sha256,
+      pack_dir: summary.pack_dir,
+      signature: summary.signature,
+      policy: summary.policy,
+      anchoring: summary.anchoring,
+      ack: summary.ack,
+    };
+    const slackPath = join(packPath, 'slack-payload.json');
+    writeFileSync(slackPath, JSON.stringify(slackPayload, null, 2), 'utf8');
+
+    // Evidence ledger entry (append-only artifact)
+    const WRITE_LEDGER_ENTRY =
+      process.env.WRITE_LEDGER_ENTRY == null ||
+      !['0', 'false', 'no'].includes(String(process.env.WRITE_LEDGER_ENTRY).toLowerCase());
+    if (WRITE_LEDGER_ENTRY) {
+      const entry = {
+        version: 1,
+        generated_at: summary.generated_at,
+        host: summary.host,
+        pack: { dir: summary.pack_dir, sha256: summary.pack_sha256 },
+        signature: summary.signature,
+        policy: summary.policy,
+        anchoring: {
+          status: summary.anchoring.status,
+          issues_total: summary.anchoring.issues_total,
+          issues_deduped: summary.anchoring.issues_deduped,
+          issues_hits: summary.anchoring.issues_hits,
+          top: summary.anchoring.top || null,
+        },
+        result: summary.result,
+        source: buildSourceMeta(),
+      };
+      entry.fingerprint_sha256 = sha256Hex(stableStringify(entry));
+      writeFileSync(join(packPath, 'ledger-entry.json'), JSON.stringify(entry, null, 2), 'utf8');
+      console.log('[independent-verify] ledger-entry.json written');
+    } else {
+      console.log('[independent-verify] ledger-entry.json skipped (WRITE_LEDGER_ENTRY=0)');
+    }
+  }
+
+  // Exit: 2 = strict anchoring fail, issues fail, or pack signature fail; 1 = general fail; 0 = pass
+  const exitCode =
+    (results.anchoringStrictFail || results.anchoringIssuesFail || results.packSignatureFail) ? 2 : results.overall ? 0 : 1;
   process.exit(exitCode);
 }
 

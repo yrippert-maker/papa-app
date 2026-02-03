@@ -1,0 +1,60 @@
+'use client';
+
+import Link from 'next/link';
+
+export interface KpiTile {
+  label: string;
+  value: string | number;
+  href: string;
+  query?: Record<string, string>;
+  icon: React.ReactNode;
+  variant?: 'default' | 'warning';
+}
+
+export function KpiTiles({ tiles }: { tiles: KpiTile[] }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+      {tiles.map((t) => {
+        const search = t.query ? `?${new URLSearchParams(t.query).toString()}` : '';
+        const href = `${t.href}${search}`;
+        return (
+          <Link
+            key={t.label}
+            href={href}
+            className={`card hover:shadow-md transition-all duration-200 hover:border-blue-400 dark:hover:border-blue-500 ${
+              t.variant === 'warning' ? 'border-amber-300 dark:border-amber-600' : ''
+            }`}
+          >
+            <div className="card-body py-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{t.label}</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                    {t.value}
+                  </p>
+                </div>
+                <div
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                    t.variant === 'warning'
+                      ? 'bg-amber-100 dark:bg-amber-900/40'
+                      : 'bg-blue-100 dark:bg-blue-900/40'
+                  }`}
+                >
+                  <span
+                    className={
+                      t.variant === 'warning'
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-blue-600 dark:text-blue-400'
+                    }
+                  >
+                    {t.icon}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}

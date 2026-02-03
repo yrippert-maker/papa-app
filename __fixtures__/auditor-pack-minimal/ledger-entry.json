@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "generated_at": "2026-02-03T07:44:17.961Z",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v24.13.0"
+  },
+  "pack": {
+    "dir": "__fixtures__/auditor-pack-minimal",
+    "sha256": null
+  },
+  "signature": {
+    "required": false,
+    "present": false,
+    "ok": false,
+    "reason": "missing pack_hash.json or pack_signature.json",
+    "key_id": null
+  },
+  "policy": {
+    "strict_verify": false,
+    "loaded_from": "/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json",
+    "require_anchoring_issues": false,
+    "fail_severity": [],
+    "fail_types": []
+  },
+  "anchoring": {
+    "status": "OK",
+    "issues_total": 0,
+    "issues_deduped": 0,
+    "issues_hits": 0,
+    "top": []
+  },
+  "result": {
+    "passed": false,
+    "exit_code": 2
+  },
+  "source": {
+    "repo": null,
+    "commit": null,
+    "ref": null,
+    "run_id": null,
+    "run_url": null
+  },
+  "fingerprint_sha256": "ef5b001b440f0a71df86956d09092baf22d4f36b3ccaff5d68167ed24ce5d5aa"
+}

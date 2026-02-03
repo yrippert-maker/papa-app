@@ -1,0 +1,15 @@
+{
+  "issues": [
+    {
+      "id": "manifestMismatch:anchor-1",
+      "type": "RECEIPT_INTEGRITY_MISMATCH",
+      "severity": "critical",
+      "anchorId": "anchor-1",
+      "txHash": "abc123",
+      "message": "Receipt integrity mismatch (fixture).",
+      "actionHref": "/governance/anchoring"
+    }
+  ],
+  "windowDays": 30,
+  "generatedAt": "2026-02-02T00:00:00.000Z"
+}

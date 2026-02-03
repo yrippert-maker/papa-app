@@ -1,0 +1,32 @@
+# Скоринг для AI Inbox / рекомендаций
+# Источник: папа-ю/ТЗ/поиск ИИ.docx
+
+formula:
+  # Score = w1*Relevance + w2*Impact + w3*Actionability + w4*Credibility
+  relevance_weight: 0.35
+  impact_weight: 0.30
+  actionability_weight: 0.20
+  credibility_weight: 0.15
+
+classifiers:
+  relevance:
+    description: "Относится ли к стеку (Next.js, TMC, compliance)"
+    range: [0, 1]
+  impact:
+    description: "security > breaking > perf > DX"
+    order: ["security", "breaking-change", "perf", "dx"]
+    range: [0, 1]
+  actionability:
+    description: "Есть ли конкретные шаги/действия"
+    range: [0, 1]
+  credibility:
+    description: "Уровень доверия к источнику"
+    levels:
+      high: "официальные release notes, документация"
+      medium: "признанные инженерные блоги"
+      low: "форумы, агрегаторы — только как сигнал"
+
+priority_rules:
+  - "Security advisory по зависимости → автоматически в топ"
+  - "Breaking change в фреймворке → в топ"
+  - "Community blog без подтверждения → не выше среднего"

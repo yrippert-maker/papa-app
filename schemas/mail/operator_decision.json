@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "operator_decision",
+  "description": "Mail MVP — решение оператора (MAIL_MVP_SPEC C3)",
+  "type": "object",
+  "required": ["version", "mail_id", "operator_id", "decision", "at"],
+  "properties": {
+    "version": { "const": 1 },
+    "mail_id": { "type": "string", "format": "uuid" },
+    "operator_id": { "type": "string" },
+    "decision": { "enum": ["accept", "reject", "escalate", "request_info"] },
+    "reason": { "type": ["string", "null"] },
+    "apply_mode": { "enum": ["draft", "safe_auto", "manual"] },
+    "at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -67,20 +67,21 @@ run_gh_release() {
 }
 
 if command -v gh >/dev/null 2>&1; then
+  if [ -n "$GH_TOKEN" ]; then
+    echo "$GH_TOKEN" | gh auth login --with-token 2>/dev/null || true
+  fi
   if run_gh_release; then
     echo "Created: https://github.com/$REPO/releases/tag/$TAG"
     exit 0
   fi
+  if [ -z "$GH_TOKEN" ]; then
+    echo "GH_TOKEN not set; skipping GitHub release creation (no failure)."
+  fi
 fi
 
 echo "---"
-echo "gh not installed or release create failed. Create release manually:"
-echo "  GitHub → Repo $REPO → Releases → Draft a new release"
-echo "  Tag: $TAG (existing)"
-echo "  Title: $TITLE"
-if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
-  echo "  Body: contents of $NOTES_FILE"
-fi
+echo "Create release manually (or set GH_TOKEN and re-run):"
+echo "  gh release create \"$TAG\" --repo \"$REPO\" --title \"$TITLE\" --notes-file \"${NOTES_FILE:-}\""
 echo "  https://github.com/$REPO/releases/new?tag=$TAG"
 echo "---"
-exit 1
+exit 0

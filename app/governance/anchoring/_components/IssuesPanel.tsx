@@ -79,6 +79,31 @@ function matchesSearch(issue: AnchoringIssue, q: string) {
   return hay.includes(q);
 }
 
+const ACK_PREFIX = 'anchoring-ack:';
+
+function getLocalAck(id: string): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ACK_PREFIX + id);
+}
+
+function setLocalAck(id: string) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(ACK_PREFIX + id, Date.now().toString());
+}
+
+/** Server ack record (from issue-ack-server) */
+type ServerAck = { ack_by: string; expires_at?: string | null } | null;
+
+function download(filename: string, text: string, mime = 'application/json') {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function copyToClipboard(text: string) {
   // 1) Preferred: async Clipboard API
   try {
@@ -164,7 +189,11 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
 
   const [criticalOnly, setCriticalOnly] = React.useState(false);
   const [hideGaps, setHideGaps] = React.useState(false);
+  const [hideAcknowledged, setHideAcknowledged] = React.useState(false);
   const [search, setSearch] = React.useState('');
+  const [ackVersion, setAckVersion] = React.useState(0);
+  const [groupBy, setGroupBy] = React.useState<'none' | 'type' | 'severity' | 'anchorId'>('none');
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(new Set());
 
   const { state: copyState, lockedKey, triggerOk, triggerError } = useCopyFeedback(1500);
 
@@ -193,6 +222,29 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
     if (open && !data && !loading && !err) void load();
   }, [open, data, loading, err, load]);
 
+  React.useEffect(() => {
+    const issues = data?.issues ?? [];
+    const fps = [...new Set(issues.map((i) => i._fingerprint).filter(Boolean))] as string[];
+    if (fps.length === 0) return;
+    let cancelled = false;
+    const map: Record<string, ServerAck> = {};
+    Promise.all(
+      fps.map((fp) =>
+        fetch(`/api/anchoring/ack?fingerprint=${encodeURIComponent(fp)}`, { cache: 'no-store' })
+          .then((r) => r.json())
+          .then((j) => {
+            if (!cancelled && j?.ack) map[fp] = { ack_by: j.ack.ack_by, expires_at: j.ack.expires_at ?? undefined };
+          })
+          .catch(() => {})
+      )
+    ).then(() => {
+      if (!cancelled) setServerAckMap((prev) => ({ ...prev, ...map }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.issues]);
+
   const counts = React.useMemo(() => {
     const issues = data?.issues ?? [];
     let critical = 0;
@@ -211,16 +263,111 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
     return issues.filter((i) => {
       if (criticalOnly && i.severity !== 'critical') return false;
       if (hideGaps && i.type === 'GAP_IN_PERIODS') return false;
+      if (hideAcknowledged && isAcked(i)) return false;
       if (!matchesSearch(i, q)) return false;
       return true;
     });
-  }, [data, criticalOnly, hideGaps, q]);
+    // ackVersion forces re-run when user acknowledges (localStorage changes)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, criticalOnly, hideGaps, hideAcknowledged, q, ackVersion, isAcked]);
 
   const onReset = React.useCallback(() => {
     setCriticalOnly(false);
     setHideGaps(false);
+    setHideAcknowledged(false);
     setSearch('');
   }, []);
+
+  const onExportJson = React.useCallback(() => {
+    const payload = { ...data, issues: filtered };
+    download('anchoring-issues.json', JSON.stringify(payload, null, 2));
+  }, [data, filtered]);
+
+  const onExportCsv = React.useCallback(() => {
+    const headers = ['id', 'type', 'severity', 'message', 'periodStart', 'periodEnd', 'anchorId', 'txHash', 'actionHref'];
+    const rows = filtered.map((i) =>
+      headers.map((h) => {
+        const v = (i as unknown as Record<string, unknown>)[h] ?? '';
+        return typeof v === 'string' && (v.includes(',') || v.includes('"')) ? `"${v.replace(/"/g, '""')}"` : v;
+      }).join(',')
+    );
+    download('anchoring-issues.csv', [headers.join(','), ...rows].join('\n'), 'text/csv');
+  }, [filtered]);
+
+  const allTxHashes = React.useMemo(
+    () => Array.from(new Set(filtered.map((i) => i.txHash).filter(Boolean))) as string[],
+    [filtered]
+  );
+
+  const allLinks = React.useMemo(
+    () => filtered.map((i) => i.actionHref).filter(Boolean).join('\n'),
+    [filtered]
+  );
+
+  const uniqueAnchorsCount = React.useMemo(
+    () => new Set(filtered.map((i) => i.anchorId).filter(Boolean)).size,
+    [filtered]
+  );
+
+  type GroupKey = 'none' | 'type' | 'severity' | 'anchorId';
+  const grouped = React.useMemo(() => {
+    if (groupBy === 'none') return [{ key: '_', issues: filtered }];
+    const m = new Map<string, AnchoringIssue[]>();
+    for (const i of filtered) {
+      const k = groupBy === 'anchorId' ? (i.anchorId ?? '—') : (groupBy === 'type' ? i.type : i.severity);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(i);
+    }
+    return Array.from(m.entries()).map(([key, issues]) => ({ key, issues }));
+  }, [filtered, groupBy]);
+
+  const toggleGroup = React.useCallback((key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const onAck = React.useCallback(
+    async (i: AnchoringIssue) => {
+      if (i._fingerprint) {
+        const ackBy = window.prompt('Ack by (name/email):')?.trim() ?? '';
+        if (!ackBy) return;
+        const ackReason = window.prompt('Reason (optional):')?.trim() ?? '';
+        const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+        try {
+          const res = await fetch('/api/anchoring/ack', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fingerprint: i._fingerprint,
+              pack_sha256: null,
+              ack_by: ackBy,
+              ack_reason: ackReason || undefined,
+              expires_at: expiresAt,
+            }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const j = await res.json();
+          if (j?.ok)
+            setServerAckMap((prev) => ({
+              ...prev,
+              [i._fingerprint!]: { ack_by: ackBy, expires_at: expiresAt },
+            }));
+          setAckVersion((v) => v + 1);
+        } catch (e) {
+          console.error(e);
+          window.alert('Failed to acknowledge');
+        }
+      } else {
+        setLocalAck(i.id);
+        setAckVersion((v) => v + 1);
+      }
+    },
+    []
+  );
 
   const onCopy = React.useCallback(
     async (key: string, text: string) => {
@@ -278,6 +425,46 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
             </div>
 
             <div className="flex items-center gap-2">
+              {data && filtered.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={onExportJson}
+                    className="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                    title="Export as JSON"
+                  >
+                    Export JSON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onExportCsv}
+                    className="rounded-md border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                    title="Export as CSV"
+                  >
+                    Export CSV
+                  </button>
+                  {allTxHashes.length > 0 && (
+                    <CopyChip
+                      copyKey="bulk:tx"
+                      text={allTxHashes.join('\n')}
+                      labelDefault="Copy all tx"
+                      copyState={copyState}
+                      lockedKey={lockedKey}
+                      onCopy={onCopy}
+                    />
+                  )}
+                  {allLinks && (
+                    <CopyChip
+                      copyKey="bulk:links"
+                      text={allLinks}
+                      labelDefault="Copy all links"
+                      copyState={copyState}
+                      lockedKey={lockedKey}
+                      onCopy={onCopy}
+                    />
+                  )}
+                </>
+              )}
               <button
                 type="button"
                 onClick={onReset}
@@ -286,7 +473,6 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
               >
                 Reset
               </button>
-
               <button
                 type="button"
                 onClick={() => void load()}
@@ -319,11 +505,37 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
                 Hide gaps
               </label>
 
+              <label className="flex items-center gap-2 text-sm text-slate-800 dark:text-slate-100">
+                <input
+                  type="checkbox"
+                  checked={hideAcknowledged}
+                  onChange={(e) => setHideAcknowledged(e.target.checked)}
+                />
+                Hide acknowledged
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-slate-800 dark:text-slate-100">
+                <span>Group by:</span>
+                <select
+                  value={groupBy}
+                  onChange={(e) => setGroupBy(e.target.value as GroupKey)}
+                  className="rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-sm"
+                >
+                  <option value="none">None</option>
+                  <option value="type">Type</option>
+                  <option value="severity">Severity</option>
+                  <option value="anchorId">Anchor</option>
+                </select>
+              </label>
+
               <div className="ml-auto text-xs text-slate-500 dark:text-slate-400">
                 {data ? (
                   <>
                     Showing <span className="font-semibold">{filtered.length}</span> of{' '}
                     <span className="font-semibold">{counts.total}</span>
+                    {uniqueAnchorsCount > 0 && (
+                      <> · <span className="font-semibold">{uniqueAnchorsCount}</span> unique anchors</>
+                    )}
                   </>
                 ) : (
                   ''
@@ -360,10 +572,38 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
 
         {!err && data && filtered.length > 0 && (
           <div className="mt-3 space-y-2">
-            {filtered.map((i) => (
-              <React.Fragment key={i.id}>
-                {/* Optional: enable full-card highlight on Copy link (UX preference) */}
-                <div className="rounded-md border border-slate-200 dark:border-slate-700 p-2">
+            {grouped.map(({ key: groupKey, issues }) => {
+              const isCollapsed = groupBy !== 'none' && collapsedGroups.has(groupKey);
+              const header =
+                groupBy !== 'none' ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(groupKey)}
+                    className="flex w-full items-center justify-between rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 text-left text-sm font-medium text-slate-800 dark:text-slate-100"
+                  >
+                    <span>
+                      {groupKey === '_' ? 'All' : groupKey} · {issues.length} issue{issues.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-xs text-slate-500">{isCollapsed ? '▶' : '▼'}</span>
+                  </button>
+                ) : null;
+              return (
+                <div key={groupKey} className="space-y-1">
+                  {header}
+                  {!isCollapsed &&
+                    issues.map((i) => (
+              <div
+                key={i.id}
+                className={[
+                  'rounded-md border border-slate-200 dark:border-slate-700 p-2',
+                  'transition-colors duration-150 ease-out',
+                  (() => {
+                    const key = `link:${i.id}`;
+                    const st = copyState?.key === key ? copyState.status : null;
+                    return st ? copyHighlightClass(i.severity, st) : '';
+                  })(),
+                ].join(' ')}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
@@ -371,6 +611,12 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
                     >
                       {i.severity}
                     </span>
+
+                    {(isAcked(i) || ackDisplay(i)) && (
+                      <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                        Ack: {ackDisplay(i) ?? 'yes'}
+                      </span>
+                    )}
 
                     <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">
                       {i.type.replace(/_/g, ' ')}
@@ -430,6 +676,16 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {!isAcked(i) && (
+                      <button
+                        type="button"
+                        onClick={() => onAck(i)}
+                        className="rounded-md border border-slate-300 dark:border-slate-600 px-2 py-0.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800"
+                        title="Mark as acknowledged"
+                      >
+                        Ack
+                      </button>
+                    )}
                     <CopyChip
                       copyKey={`link:${i.id}`}
                       text={i.actionHref}
@@ -450,6 +706,12 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
 
                 <div className="mt-1 text-sm text-slate-900 dark:text-slate-100">{i.message}</div>
 
+                {i.suggestedAction && (
+                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    Suggested: {i.suggestedAction}
+                  </div>
+                )}
+
                 {(i.periodStart || i.periodEnd) && (
                   <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {i.periodStart ? new Date(i.periodStart).toISOString() : '?'}
@@ -457,9 +719,22 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
                     {i.periodEnd ? new Date(i.periodEnd).toISOString() : '?'}
                   </div>
                 )}
+
+                {i.runbookHref && (
+                  <a
+                    href={i.runbookHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-block text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Runbook →
+                  </a>
+                )}
               </div>
-              </React.Fragment>
             ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </Modal>

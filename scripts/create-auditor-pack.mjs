@@ -105,6 +105,12 @@ function readJsonSafe(path) {
   }
 }
 
+/** Normalize tx_hash: trim, lowercase, remove 0x. Single source of truth for manifest/file paths. */
+function normalizeTxHash(h) {
+  if (!h || typeof h !== 'string') return '';
+  return h.trim().toLowerCase().replace(/^0x/, '');
+}
+
 // ========== Create Pack Structure ==========
 
 mkdirSync(PACK_DIR, { recursive: true });
@@ -246,6 +252,120 @@ if (policyIndex) {
 } else {
   console.log('[auditor-pack] ⚠ No policy index found');
 }
+
+// 4b. Ledger Anchors + events_subset (Variant B: Anchoring)
+console.log('[auditor-pack] Collecting ledger anchors...');
+
+const dbPath = join(WORKSPACE_ROOT, '00_SYSTEM', 'db', 'papa.sqlite');
+if (existsSync(dbPath)) {
+  try {
+    const { default: Database } = await import('better-sqlite3');
+    const db = new Database(dbPath, { readonly: true });
+    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'").get();
+    const anchors = tableExists ? db.prepare('SELECT * FROM ledger_anchors ORDER BY created_at DESC LIMIT 20').all() : [];
+    const anchorsData = { generated_at: new Date().toISOString(), anchors };
+    const anchorsContent = JSON.stringify(anchorsData, null, 2);
+    writeFileSync(join(PACK_DIR, 'anchors.json'), anchorsContent);
+    checksums['anchors.json'] = sha256(anchorsContent);
+    console.log(`[auditor-pack] ✓ anchors.json (${anchors.length} anchors)`);
+
+    const periodStart = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+    let events;
+    try {
+      events = db.prepare(
+        `SELECT id, event_type, block_hash, prev_hash, created_at, actor_id, artifact_sha256, signature, key_id, anchor_id FROM ledger_events WHERE created_at >= ? ORDER BY id LIMIT 500`
+      ).all(periodStart);
+    } catch {
+      events = db.prepare(
+        `SELECT id, event_type, block_hash, prev_hash, created_at, actor_id FROM ledger_events WHERE created_at >= ? ORDER BY id LIMIT 500`
+      ).all(periodStart);
+    }
+    const eventsData = { period_start: periodStart, count: events.length, events };
+    const eventsContent = JSON.stringify(eventsData, null, 2);
+    writeFileSync(join(PACK_DIR, 'events_subset.json'), eventsContent);
+    checksums['events_subset.json'] = sha256(eventsContent);
+    console.log(`[auditor-pack] ✓ events_subset.json (${events.length} events)`);
+    db.close();
+  } catch (e) {
+    console.log('[auditor-pack] ⚠ Ledger anchors skipped:', e?.message || e);
+  }
+} else {
+  console.log('[auditor-pack] ⚠ DB not found, skipping anchors');
+}
+
+// 4c. On-chain receipts + contract.json (offline audit)
+console.log('[auditor-pack] Collecting on-chain receipts...');
+
+const receiptsSrc = join(WORKSPACE_ROOT, '00_SYSTEM', 'anchor-receipts');
+const onchainDir = join(PACK_DIR, 'onchain');
+const receiptsDest = join(onchainDir, 'receipts');
+mkdirSync(receiptsDest, { recursive: true });
+
+const receiptsManifest = {};
+if (existsSync(receiptsSrc)) {
+  const files = readdirSync(receiptsSrc).filter(f => f.endsWith('.json'));
+  for (const f of files) {
+    const content = readFileSync(join(receiptsSrc, f), 'utf8');
+    const rawKey = f.replace(/\.json$/, '');
+    const normalized = normalizeTxHash(rawKey);
+    const destFile = (normalized || rawKey) + '.json';
+    writeFileSync(join(receiptsDest, destFile), content);
+    const h = sha256(content);
+    checksums[`onchain/receipts/${destFile}`] = h;
+    receiptsManifest[normalized || rawKey] = h;
+  }
+  const manifestPath = join(receiptsDest, 'receipts_manifest.json');
+  const manifestContent = JSON.stringify({ generated_at: new Date().toISOString(), receipts: receiptsManifest }, null, 2);
+  writeFileSync(manifestPath, manifestContent);
+  checksums['onchain/receipts/receipts_manifest.json'] = sha256(manifestContent);
+  console.log(`[auditor-pack] ✓ onchain/receipts (${files.length} files + manifest)`);
+} else {
+  console.log('[auditor-pack] ⚠ No anchor-receipts found');
+}
+
+// ANCHORING_STATUS.json — build from anchors.json + receipts (schema anchoring-status/v1)
+if (existsSync(join(PACK_DIR, 'anchors.json'))) {
+  try {
+    execSync(`node "${join(ROOT, 'scripts', 'build-anchoring-status.mjs')}" "${PACK_DIR}"`, {
+      cwd: ROOT,
+      stdio: 'inherit',
+    });
+    const anchoringStatusContent = readFileSync(join(PACK_DIR, 'ANCHORING_STATUS.json'), 'utf8');
+    checksums['ANCHORING_STATUS.json'] = sha256(anchoringStatusContent);
+  } catch (e) {
+    console.log('[auditor-pack] ⚠ build-anchoring-status failed:', e?.message || e);
+  }
+
+  // ANCHORING_ISSUES.json — for verify hard-fail gate (VERIFY_FAIL_TYPES / VERIFY_FAIL_SEVERITY)
+  try {
+    execSync(`node "${join(ROOT, 'scripts', 'generate-anchoring-issues.mjs')}" "${PACK_DIR}"`, {
+      cwd: ROOT,
+      stdio: 'inherit',
+    });
+    const anchoringIssuesContent = readFileSync(join(PACK_DIR, 'ANCHORING_ISSUES.json'), 'utf8');
+    checksums['ANCHORING_ISSUES.json'] = sha256(anchoringIssuesContent);
+    console.log('[auditor-pack] ✓ ANCHORING_ISSUES.json');
+  } catch (e) {
+    console.log('[auditor-pack] ⚠ generate-anchoring-issues failed:', e?.message || e);
+  }
+}
+
+const contractInfo = {
+  network: process.env.ANCHOR_NETWORK || 'polygon',
+  chain_id: parseInt(process.env.ANCHOR_CHAIN_ID || '137', 10),
+  contract_address: process.env.ANCHOR_CONTRACT_ADDRESS || null,
+  event_abi: [{ type: 'event', name: 'Anchored', inputs: [
+    { name: 'merkleRoot', type: 'bytes32', indexed: true },
+    { name: 'periodStart', type: 'uint64', indexed: false },
+    { name: 'periodEnd', type: 'uint64', indexed: false },
+    { name: 'periodKey', type: 'bytes32', indexed: true },
+    { name: 'anchorId', type: 'bytes32', indexed: true }
+  ]}]
+};
+const contractContent = JSON.stringify(contractInfo, null, 2);
+writeFileSync(join(onchainDir, 'contract.json'), contractContent);
+checksums['onchain/contract.json'] = sha256(contractContent);
+console.log('[auditor-pack] ✓ onchain/contract.json');
 
 // 5. Standalone Verifier Script
 console.log('[auditor-pack] Creating standalone verifier...');
@@ -530,6 +650,69 @@ if (existsSync(attestationsDir)) {
 }
 print('');
 
+// ========== 6. ON-CHAIN ANCHOR VERIFICATION (offline) ==========
+
+print('6. ON-CHAIN ANCHORS');
+print('-'.repeat(40));
+
+const anchorsPath = join(__dirname, 'anchors.json');
+const onchainDir = join(__dirname, 'onchain');
+const receiptsDir = join(onchainDir, 'receipts');
+const contractPath = join(onchainDir, 'contract.json');
+
+if (existsSync(anchorsPath) && existsSync(contractPath)) {
+  const anchorsData = JSON.parse(readFileSync(anchorsPath, 'utf8'));
+  const contractData = JSON.parse(readFileSync(contractPath, 'utf8'));
+  const contractAddr = (contractData.contract_address || '').toLowerCase();
+  log('info', \`Contract: \${contractAddr || '(not set)'}\`);
+
+  let receiptsManifest = {};
+  const rManifestPath = join(receiptsDir, 'receipts_manifest.json');
+  if (existsSync(rManifestPath)) {
+    try {
+      receiptsManifest = JSON.parse(readFileSync(rManifestPath, 'utf8')).receipts || {};
+    } catch (_) {}
+  }
+
+  let anchorsVerified = 0;
+  for (const anchor of anchorsData.anchors || []) {
+    if (anchor.status !== 'confirmed' || !anchor.tx_hash) continue;
+    const txHash = anchor.tx_hash.replace(/^0x/, '');
+    const receiptPath = join(receiptsDir, txHash + '.json');
+    if (!existsSync(receiptPath)) {
+      log('warn', \`Anchor \${anchor.id}: receipt missing (offline)\`);
+      continue;
+    }
+    const content = readFileSync(receiptPath, 'utf8');
+    const expectedSha = receiptsManifest[txHash];
+    if (expectedSha) {
+      const actualSha = createHash('sha256').update(content, 'utf8').digest('hex');
+      if (actualSha !== expectedSha) {
+        log('fail', \`Anchor \${anchor.id}: receipt integrity mismatch (sha256)\`);
+        errors++;
+        continue;
+      }
+    }
+    const receipt = JSON.parse(content);
+    if (receipt.status !== '0x1' && receipt.status !== 1) {
+      log('fail', \`Anchor \${anchor.id}: tx failed\`);
+      errors++;
+      continue;
+    }
+    if (receipt.to && contractAddr && receipt.to.toLowerCase() !== contractAddr) {
+      log('fail', \`Anchor \${anchor.id}: contract mismatch\`);
+      errors++;
+      continue;
+    }
+    if (verbose) log('ok', \`Anchor \${anchor.id}: tx \${anchor.tx_hash?.slice(0, 18)}...\`);
+    anchorsVerified++;
+  }
+  log('info', \`\${anchorsVerified} anchor(s) verified (offline)\`);
+} else {
+  log('info', 'No anchors or contract.json (skip)');
+}
+print('');
+
 // ========== Summary ==========
 
 const result = {
@@ -545,6 +728,7 @@ const result = {
     snapshots: existsSync(snapshotsDir) && readdirSync(snapshotsDir).filter(f => f.endsWith('.json')).length > 0,
     policies: existsSync(policyIndexPath),
     attestations: existsSync(attestationsDir) && readdirSync(attestationsDir).filter(f => f.endsWith('.json')).length > 0,
+    onchain_anchors: existsSync(anchorsPath) && existsSync(contractPath),
   },
 };
 
@@ -706,6 +890,109 @@ Pack Version: ${PACK_VERSION}
 writeFileSync(join(PACK_DIR, 'VERIFY.md'), verifyMd);
 checksums['VERIFY.md'] = sha256(verifyMd);
 console.log('[auditor-pack] ✓ VERIFY.md');
+
+// 6b. README_AUDIT.md — pack structure and verification for auditors
+console.log('[auditor-pack] Creating README_AUDIT.md...');
+
+const readmeAudit = `# Auditor Pack — Structure & Verification
+
+## Quick Verification (one command)
+
+\`\`\`bash
+node verify.mjs
+\`\`\`
+
+Strict mode (requires snapshots + attestations):
+
+\`\`\`bash
+node verify.mjs --strict
+\`\`\`
+
+## Pack Contents
+
+| Path | Description |
+|------|-------------|
+| \`MANIFEST.json\` | Pack metadata, checksums, provenance |
+| \`trust-anchors.json\` | Public keys for signature verification |
+| \`verify.mjs\` | Standalone verifier (Node.js built-ins only) |
+| \`VERIFY.md\` | Verification instructions |
+| \`anchors.json\` | Ledger anchors (period, status, tx_hash, created_at) |
+| \`events_subset.json\` | Recent ledger events |
+| \`ANCHORING_STATUS.json\` | Anchoring health (counts, coverage, assessment) |
+| \`ANCHORING_ISSUES.json\` | Structured issues (failed, pending>72h, receipt missing/mismatch, gaps) |
+| \`onchain/receipts/\` | On-chain receipt files (\`<tx_hash>.json\`) |
+| \`onchain/receipts/receipts_manifest.json\` | Map tx_hash → SHA-256 of receipt |
+| \`onchain/contract.json\` | Contract ABI and network info |
+| \`policies/\` | Governance policy definitions |
+
+## Anchoring Data Flow
+
+- **anchors.json** — Source: \`ledger_anchors\` table. Each anchor has \`id\`, \`period_start\`, \`period_end\`, \`status\`, \`created_at\`, \`tx_hash\`.
+- **onchain/receipts/** — One file per confirmed anchor: \`<tx_hash>.json\` (hex with or without \`0x\` prefix).
+- **receipts_manifest.json** — \`{ receipts: { "<tx_hash>": "<sha256>" } }\` for integrity checks.
+- **ANCHORING_STATUS.json** — Built from anchors + manifest (coverage, counts, assessment).
+- **ANCHORING_ISSUES.json** — Built from anchors + receipts + manifest. Issue types: \`ANCHOR_FAILED\`, \`ANCHOR_PENDING_TOO_LONG\`, \`RECEIPT_MISSING_FOR_CONFIRMED\`, \`RECEIPT_INTEGRITY_MISMATCH\`, \`GAP_IN_PERIODS\`.
+
+## Independent Verification (CI / stricter gate)
+
+The issuing organization may run \`independent-verify.mjs\` (from project root) against this pack with env:
+
+- \`STRICT_VERIFY=1\` — Require ANCHORING_STATUS.json, fail on FAIL assessment
+- \`REQUIRE_ANCHORING_ISSUES=1\` — Require ANCHORING_ISSUES.json
+- \`VERIFY_FAIL_SEVERITY=critical\` — Fail on any critical issue
+- \`VERIFY_FAIL_TYPES=RECEIPT_INTEGRITY_MISMATCH,RECEIPT_MISSING_FOR_CONFIRMED,ANCHOR_FAILED\` — Fail on these types
+
+Exit code **2** = anchoring/issues gate failed (distinct from general integrity failure **1**).
+
+## Trust Assumptions
+
+* **Trusted:** Pack immutability once generated; receipts manifest as authoritative index; SHA-256 hashes for integrity.
+* **Verified:** Receipt existence for confirmed anchors; SHA-256 of each receipt matches manifest; anchoring lifecycle consistency (failed, pending>72h, gaps).
+* **Not verified:** Live blockchain state (verification is offline); external RPC availability; consensus validity beyond stored receipts.
+
+## Pack Integrity
+
+* **pack_hash.json** — SHA-256 over all pack files (excluding pack_hash.json, pack_signature.json).
+* **pack_signature.json** — Ed25519 signature of pack_hash.json (when signing key is configured).
+* **independent-verify** checks the signature when \`PACK_SIGN_PUBLIC_KEY_PEM\` or \`PACK_SIGN_PUBLIC_KEY_PATH\` is set.
+
+---
+
+Generated: ${new Date().toISOString()}
+`;
+
+writeFileSync(join(PACK_DIR, 'README_AUDIT.md'), readmeAudit);
+checksums['README_AUDIT.md'] = sha256(readmeAudit);
+console.log('[auditor-pack] ✓ README_AUDIT.md');
+
+// 6b2. Policy-as-data: copy verify-policy into pack (auditor-visible, immutable)
+const policySrc = process.env.VERIFY_POLICY_PATH || join(ROOT, 'docs', 'verify-policy.default.json');
+const policyDst = join(PACK_DIR, 'verify-policy.json');
+if (existsSync(policySrc)) {
+  copyFileSync(policySrc, policyDst);
+  const policyContent = readFileSync(policyDst, 'utf8');
+  checksums['verify-policy.json'] = sha256(policyContent);
+  console.log('[auditor-pack] ✓ verify-policy.json');
+} else {
+  console.log(`[auditor-pack] ⚠ verify-policy.json: source not found (${policySrc})`);
+}
+
+// 6c. pack_hash.json + pack_signature.json (pack integrity)
+try {
+  execSync(`node "${join(ROOT, 'scripts', 'pack-hash.mjs')}" "${PACK_DIR}"`, { cwd: ROOT, stdio: 'inherit' });
+  const packHashContent = readFileSync(join(PACK_DIR, 'pack_hash.json'), 'utf8');
+  checksums['pack_hash.json'] = sha256(packHashContent);
+  console.log('[auditor-pack] ✓ pack_hash.json');
+
+  if (process.env.PACK_SIGN_PRIVATE_KEY_PEM) {
+    execSync(`node "${join(ROOT, 'scripts', 'pack-sign.mjs')}" "${PACK_DIR}"`, { cwd: ROOT, stdio: 'inherit' });
+    const packSigContent = readFileSync(join(PACK_DIR, 'pack_signature.json'), 'utf8');
+    checksums['pack_signature.json'] = sha256(packSigContent);
+    console.log('[auditor-pack] ✓ pack_signature.json');
+  }
+} catch (e) {
+  console.log('[auditor-pack] ⚠ pack-hash/pack-sign failed:', e?.message || e);
+}
 
 // 7. Create MANIFEST.json
 console.log('[auditor-pack] Creating manifest...');
