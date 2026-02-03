@@ -1,0 +1,60 @@
+name: Health Alert
+
+on:
+  schedule:
+    - cron: '30 7 * * *'   # 07:30 UTC daily
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    if: vars.HEALTH_ALERT_ENABLED == '1' && vars.LEDGER_BUCKET != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Configure AWS (ledger)
+        if: vars.LEDGER_BACKEND != 'gcs'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure GCP (ledger)
+        if: vars.LEDGER_BACKEND == 'gcs'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Health check + Slack on alert
+        id: health
+        continue-on-error: true
+        env:
+          LEDGER_BACKEND: ${{ vars.LEDGER_BACKEND }}
+          LEDGER_BUCKET: ${{ vars.LEDGER_BUCKET }}
+          LEDGER_ROLLUP_PREFIX: ${{ vars.LEDGER_ROLLUP_PREFIX }}
+          DOC_LEDGER_PREFIX: ${{ vars.DOC_LEDGER_PREFIX }}
+          DOC_LEDGER_PENDING_PREFIX: ${{ vars.DOC_LEDGER_PENDING_PREFIX }}
+          ALERT_ROLLUP_MAX_AGE_HOURS: ${{ vars.ALERT_ROLLUP_MAX_AGE_HOURS }}
+          ALERT_PENDING_THRESHOLD: ${{ vars.ALERT_PENDING_THRESHOLD }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          node scripts/health-alert.mjs --slack 2>&1 | tee health-output.txt
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
+
+      - name: Upload health output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-alert-output
+          path: health-output.txt

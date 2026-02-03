@@ -6,7 +6,7 @@ This document describes the **compliance-ready** evidence pipeline: append-only 
 
 - **Evidence:** Each verification run produces a **ledger entry** (pack hash, signature, anchoring status, policy, result). Entries are published to object storage (S3/GCS) under `ledger/YYYY/MM/DD/<pack_sha256>.json`.
 - **Pack archives:** Optional pack `tar.gz` are stored in a separate bucket; ledger entries reference them via `pack_object` for full reproducibility.
-- **Daily rollups:** A **Merkle tree** is built over all ledger entries per UTC day. Rollups are stored under `ledger-rollups/YYYY/MM/DD/rollup.json` and `manifest.json`.
+- **Daily rollups:** A **Merkle tree** is built over all ledger entries per UTC day. Rollups include both `ledger/YYYY/MM/DD/*.json` (verify/mail-ledger) and `doc-ledger/YYYY/MM/DD/*.json` (doc updates, config_change e.g. allowlist). Rollups are stored under `ledger-rollups/YYYY/MM/DD/rollup.json` and `manifest.json`.
 - **Anchoring:** The daily Merkle root can be **anchored** (published to a public chain). Status is stored in `ledger-rollups/YYYY/MM/DD/ROLLUP_ANCHORING_STATUS.json`. This makes the ledger **tamper-evident** and independently verifiable.
 - **Exception register:** Acknowledged issues (exceptions) are tracked in the ack service and visible in the Auditor Portal under **Exception register**. Expired acks are treated as unacked (TTL enforcement).
 
@@ -15,6 +15,7 @@ This document describes the **compliance-ready** evidence pipeline: append-only 
 | Artifact | Location / how to obtain | Purpose |
 |----------|--------------------------|--------|
 | Ledger entries | `ledger/YYYY/MM/DD/*.json` or via Auditor Portal | Proof of what was verified and when |
+| Doc/config ledger | `doc-ledger/YYYY/MM/DD/*.json` (doc_update, config_change) | Document and allowlist change audit trail; included in daily rollup Merkle root. Config changes are committed only after an immutable ledger entry is durably written (prepare → commit; `_pending/` is internal). |
 | Pack archive | `packs/<pack_sha256>.tar.gz` or “Download pack” in portal | Exact pack used for verification |
 | Daily rollup | `ledger-rollups/YYYY/MM/DD/rollup.json` | Merkle root for the day |
 | Rollup manifest | `ledger-rollups/YYYY/MM/DD/manifest.json` | List of entries in the rollup |
@@ -35,6 +36,10 @@ This set supports **due diligence**, **enterprise procurement**, **internal/exte
 ## Auditor checklist (1 day)
 
 See **[AUDITOR_CHECKLIST_1DAY.md](./AUDITOR_CHECKLIST_1DAY.md)** for a concise “what to verify in one day” checklist.
+
+## Release baseline (audit-grade)
+
+- **v1.0.0** — Audit-grade baseline: strict config ledger, unified rollup, mail governance. См. [AUDIT_GRADE_STATUS.md](./AUDIT_GRADE_STATUS.md). Regulatory bundle: `regulatory-bundle-v1.0.0.zip` (см. [REGULATORY_SUBMISSION_CHECKLIST.md](./REGULATORY_SUBMISSION_CHECKLIST.md)).
 
 ## External Trust Package (versioned)
 

@@ -40,6 +40,14 @@ describe('sidebar-nav RBAC gating', () => {
     expect(verify).toBeDefined();
   });
 
+  it('shows Health with WORKSPACE.READ', () => {
+    const perms = ['WORKSPACE.READ'];
+    const visible = getVisibleNavItems(perms);
+    const health = visible.find((i) => i.href === '/system/health');
+    expect(health).toBeDefined();
+    expect(health?.label).toBe('Health');
+  });
+
   it('shows TMC with TMC.VIEW', () => {
     const perms = ['TMC.VIEW'];
     const visible = getVisibleNavItems(perms);
@@ -70,7 +78,7 @@ describe('sidebar-nav RBAC gating', () => {
 
   it('navGroups structure matches expected item count', () => {
     const total = navGroups.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(10);
+    expect(total).toBe(13);
   });
 
   it('shows Техкарты with INSPECTION.VIEW', () => {

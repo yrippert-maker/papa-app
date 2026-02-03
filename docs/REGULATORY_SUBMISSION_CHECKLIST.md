@@ -63,15 +63,16 @@
 - [REGULATORY_COVER_LETTER_RU.md](REGULATORY_COVER_LETTER_RU.md) — русский
 - [REGULATORY_COVER_LETTER_EN.md](REGULATORY_COVER_LETTER_EN.md) — английский
 
-Краткий пример:
+Краткий пример (v1.0.0 — audit-grade baseline):
 ```
-Регуляторная передача: ПАПА v0.1.4
+Регуляторная передача: ПАПА v1.0.0
 
-Артефакт: regulatory-bundle-v0.1.4.zip
+Артефакт: regulatory-bundle-v1.0.0.zip
 SHA-256: <из вывода shasum>
-Tag: v0.1.4
+Tag: v1.0.0
 Commit: <SHA под тегом>
 Дата: YYYY-MM-DD
 
 Порядок проверки: см. BUNDLE_FINGERPRINT.md внутри zip.
 ```
+Аналогично для других тегов (например v0.1.4, v1.0.1).

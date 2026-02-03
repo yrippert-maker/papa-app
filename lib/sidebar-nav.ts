@@ -46,8 +46,11 @@ export const navGroups: NavGroup[] = [
     label: 'Система',
     items: [
       { href: '/system/verify', label: 'Verify', permission: 'WORKSPACE.READ' },
+      { href: '/system/health', label: 'Health', permission: 'WORKSPACE.READ' },
       { href: '/workspace', label: 'Workspace', permission: 'FILES.LIST' },
       { href: '/ai-inbox', label: 'AI Inbox', permission: 'AI_INBOX.VIEW' },
+      { href: '/mail/inbox', label: 'Очередь почты', permission: 'COMPLIANCE.VIEW' },
+      { href: '/governance/anchoring', label: 'Anchoring', permission: 'WORKSPACE.READ' },
       { href: '/admin/users', label: 'Пользователи', permission: 'ADMIN.MANAGE_USERS' },
     ],
   },

@@ -301,7 +301,19 @@ git commit -m "chore: update policy hash baseline"
 
 ---
 
-## 8. Prometheus Targets
+## 8. Health Alerts (Rollup / Pending / Slack)
+
+**Симптом:** Rollup не создан за N часов; или количество записей в `_pending` превышает порог.
+
+- **Скрипт:** `npm run health:alert` → `node scripts/health-alert.mjs`
+- **Env:** `LEDGER_BUCKET`, `LEDGER_ROLLUP_PREFIX`, `DOC_LEDGER_PENDING_PREFIX`, `ALERT_ROLLUP_MAX_AGE_HOURS` (default 24), `ALERT_PENDING_THRESHOLD` (default 10), `SLACK_WEBHOOK_URL` (при `--slack`)
+- **Slack:** `node scripts/health-alert.mjs --slack` — при алертах POST в Slack
+- **Workflow:** `.github/workflows/health-alert.yml` (07:30 UTC; `vars.HEALTH_ALERT_ENABLED == '1'`)
+- **Exit:** 0 OK, 1 degraded, 2 error
+
+---
+
+## 9. Prometheus Targets
 
 ### Метрики
 
@@ -329,3 +341,4 @@ scrape_configs:
 - [RUNBOOK_LEDGER_DEAD_LETTER.md](./RUNBOOK_LEDGER_DEAD_LETTER.md)
 - [RUNBOOK_EVIDENCE_VERIFY.md](./RUNBOOK_EVIDENCE_VERIFY.md)
 - [RETENTION_POLICY.md](./RETENTION_POLICY.md)
+- System Health: `/system/health` (UI), `GET /api/system/health` (API)
