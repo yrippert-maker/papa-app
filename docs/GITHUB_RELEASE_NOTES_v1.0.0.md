@@ -1,62 +1,24 @@
-# Release v1.0.0 — Governance Maturity
+# Release v1.0.0 — Audit-grade baseline
 
-**Release Date:** 2026-02-02  
-**Tag:** `v1.0.0`
-
----
-
-## Overview
-
-**v1.0.0** marks the formal announcement of governance maturity for Papa App. This release completes the v1.0.0 execution checklist: independent dry-run audit, ratification of the Governance Charter, and formal release.
+**Audit-grade release: strict config ledger, unified rollup, mail governance.**
 
 ---
 
-## What's New
+## Highlights
 
-### Governance Charter — Ratified
+- **Strict + atomic-ish config save (M2.8)** — двухфазная запись allowlist: `_pending` → docs-store → final ledger. Невозможность «тихих» изменений при `REQUIRE_CONFIG_LEDGER=1`.
+- **Pending GC (M2.9–M2.10)** — S3 + GCS, лимиты (max-delete / max-bytes), confirm-gate, JSON report, scheduled workflow.
+- **Unified daily rollup (M4)** — один Merkle root по `ledger` + `doc-ledger` + `mail-ledger`; `_pending` исключён.
+- **Mail governance (M3 + M5)** — типы idempotency_key / auth_indicators, bulk Accept/Reject в Portal, decision-ledger (POST /v1/mail/decision).
+- **Documentation** — Compliance, Retention, Regulatory checklist, Audit-grade status.
 
-The [Governance Charter](docs/governance/GOVERNANCE_CHARTER.md) is formally ratified and effective. It establishes:
-
-- Key lifecycle governance framework
-- 2-man rule and approval matrix
-- Break-glass procedures
-- Audit and compliance requirements
-
-### Independent Dry-Run Audit — Complete
-
-- Internal dry-run conducted per [DRY_RUN_AUDIT_PLAN](docs/governance/DRY_RUN_AUDIT_PLAN.md)
-- Report: [DRY_RUN_AUDIT_REPORT](docs/governance/DRY_RUN_AUDIT_REPORT.md)
-- **Critical findings:** 0
-- Pack integrity and provenance verified
-
-### LTS Baseline
-
-- **v0.3.x** remains the LTS stable branch (security/audit fixes only)
-- **v1.0.0** is the governance maturity milestone
+Уровень: **SOC2 / банк / регулятор / due diligence**. Доверенный baseline для фиксации и ссылок.
 
 ---
 
-## Auditor Pack
+## Release & bundle
 
-Generate the v1.0.0 auditor pack:
-
-```bash
-npm run auditor-pack:create
-```
-
-**Pack SHA-256:** `7736359a14ab95bcf6ec93e4bb8789ab728b642a3cc129b482dac627b0cb76f5`
-
----
-
-## Upgrade Notes
-
-No breaking changes from v0.3.1. Version bump to 1.0.0 reflects governance maturity, not feature changes.
-
----
-
-## References
-
-- [Governance Charter](docs/governance/GOVERNANCE_CHARTER.md)
-- [Governance Roadmap](docs/governance/GOVERNANCE_ROADMAP.md)
-- [Ratification Record](docs/governance/RATIFICATION_RECORD.md)
-- [Dry-Run Audit Report](docs/governance/DRY_RUN_AUDIT_REPORT.md)
+- Tag: `v1.0.0`
+- Regulatory bundle: `npm run bundle:regulatory` → `dist/regulatory-bundle-v1.0.0.zip`
+- Чеклист передачи: [REGULATORY_SUBMISSION_CHECKLIST.md](REGULATORY_SUBMISSION_CHECKLIST.md)
+- Статус фиксации: [AUDIT_GRADE_STATUS.md](AUDIT_GRADE_STATUS.md)

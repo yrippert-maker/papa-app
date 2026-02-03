@@ -8,6 +8,10 @@ TAG="${2:-v0.1.2}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 case "$TAG" in
+  v1.0.0)
+    NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v1.0.0.md"
+    TITLE="Release $TAG — Audit-grade baseline: strict config ledger, unified rollup"
+    ;;
   v0.1.7)
     NOTES_FILE="$SCRIPT_DIR/../docs/GITHUB_RELEASE_NOTES_v0.1.7.md"
     TITLE="Release $TAG — Operational polish for Verify Aggregator"

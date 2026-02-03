@@ -2,6 +2,8 @@
 
 **Назначение:** порядок и состав передачи пакета регулятору/аудитору.
 
+**Audit-grade baseline:** с v1.0.0 пакет фиксирует доверенный baseline (strict config ledger, unified rollup, mail governance). См. [AUDIT_GRADE_STATUS.md](AUDIT_GRADE_STATUS.md).
+
 ---
 
 ## 1. Что прикладывать (в порядке приоритета)
