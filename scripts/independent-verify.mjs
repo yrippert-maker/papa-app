@@ -37,14 +37,18 @@ function safeReadJson(p) {
   }
 }
 
-/** Load verify policy: pack first (verify-policy.json or anchoring.verify-policy.json), then repo. Env overrides. */
-function loadVerifyPolicy(packPath) {
+/** Load verify policy: --policy override first, then pack, then repo. Env overrides. */
+function loadVerifyPolicy(packPath, policyPathOverride = null) {
+  if (policyPathOverride && existsSync(policyPathOverride)) {
+    const j = safeReadJson(policyPathOverride);
+    if (j) return { path: policyPathOverride, policy: j };
+  }
   const candidates = [
-    join(packPath, 'verify-policy.json'),
-    join(packPath, 'anchoring.verify-policy.json'),
+    packPath && join(packPath, 'verify-policy.json'),
+    packPath && join(packPath, 'anchoring.verify-policy.json'),
     join(ROOT, 'docs', 'verify-policy.default.json'),
     join(ROOT, 'config', 'anchoring.verify-policy.json'),
-  ];
+  ].filter(Boolean);
   for (const p of candidates) {
     if (existsSync(p)) {
       const j = safeReadJson(p);
@@ -52,6 +56,16 @@ function loadVerifyPolicy(packPath) {
     }
   }
   return { path: null, policy: null };
+}
+
+/** Parse --as-of ISO 8601 timestamp. Returns canonical ISO string or null if invalid. */
+function parseAsOf(ts) {
+  if (!ts || typeof ts !== 'string') return null;
+  const s = ts.trim();
+  if (!s) return null;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 function toList(v) {
@@ -278,8 +292,10 @@ function verifyManifest(manifest, packDir) {
 
 // ========== Main Verification Flows ==========
 
-async function verifyAuditPack(packPath) {
+async function verifyAuditPack(packPath, opts = {}) {
+  const { asOf = null, policyPath = null } = opts;
   log('info', `Verifying audit pack: ${packPath}`);
+  if (asOf) log('info', `Temporal context: --as-of ${asOf}`);
   
   const results = {
     pack_path: packPath,
@@ -454,7 +470,7 @@ async function verifyAuditPack(packPath) {
   }
 
   // ANCHORING ISSUES (hard-fail by type/severity) — policy file overrides env when present
-  const pol = loadVerifyPolicy(packPath);
+  const pol = loadVerifyPolicy(packPath, policyPath);
   const policy = pol.policy;
   const policyFailTypes = toList(policy?.fail_types ?? policy?.failTypes);
   const policyFailSev = toList(policy?.fail_severity ?? policy?.failSeverity);
@@ -623,6 +639,26 @@ async function verifyAuditPack(packPath) {
   results.packSignaturePresent = sigPresent;
   results.packSignatureReason = sigReason;
   results.verifyPolicyPath = pol?.path ?? null;
+  results.policyApprovalOwner = pol?.policy?.approval_owner ?? null;
+  results.policyApprovalReviewer = pol?.policy?.approval_reviewer ?? null;
+  results.asOf = asOf ?? null;
+
+  // Temporal: pack evidence timestamp check (when --as-of)
+  results.temporalAsOfWarning = null;
+  if (asOf) {
+    const asOfTs = new Date(asOf).getTime();
+    const manifest = safeReadJson(join(packPath, 'MANIFEST.json'));
+    const anchStatus = safeReadJson(join(packPath, 'ANCHORING_STATUS.json'));
+    const packCreatedAt = manifest?.created_at ?? null;
+    const anchGeneratedAt = anchStatus?.generated_at ?? null;
+    const evidenceNewer = [];
+    if (packCreatedAt && new Date(packCreatedAt).getTime() > asOfTs) evidenceNewer.push(`MANIFEST.created_at=${packCreatedAt}`);
+    if (anchGeneratedAt && new Date(anchGeneratedAt).getTime() > asOfTs) evidenceNewer.push(`ANCHORING_STATUS.generated_at=${anchGeneratedAt}`);
+    if (evidenceNewer.length > 0) {
+      results.temporalAsOfWarning = `Pack evidence newer than as_of: ${evidenceNewer.join('; ')}`;
+      log('warn', results.temporalAsOfWarning);
+    }
+  }
 
   // Overall result
   results.overall =
@@ -679,6 +715,119 @@ async function verifySnapshotsDir(snapshotsPath) {
   };
 }
 
+/** Build Decision Record (JSON + human-readable MD) for explainability. See docs/compliance/DECISION_RECORD_SPEC.md */
+function buildDecisionRecord(results, summary, packPath, ledgerEntryFingerprint = null, policyHash = null, verifySummaryHash = null, asOf = null) {
+  const decisionId = crypto.randomUUID();
+  const packRef = { dir: summary.pack_dir, pack_id: summary.pack_id ?? null, pack_sha256: summary.pack_sha256 ?? null };
+  const fingerprintPayload = { pack_ref: packRef, policy_hash: policyHash ?? '', verify_summary_hash: verifySummaryHash ?? '', as_of: asOf ?? null };
+  const decisionFingerprint = sha256Hex(stableStringify(fingerprintPayload));
+  const policy = summary.policy || {};
+  const inputPolicies = [
+    {
+      path: results.verifyPolicyPath || 'env/defaults',
+      version: policy.version ?? 1,
+      fail_severity: Array.isArray(policy.fail_severity) ? policy.fail_severity : [],
+      fail_types: Array.isArray(policy.fail_types) ? policy.fail_types : [],
+      require_pack_signature: !!summary.signature?.required,
+      require_anchoring_issues: !!policy.require_anchoring_issues,
+    },
+  ];
+
+  const checks = [
+    { id: 'manifest', name: 'Pack manifest', outcome: results.manifest?.valid ? 'pass' : 'fail', reason: results.manifest?.valid ? null : 'Invalid or missing MANIFEST.json', rule_fired: null },
+    { id: 'hash_chain', name: 'Hash chain', outcome: results.hash_chain?.valid ? 'pass' : 'fail', reason: results.hash_chain?.valid ? null : 'Hash chain invalid', rule_fired: null },
+    { id: 'evidence_index', name: 'Evidence index', outcome: results.evidence_index?.valid !== false ? 'pass' : 'fail', reason: results.evidence_index?.valid === false ? 'Evidence index invalid' : null, rule_fired: null },
+    { id: 'anchoring_status', name: 'Anchoring status (STRICT)', outcome: !results.anchoringStrictFail ? 'pass' : 'fail', reason: results.anchoringStrictFail ? 'ANCHORING_STATUS missing or assessment FAIL' : null, rule_fired: results.anchoringStrictFail ? 'strict_anchoring' : null },
+    { id: 'anchoring_issues', name: 'Anchoring issues (policy)', outcome: !results.anchoringIssuesFail ? 'pass' : 'fail', reason: results.anchoringIssuesFail ? `Disallowed issues: ${(results.anchoringIssuesTop || []).map((t) => t.type).join(', ')}` : null, rule_fired: results.anchoringIssuesFail ? 'fail_type_or_severity' : null },
+    { id: 'pack_signature', name: 'Pack signature', outcome: !summary.signature?.required ? 'skip' : (summary.signature?.ok ? 'pass' : 'fail'), reason: summary.signature?.required && !summary.signature?.ok ? (summary.signature?.reason || 'Invalid or missing') : null, rule_fired: summary.signature?.required && !summary.signature?.ok ? 'require_pack_signature' : null },
+  ];
+
+  const rulesFired = [];
+  if (results.anchoringStrictFail) {
+    rulesFired.push({ rule_type: 'strict_anchoring', severity: 'critical', issue_type: null, condition_met: true, message: 'Anchoring status FAIL or ANCHORING_STATUS.json missing (STRICT_VERIFY=1)', runbook: null });
+  }
+  if (results.anchoringIssuesFail && (results.anchoringIssuesTop || []).length > 0) {
+    for (const t of results.anchoringIssuesTop || []) {
+      rulesFired.push({ rule_type: 'fail_type_or_severity', severity: t.severity || null, issue_type: t.type || null, condition_met: true, message: `${t.type}: ${t.count} issue(s)`, runbook: t.runbook || null });
+    }
+  }
+  if (results.packSignatureFail) {
+    rulesFired.push({ rule_type: 'require_pack_signature', severity: null, issue_type: null, condition_met: true, message: summary.signature?.reason || 'Pack signature required but invalid or missing', runbook: null });
+  }
+
+  let why = summary.result.passed ? 'All checks passed.' : 'One or more checks failed.';
+  if (rulesFired.length > 0) {
+    why = rulesFired.map((r) => r.message).join('; ');
+  }
+
+  const ledgerWritten = process.env.WRITE_LEDGER_ENTRY == null || !['0', 'false', 'no'].includes(String(process.env.WRITE_LEDGER_ENTRY || '').toLowerCase());
+  const policyRef = results.verifyPolicyPath || null;
+  const approvalOwner = results.policyApprovalOwner ?? null;
+  const approvalReviewer = results.policyApprovalReviewer ?? null;
+  const policyVersion = inputPolicies[0]?.version != null ? `v${inputPolicies[0].version}` : null;
+
+  const json = {
+    schema_version: 1,
+    decision_id: decisionId,
+    decision_fingerprint_sha256: decisionFingerprint,
+    ledger_entry_id: ledgerEntryFingerprint ?? null,
+    generated_at: summary.generated_at,
+    pack_ref: packRef,
+    ...(asOf && {
+      temporal: {
+        as_of: asOf,
+        ledger_snapshot: ledgerEntryFingerprint ?? null,
+        policy_version: policyVersion,
+        policy_hash: policyHash ?? null,
+      },
+    }),
+    input_policies: inputPolicies,
+    checks,
+    rules_fired: rulesFired,
+    outcome: { overall: summary.result.passed ? 'pass' : 'fail', severity_effective: rulesFired.length > 0 ? 'fail' : null, why },
+    approval: {
+      mode: 'auto',
+      policy_ref: policyRef,
+      approved_by: null,
+      approved_at: summary.generated_at,
+      owner: approvalOwner,
+      reviewer: approvalReviewer,
+      approver: policyRef ? `policy:${policyRef}` : 'env',
+    },
+    references: { verify_summary: join(packPath, 'verify-summary.json'), ledger_entry: ledgerWritten ? join(packPath, 'ledger-entry.json') : null },
+  };
+
+  const md = [
+    `# Decision Record — ${summary.pack_id || basename(packPath)} — ${summary.generated_at.slice(0, 10)}`,
+    '',
+    `**Decision ID:** \`${decisionId}\` | **Fingerprint:** \`${decisionFingerprint}\` | **Ledger Entry ID:** ${ledgerEntryFingerprint ? `\`${ledgerEntryFingerprint}\`` : 'n/a'} (immutability chain: decision_id → ledger_entry_id → anchor)`,
+    ...(asOf ? ['', `**Temporal (as-of):** \`${asOf}\``, ''] : []),
+    '',
+    `**Outcome:** ${summary.result.passed ? 'PASS' : 'FAIL'}`,
+    '',
+    `**Why:** ${why}`,
+    '',
+    '## Input',
+    '',
+    `- Pack: \`${summary.pack_dir}\` (sha256: ${summary.pack_sha256 || 'n/a'})`,
+    `- Policy: \`${results.verifyPolicyPath || 'env/defaults'}\``,
+    `- Fail severity: ${(policy.fail_severity || []).join(', ') || 'none'}`,
+    `- Fail types: ${(policy.fail_types || []).join(', ') || 'none'}`,
+    '',
+    '## Checks',
+    '',
+    '| Check | Outcome | Reason |',
+    '|-------|---------|--------|',
+    ...checks.map((c) => `| ${c.name} | ${c.outcome} | ${c.reason || '-'} |`),
+    '',
+  ];
+  if (rulesFired.length > 0) {
+    md.push('## Rules that caused fail/warn', '', ...rulesFired.map((r) => `- **${r.rule_type}:** ${r.message}${r.runbook ? ` [runbook](${r.runbook})` : ''}`), '');
+  }
+  md.push('## Approval', '', `Auto-approved under policy: \`${results.verifyPolicyPath || 'env'}\``, '', '## References', '', `- [verify-summary.json](./verify-summary.json)`, ledgerWritten ? '- [ledger-entry.json](./ledger-entry.json)' : '');
+  return { json, md: md.join('\n') };
+}
+
 // ========== CLI ==========
 
 function printHelp() {
@@ -687,8 +836,18 @@ Independent Verification Script v${VERSION}
 
 Usage:
   node independent-verify.mjs --audit-pack <path>   Verify complete audit pack
+  node independent-verify.mjs --pack <path>          Alias for --audit-pack
   node independent-verify.mjs --snapshots <path>    Verify snapshots directory only
-  node independent-verify.mjs --help                Show this help
+  node independent-verify.mjs --help                 Show this help
+
+Temporal (--as-of):
+  node independent-verify.mjs --pack <path> --as-of <ISO8601>
+  Fix temporal context: decision_fingerprint includes as_of; decision-record gets temporal block.
+  Use for: "Was system compliant at date X?"
+
+Options:
+  --policy <path>   Explicit verify-policy path (overrides pack/repo lookup)
+  --as-of <ts>      ISO 8601 timestamp for temporal compliance (e.g. 2024-06-01T00:00:00Z)
 
 Exit codes:
   0 = All verifications passed
@@ -699,12 +858,17 @@ Environment:
   STRICT_VERIFY=1  Fail if ANCHORING_STATUS.json missing or assessment.status=FAIL
 
 Example:
-  node independent-verify.mjs --audit-pack ./audit-pack-abc12345
+  node independent-verify.mjs --pack ./audit-pack --policy ./verify-policy.json --as-of 2024-06-01T00:00:00Z
 
 Output:
   Verification results are printed to stdout.
   Add --json for machine-readable JSON output.
 `);
+}
+
+function getArg(args, name) {
+  const idx = args.indexOf(name);
+  return idx >= 0 ? args[idx + 1] : null;
 }
 
 async function main() {
@@ -716,19 +880,26 @@ async function main() {
   }
   
   const jsonOutput = args.includes('--json');
+  const policyPath = getArg(args, '--policy') || null;
+  const asOfRaw = getArg(args, '--as-of') || null;
+  const asOf = parseAsOf(asOfRaw);
+  if (asOfRaw && !asOf) {
+    log('error', `Invalid --as-of timestamp: ${asOfRaw}`);
+    process.exit(2);
+  }
   
   let results;
+  const packArg = args.includes('--pack') ? '--pack' : (args.includes('--audit-pack') ? '--audit-pack' : null);
   
-  if (args.includes('--audit-pack')) {
-    const idx = args.indexOf('--audit-pack');
-    const packPath = args[idx + 1];
+  if (packArg) {
+    const packPath = getArg(args, packArg);
     
     if (!packPath || !existsSync(packPath)) {
       log('error', 'Audit pack path not found');
       process.exit(2);
     }
     
-    results = await verifyAuditPack(packPath);
+    results = await verifyAuditPack(packPath, { asOf, policyPath });
     
   } else if (args.includes('--snapshots')) {
     const idx = args.indexOf('--snapshots');
@@ -889,6 +1060,7 @@ async function main() {
     const WRITE_LEDGER_ENTRY =
       process.env.WRITE_LEDGER_ENTRY == null ||
       !['0', 'false', 'no'].includes(String(process.env.WRITE_LEDGER_ENTRY).toLowerCase());
+    let ledgerFingerprint = null;
     if (WRITE_LEDGER_ENTRY) {
       const entry = {
         version: 1,
@@ -908,11 +1080,25 @@ async function main() {
         source: buildSourceMeta(),
       };
       entry.fingerprint_sha256 = sha256Hex(stableStringify(entry));
+      ledgerFingerprint = entry.fingerprint_sha256;
       writeFileSync(join(packPath, 'ledger-entry.json'), JSON.stringify(entry, null, 2), 'utf8');
       console.log('[independent-verify] ledger-entry.json written');
     } else {
       console.log('[independent-verify] ledger-entry.json skipped (WRITE_LEDGER_ENTRY=0)');
     }
+
+    const policyHash = results.verifyPolicyPath && existsSync(results.verifyPolicyPath)
+      ? sha256Hex(readFileSync(results.verifyPolicyPath, 'utf8'))
+      : sha256Hex(stableStringify(summary.policy || {}));
+    const verifySummaryHash = sha256Hex(stableStringify(summary));
+
+    // Decision Record (explainability: why pass/fail, which rules fired; decision_id → ledger_entry_id for regulators)
+    const decisionRecord = buildDecisionRecord(results, summary, packPath, ledgerFingerprint, policyHash, verifySummaryHash, results.asOf ?? null);
+    const decisionRecordPath = process.env.DECISION_RECORD_PATH || join(packPath, 'decision-record.json');
+    const decisionRecordDir = dirname(decisionRecordPath);
+    writeFileSync(decisionRecordPath, JSON.stringify(decisionRecord.json, null, 2), 'utf8');
+    writeFileSync(join(decisionRecordDir, basename(decisionRecordPath, '.json') + '.md'), decisionRecord.md, 'utf8');
+    console.log('[independent-verify] decision-record.json + decision-record.md written');
   }
 
   // Exit: 2 = strict anchoring fail, issues fail, or pack signature fail; 1 = general fail; 0 = pass
