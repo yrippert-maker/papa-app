@@ -33,9 +33,9 @@ async function proxyPost(body: unknown) {
   return { status: res.status, json };
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
+  const err = await requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) return err;
 
   if (!ACK_SERVER_URL) {
@@ -51,9 +51,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(json, { status });
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_WRITE, req);
+  const err = await requirePermission(session, PERMISSIONS.LEDGER_APPEND, req);
   if (err) return err;
 
   if (!ACK_SERVER_URL) {
