@@ -32,7 +32,10 @@ export async function POST(): Promise<Response> {
     const db = await getDocsDbWrite();
     const indexDb = {
       exec: (sql: string) => db.exec(sql),
-      run: (sql: string, ...params: unknown[]) => db.prepare(sql).then((s) => s.run(...params)),
+      run: async (sql: string, ...params: unknown[]) => {
+        const stmt = await db.prepare(sql);
+        return stmt.run(...params);
+      },
     };
     const result = await indexDocuments(indexDb);
     return NextResponse.json({
