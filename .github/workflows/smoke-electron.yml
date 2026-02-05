@@ -1,0 +1,113 @@
+name: smoke-electron
+
+concurrency:
+  # Prevent parallel runs of the same smoke workflow from racing
+  # on the same nightly issue (create/comment/escalate).
+  group: nightly-smoke-${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+  actions: read
+
+# Optional: не required для main. Запускается по schedule + manual.
+on:
+  workflow_dispatch:
+    # Test-only inputs for validating nightly-notify logic (FAIL x3 → CRITICAL → recovery)
+    # Safe to keep in repo: inputs are used ONLY for manual workflow_dispatch
+    # and do not affect scheduled nightly runs.
+    inputs:
+      force_fail:
+        type: boolean
+        required: false
+        default: false
+      force_is_schedule:
+        type: boolean
+        required: false
+        default: true
+  schedule:
+    - cron: "30 5 * * *"  # 08:30 MSK (nightly)
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      # Playwright --with-deps тянет X-зависимости. Если флаки "Missing X server" — раскомментировать xvfb:
+      # - run: sudo apt-get install -y xvfb && Xvfb :99 -screen 0 1024x768x24 &
+      # - run: export DISPLAY=:99
+
+      - name: Electron smoke (Playwright)
+        env:
+          PORT: "3001"
+          NEXTAUTH_SECRET: smoke-secret
+          WORKSPACE_ROOT: /tmp/papa-electron-smoke
+          ELECTRON_SMOKE: "1"
+          ELECTRON_ENABLE_LOGGING: "1"
+          ELECTRON_ENABLE_STACK_DUMPING: "1"
+          SMOKE_ARTIFACTS_DIR: /tmp/electron-smoke
+        run: npm run electron:smoke 2>&1 | tee /tmp/smoke-electron.log
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          echo "=== last 300 lines of electron log ==="
+          tail -n 300 /tmp/smoke-electron.log || true
+          echo "=== listeners (3001) ==="
+          lsof -nP -iTCP:3001 -sTCP:LISTEN || true
+          echo "=== env (filtered) ==="
+          printenv | grep -E 'PORT|NEXTAUTH|WORKSPACE|PAPA|AGENT|ELECTRON' || true
+
+      - name: Upload Electron smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-smoke-artifacts
+          path: /tmp/electron-smoke
+          if-no-files-found: ignore
+
+      - name: Force failure (test only)
+        # Test hook: allows manual simulation of smoke failure via workflow_dispatch.
+        # Never runs on schedule; guarded by event_name == 'workflow_dispatch'.
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.force_fail }}
+        run: exit 1
+
+  nightly_notify:
+    needs: [smoke]
+    uses: ./.github/workflows/_lib/nightly-notify.yml
+    with:
+      workflow_name: smoke-electron
+      smoke_result: ${{ needs.smoke.result }}
+      # Treat workflow_dispatch as "schedule" ONLY when explicitly requested.
+      # This enables safe manual testing of escalation/recovery logic
+      # without modifying the reusable workflow.
+      is_schedule: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_is_schedule) }}
+      severity_threshold: 3
+      enable_slack: true
+      enable_pagerduty: false
+      auto_close_on_success: true
+    secrets:
+      AWS_GITHUB_SNS_PUBLISH_ROLE_ARN: ${{ secrets.AWS_GITHUB_SNS_PUBLISH_ROLE_ARN }}
+      AWS_SNS_TOPIC_HIGH_ARN: ${{ secrets.AWS_SNS_TOPIC_HIGH_ARN }}
+      AWS_SNS_TOPIC_CRITICAL_ARN: ${{ secrets.AWS_SNS_TOPIC_CRITICAL_ARN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      PAGERDUTY_ROUTING_KEY: ${{ secrets.PAGERDUTY_ROUTING_KEY }}

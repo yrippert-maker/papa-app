@@ -1,0 +1,396 @@
+# Reusable: nightly smoke notify (issue / HIGH / CRITICAL / recovery)
+# Version: 1.0 | See docs/ops/nightly-smoke.md
+
+name: nightly-notify
+
+on:
+  workflow_call:
+    inputs:
+      workflow_name:
+        required: true
+        type: string
+      smoke_result:
+        required: true
+        type: string
+        description: "success | failure"
+      is_schedule:
+        required: true
+        type: boolean
+        description: "Caller was triggered by schedule"
+      severity_threshold:
+        required: false
+        type: number
+        default: 3
+      enable_slack:
+        required: false
+        type: boolean
+        default: true
+        description: "Slack only on CRITICAL (not HIGH)"
+      enable_pagerduty:
+        required: false
+        type: boolean
+        default: false
+      auto_close_on_success:
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      AWS_GITHUB_SNS_PUBLISH_ROLE_ARN:
+        required: true
+      AWS_SNS_TOPIC_HIGH_ARN:
+        required: true
+      AWS_SNS_TOPIC_CRITICAL_ARN:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: false
+      PAGERDUTY_ROUTING_KEY:
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+  actions: read
+
+jobs:
+  issue-nightly:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.smoke_result == 'failure' && inputs.is_schedule }}
+    steps:
+      - name: Create or update nightly issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const wf = "${{ inputs.workflow_name }}";
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const sha = context.sha.substring(0, 7);
+            const actor = context.actor;
+            const attempt = context.runAttempt || 1;
+            const time = new Date().toISOString();
+            const title = `Nightly smoke failed: ${wf}`;
+            const label = 'nightly-smoke';
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch {
+              try {
+                await github.rest.issues.createLabel({
+                  owner, repo,
+                  name: label,
+                  color: 'B60205',
+                  description: 'Nightly smoke regression'
+                });
+              } catch {}
+            }
+
+            const q = `repo:${owner}/${repo} is:issue is:open label:${label} "${title}" in:title`;
+            const search = await github.rest.search.issuesAndPullRequests({ q, per_page: 5 });
+            const existing = search.data.items.find(i => i.title === title);
+
+            const marker = '<!-- nightly-smoke-failure -->';
+            const commentBody = `❌ **Nightly smoke failed** ${marker}
+
+- **Run:** ${runUrl}
+- **Commit:** ${sha}
+- **Actor:** ${actor}
+- **Run attempt:** ${attempt}
+- **Time (UTC):** ${time}
+
+📎 Артефакты доступны в этом run'е (logs / screenshots).
+`;
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner, repo,
+                issue_number: existing.number,
+                body: `❌ **Nightly smoke failed again** ${marker}
+
+- **Run:** ${runUrl}
+- **Commit:** ${sha}
+- **Actor:** ${actor}
+- **Run attempt:** ${attempt}
+- **Time (UTC):** ${time}
+
+📎 Артефакты доступны в этом run'е (logs / screenshots).
+`
+              });
+            } else {
+              const created = await github.rest.issues.create({
+                owner, repo,
+                title,
+                labels: [label],
+                body: `❌ **Nightly smoke regression detected**
+
+Этот issue агрегирует падения nightly-smoke для workflow **${wf}**.
+
+---
+
+### Последний сбой
+- **Workflow:** ${wf}
+- **Repository:** ${owner}/${repo}
+- **Branch:** main
+- **Commit:** ${sha}
+- **Actor:** ${actor}
+- **Run:** ${runUrl}
+- **Run attempt:** ${attempt}
+- **Triggered by:** schedule (08:00 MSK)
+
+📎 **Артефакты** (логи / скриншоты) прикреплены к run'у выше.
+
+---
+
+### Что делать
+1. Открыть run → Artifacts
+2. Проверить summary / logs / screenshots
+3. Если повторяется — чинить, если одноразово — отметить комментарием
+`
+              });
+              await github.rest.issues.createComment({
+                owner, repo,
+                issue_number: created.data.number,
+                body: commentBody
+              });
+            }
+
+  notify-high-nightly:
+    runs-on: ubuntu-latest
+    needs: [issue-nightly]
+    if: ${{ inputs.smoke_result == 'failure' && inputs.is_schedule }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_SNS_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SNS_REGION || vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Publish HIGH nightly failure via SNS
+        env:
+          TOPIC: ${{ secrets.AWS_SNS_TOPIC_HIGH_ARN }}
+          WF: ${{ inputs.workflow_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          aws sns publish \
+            --topic-arn "$TOPIC" \
+            --subject "[HIGH] Nightly smoke failed: ${WF}" \
+            --message "Nightly smoke failed.\n\nWorkflow: ${WF}\nRun: ${RUN_URL}\nArtifacts attached to the run."
+
+      # Slack only for CRITICAL (not HIGH) — to avoid noise
+
+  escalate-nightly:
+    runs-on: ubuntu-latest
+    needs: [issue-nightly]
+    if: ${{ inputs.smoke_result == 'failure' && inputs.is_schedule }}
+    outputs:
+      escalated: ${{ steps.escalate.outputs.escalated }}
+      failures: ${{ steps.escalate.outputs.failures }}
+    steps:
+      - name: Escalate to CRITICAL on N consecutive failures
+        id: escalate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const core = require('@actions/core');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const wf = "${{ inputs.workflow_name }}";
+            const title = `Nightly smoke failed: ${wf}`;
+            const label = 'nightly-smoke';
+            const criticalLabel = 'critical';
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const threshold = Number("${{ inputs.severity_threshold }}");
+
+            const q = `repo:${owner}/${repo} is:issue is:open label:${label} "${title}" in:title`;
+            const search = await github.rest.search.issuesAndPullRequests({ q, per_page: 5 });
+            const issue = search.data.items.find(i => i.title === title);
+
+            if (!issue) {
+              core.setOutput('escalated', 'false');
+              core.setOutput('failures', '0');
+              return;
+            }
+
+            const comments = await github.rest.issues.listComments({
+              owner, repo,
+              issue_number: issue.number,
+              per_page: 100
+            });
+            const failures = comments.data.filter(c =>
+              c.body.includes("<!-- nightly-smoke-failure -->")
+            ).length;
+
+            core.setOutput('failures', String(failures));
+
+            if (failures < threshold) {
+              core.setOutput('escalated', 'false');
+              return;
+            }
+
+            const issueData = await github.rest.issues.get({ owner, repo, issue_number: issue.number });
+            const labels = issueData.data.labels.map(l => l.name);
+            if (labels.includes(criticalLabel)) {
+              core.setOutput('escalated', 'false');
+              return;
+            }
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: criticalLabel });
+            } catch {
+              try {
+                await github.rest.issues.createLabel({
+                  owner, repo, name: criticalLabel,
+                  color: 'D93F0B',
+                  description: 'Escalated critical'
+                });
+              } catch {}
+            }
+
+            await github.rest.issues.addLabels({
+              owner, repo,
+              issue_number: issue.number,
+              labels: [criticalLabel]
+            });
+
+            const postMortemUrl = `${context.serverUrl}/${owner}/${repo}/issues/new?template=post-mortem.md&title=${encodeURIComponent('Post-mortem: Nightly smoke failed - ' + wf)}&body=${encodeURIComponent('## Related incident\n\n- Issue: ' + context.serverUrl + '/' + owner + '/' + repo + '/issues/' + issue.number + '\n- Run: ' + runUrl + '\n- Workflow: ' + wf + '\n- Failures in a row: ' + failures)}`;
+
+            await github.rest.issues.createComment({
+              owner, repo,
+              issue_number: issue.number,
+              body: `🚨 **Escalated to CRITICAL**
+
+Nightly smoke failed **${failures} nights in a row**.
+
+- **Latest run:** ${runUrl}
+- **Action required:** investigate immediately.
+
+📋 [Create post-mortem](${postMortemUrl})`
+            });
+
+            core.setOutput('escalated', 'true');
+
+  notify-critical-nightly:
+    runs-on: ubuntu-latest
+    needs: [escalate-nightly]
+    if: ${{ needs.escalate-nightly.outputs.escalated == 'true' && inputs.is_schedule }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_SNS_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SNS_REGION || vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Publish CRITICAL via SNS
+        env:
+          TOPIC: ${{ secrets.AWS_SNS_TOPIC_CRITICAL_ARN }}
+          WF: ${{ inputs.workflow_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FAILURES: ${{ needs.escalate-nightly.outputs.failures }}
+        run: |
+          aws sns publish \
+            --topic-arn "$TOPIC" \
+            --subject "[CRITICAL] Nightly smoke failing repeatedly: ${WF}" \
+            --message "Nightly smoke failed ${FAILURES} nights in a row.\n\nWorkflow: ${WF}\nRun: ${RUN_URL}\nImmediate action required."
+
+      - name: Slack notify (CRITICAL)
+        if: ${{ inputs.enable_slack && secrets.SLACK_WEBHOOK_URL != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          WF: ${{ inputs.workflow_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FAILURES: ${{ needs.escalate-nightly.outputs.failures }}
+        run: |
+          payload=$(cat <<EOF
+{"text":"🚨 [CRITICAL] Nightly smoke failing repeatedly: ${WF}\nFailures in a row: ${FAILURES}\nRun: ${RUN_URL}"}
+EOF
+)
+          curl -fsS -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"
+
+      - name: PagerDuty trigger (CRITICAL)
+        if: ${{ inputs.enable_pagerduty }}
+        env:
+          PD_KEY: ${{ secrets.PAGERDUTY_ROUTING_KEY }}
+          WF: ${{ inputs.workflow_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          payload=$(cat <<EOF
+{
+  "routing_key": "${PD_KEY}",
+  "event_action": "trigger",
+  "dedup_key": "nightly-smoke-${REPO}-${WF}",
+  "payload": {
+    "summary": "[CRITICAL] Nightly smoke repeatedly failing: ${WF}",
+    "source": "github-actions",
+    "severity": "critical",
+    "component": "nightly-smoke",
+    "group": "${REPO}",
+    "class": "${WF}",
+    "custom_details": {
+      "run_url": "${RUN_URL}",
+      "workflow": "${WF}",
+      "repo": "${REPO}"
+    }
+  }
+}
+EOF
+)
+          curl -fsS -X POST https://events.pagerduty.com/v2/enqueue \
+            -H 'Content-Type: application/json' \
+            --data "$payload"
+
+  recover-nightly:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.smoke_result == 'success' && inputs.is_schedule && inputs.auto_close_on_success }}
+    steps:
+      - name: Downgrade CRITICAL (if any) + close nightly issue on recovery
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const wf = "${{ inputs.workflow_name }}";
+            const title = `Nightly smoke failed: ${wf}`;
+            const label = 'nightly-smoke';
+            const criticalLabel = 'critical';
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const time = new Date().toISOString();
+
+            const q = `repo:${owner}/${repo} is:issue is:open label:${label} "${title}" in:title`;
+            const search = await github.rest.search.issuesAndPullRequests({ q, per_page: 5 });
+            const issue = search.data.items.find(i => i.title === title);
+
+            if (!issue) {
+              console.log("No open nightly issue — nothing to close.");
+              return;
+            }
+
+            const issueData = await github.rest.issues.get({ owner, repo, issue_number: issue.number });
+            const labels = issueData.data.labels.map(l => l.name);
+            const hadCritical = labels.includes(criticalLabel);
+            if (hadCritical) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner, repo,
+                  issue_number: issue.number,
+                  name: criticalLabel
+                });
+              } catch (e) {
+                console.log("removeLabel critical failed:", e.message);
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner, repo,
+              issue_number: issue.number,
+              body: `✅ **Nightly smoke recovered**${hadCritical ? " (CRITICAL downgraded)" : ""}
+
+- **Run:** ${runUrl}
+- **Time (UTC):** ${time}
+
+Closing this issue automatically.`
+            });
+
+            await github.rest.issues.update({
+              owner, repo,
+              issue_number: issue.number,
+              state: 'closed'
+            });
