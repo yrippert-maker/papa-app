@@ -9,11 +9,11 @@ export interface DbRunResult {
   changes: number;
 }
 
-/** Подготовленное выражение — совместимость с better-sqlite3 prepare(). */
+/** Подготовленное выражение — совместимость с better-sqlite3 prepare(); всегда await для PG. */
 export interface DbPreparedStatement {
-  run(...params: unknown[]): DbRunResult;
-  get<T = unknown>(...params: unknown[]): T | undefined;
-  all<T = unknown>(...params: unknown[]): T[];
+  run(...params: unknown[]): Promise<DbRunResult>;
+  get<T = unknown>(...params: unknown[]): Promise<T | undefined>;
+  all<T = unknown>(...params: unknown[]): Promise<T[]>;
 }
 
 /** Диалект БД. См. ADR-004. */
@@ -26,16 +26,16 @@ export interface DbCapabilities {
   lastInsertId: 'lastval' | 'last_insert_rowid';
 }
 
-/** Адаптер доступа к БД. Единый интерфейс для SQLite и Postgres. */
+/** Адаптер доступа к БД. Единый интерфейс для SQLite и Postgres. Все методы — async. */
 export interface DbAdapter {
   /** Диалект — для условной логики в миграциях. См. ADR-004. */
   readonly dialect: DbDialect;
   /** Возможности диалекта (опционально). */
   readonly capabilities?: DbCapabilities;
-  prepare(sql: string): DbPreparedStatement;
-  exec(sql: string): void;
+  prepare(sql: string): Promise<DbPreparedStatement>;
+  exec(sql: string): Promise<void>;
   /** Транзакция: fn выполняется в BEGIN/COMMIT; при ошибке — ROLLBACK. */
-  transaction<T>(fn: () => T): T;
+  transaction<T>(fn: () => T | Promise<T>): Promise<T>;
   /** Для readiness check. Возвращает true если БД доступна. */
   healthCheck(): Promise<boolean>;
 }

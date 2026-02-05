@@ -12,8 +12,8 @@ import type { DbAdapter, DbPreparedStatement, DbRunResult, DbCapabilities } from
 
 export type DbMode = 'readonly' | 'readwrite';
 
-/** SQLITE_BUSY code для retry. */
-export const SQLITE_BUSY = 5;
+/** Re-export для обратной совместимости (реализация в lib/db/retry.ts). */
+export { SQLITE_BUSY } from '@/lib/db/retry';
 
 function applySafePragmas(db: Database.Database, mode: DbMode): void {
   db.pragma('foreign_keys = ON');
@@ -51,53 +51,16 @@ export function openDb(options: { mode: DbMode }): Database.Database {
   return db;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-/**
- * Retry с exponential backoff + jitter для SQLITE_BUSY.
- */
-export async function withRetry<T>(
-  fn: () => T,
-  opts: { maxAttempts?: number } = {}
-): Promise<T> {
-  const maxAttempts = opts.maxAttempts ?? 3;
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return fn();
-    } catch (e) {
-      lastError = e;
-      const code = (e as { errno?: number; code?: number | string })?.errno ?? (e as { code?: number | string })?.code;
-      if (code === SQLITE_BUSY || code === 'SQLITE_BUSY') {
-        if (attempt < maxAttempts) {
-          const base = Math.min(50 * Math.pow(2, attempt - 1), 500);
-          const jitter = Math.floor(Math.random() * 50);
-          const ms = base + jitter;
-          console.warn(`[db] SQLITE_BUSY attempt ${attempt}/${maxAttempts}, retry in ${ms}ms`);
-          await sleep(ms);
-        } else {
-          console.warn('[db] SQLITE_BUSY max attempts exceeded');
-        }
-      } else {
-        throw e;
-      }
-    }
-  }
-  throw lastError;
-}
-
 function wrapStatement(stmt: Database.Statement): DbPreparedStatement {
   return {
-    run(...params: unknown[]): DbRunResult {
+    async run(...params: unknown[]): Promise<DbRunResult> {
       const r = stmt.run(...params) as { changes: number; lastInsertRowid: number };
       return { changes: r.changes, lastInsertRowid: r.lastInsertRowid };
     },
-    get<T = unknown>(...params: unknown[]): T | undefined {
+    async get<T = unknown>(...params: unknown[]): Promise<T | undefined> {
       return stmt.get(...params) as T | undefined;
     },
-    all<T = unknown>(...params: unknown[]): T[] {
+    async all<T = unknown>(...params: unknown[]): Promise<T[]> {
       return stmt.all(...params) as T[];
     },
   };
@@ -129,15 +92,15 @@ export function createSqliteAdapterFromDb(db: Database.Database): DbAdapter {
   const adapter: DbAdapter = {
     dialect: 'sqlite',
     capabilities: CAPABILITIES,
-    prepare(sql: string): DbPreparedStatement {
+    async prepare(sql: string): Promise<DbPreparedStatement> {
       return wrapStatement(db.prepare(sql));
     },
-    exec(sql: string): void {
+    async exec(sql: string): Promise<void> {
       db.exec(sql);
     },
-    transaction<T>(fn: () => T): T {
-      const tr = db.transaction(fn);
-      return tr();
+    async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
+      const tr = db.transaction(fn as () => T);
+      return Promise.resolve(tr());
     },
     async healthCheck(): Promise<boolean> {
       try {
@@ -160,15 +123,15 @@ export function createSqliteAdapter(options: { mode: DbMode }): DbAdapter {
   const adapter: DbAdapter = {
     dialect: 'sqlite',
     capabilities: CAPABILITIES,
-    prepare(sql: string): DbPreparedStatement {
+    async prepare(sql: string): Promise<DbPreparedStatement> {
       return wrapStatement(db.prepare(sql));
     },
-    exec(sql: string): void {
+    async exec(sql: string): Promise<void> {
       db.exec(sql);
     },
-    transaction<T>(fn: () => T): T {
-      const tr = db.transaction(fn);
-      return tr();
+    async transaction<T>(fn: () => T | Promise<T>): Promise<T> {
+      const tr = db.transaction(fn as () => T);
+      return Promise.resolve(tr());
     },
     async healthCheck(): Promise<boolean> {
       try {

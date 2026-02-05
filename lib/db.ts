@@ -1,20 +1,51 @@
 import { readFileSync } from 'fs';
 import { createHash } from 'crypto';
-import { withRetry, SQLITE_BUSY } from './db/sqlite';
-import { createSqliteAdapter } from './adapters/sqlite-adapter';
-import type { DbAdapter } from './adapters/types';
+import { withRetry, SQLITE_BUSY } from './db/retry';
+import type { DbAdapter, DbRunResult } from './adapters/types';
 
 export { withRetry, SQLITE_BUSY };
 
+/** Хелпер: prepare + get (всегда await для PG/SQLite). */
+export async function dbGet<T>(db: DbAdapter, sql: string, ...params: unknown[]): Promise<T | undefined> {
+  const stmt = await db.prepare(sql);
+  return stmt.get<T>(...params);
+}
+
+/** Хелпер: prepare + all. */
+export async function dbAll<T>(db: DbAdapter, sql: string, ...params: unknown[]): Promise<T[]> {
+  const stmt = await db.prepare(sql);
+  return stmt.all<T>(...params);
+}
+
+/** Хелпер: prepare + run. */
+export async function dbRun(db: DbAdapter, sql: string, ...params: unknown[]): Promise<DbRunResult> {
+  const stmt = await db.prepare(sql);
+  return stmt.run(...params);
+}
+
+let adapterPromise: Promise<DbAdapter> | null = null;
 let db: DbAdapter | null = null;
 let dbReadOnly: DbAdapter | null = null;
 
-export function getDb(): DbAdapter {
-  if (db) return db;
-  db = createSqliteAdapter({ mode: 'readwrite' });
+/** Выбор backend до импорта sqlite: при DATABASE_URL — только PG, иначе только SQLite. */
+async function ensureAdapter(mode: 'readwrite' | 'readonly'): Promise<DbAdapter> {
+  if (process.env.DATABASE_URL) {
+    const { createPgAdapter } = await import('./adapters/pg-adapter');
+    const { prisma } = await import('./prisma');
+    if (!prisma) throw new Error('DATABASE_URL is set but Prisma client is not initialized');
+    return createPgAdapter(prisma);
+  }
+  const { createSqliteAdapter } = await import('./adapters/sqlite-adapter');
+  return createSqliteAdapter({ mode });
+}
 
-  // SQLite bootstrap schema (Postgres uses migrations)
-  db.exec(`
+export async function getDb(): Promise<DbAdapter> {
+  if (db) return db;
+  if (!adapterPromise) adapterPromise = ensureAdapter('readwrite');
+  db = await adapterPromise;
+
+  // SQLite bootstrap schema (Postgres uses migrations; не вызываем exec для PG)
+  const bootstrapSql = `
     -- File Registry
     CREATE TABLE IF NOT EXISTS file_registry (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -332,18 +363,26 @@ export function getDb(): DbAdapter {
     ('STOREKEEPER','WORKSPACE.READ'),('STOREKEEPER','FILES.LIST'),('STOREKEEPER','FILES.UPLOAD'),('STOREKEEPER','LEDGER.READ'),
     ('ENGINEER','WORKSPACE.READ'),('ENGINEER','FILES.LIST'),('ENGINEER','LEDGER.READ'),
     ('AUDITOR','WORKSPACE.READ'),('AUDITOR','FILES.LIST'),('AUDITOR','LEDGER.READ'),('AUDITOR','INSPECTION.VIEW');
-  `);
+  `;
+
+  if (db.dialect === 'sqlite') {
+    await db.exec(bootstrapSql);
+  }
 
   return db;
 }
 
 /**
  * US-8: Read-only соединение для AI-facing и read-only контекстов.
- * БД должна существовать. Использовать для: списки, пагинация, проверки.
+ * БД должна существовать. При DATABASE_URL используется тот же адаптер (PG).
  */
-export function getDbReadOnly(): DbAdapter {
+export async function getDbReadOnly(): Promise<DbAdapter> {
   if (dbReadOnly) return dbReadOnly;
-  dbReadOnly = createSqliteAdapter({ mode: 'readonly' });
+  if (process.env.DATABASE_URL) {
+    dbReadOnly = await getDb();
+    return dbReadOnly;
+  }
+  dbReadOnly = await ensureAdapter('readonly');
   return dbReadOnly;
 }
 
