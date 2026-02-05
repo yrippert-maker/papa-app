@@ -1,0 +1,9 @@
+# Railway/Nixpacks: Node 20 + npm install (обход EBADENGINE / npm ci EUSAGE)
+[variables]
+NIXPACKS_NODE_VERSION = "20"
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm run build"]
