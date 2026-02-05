@@ -35,7 +35,7 @@ function toSpecRole(roleCode: string): string {
   return ROLE_TO_SPEC[roleCode] ?? roleCode;
 }
 
-export async function GET() {
+export async function GET(): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   if (err) return err;
@@ -58,7 +58,7 @@ export async function GET() {
 
 const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 60 };
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
   const key = `settings-users:${getClientKey(req)}`;
   const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
   if (!allowed) return rateLimitError('Too many requests', req.headers, retryAfterMs ? Math.ceil(retryAfterMs / 1000) : undefined);
@@ -77,14 +77,16 @@ export async function POST(req: Request) {
     const actorEmail = (session?.user?.email as string) ?? 'unknown';
     const result = await withRetry(async () => {
       const db = await getDb();
-      const existing = await dbGet(db, 'SELECT id FROM users WHERE email = ?', email);
-      if (existing) {
-        await appendAdminAudit({ type: 'USER_CREATE_DENIED', payload: { actor_id: actorId, actor_email: actorEmail, target_email: email, reason: 'duplicate_email' } }, actorId);
-        return { conflict: true } as const;
-      }
-      const r = await dbRun(db, 'INSERT INTO users (email, password_hash, role_code) VALUES (?, ?, ?)', email, passwordHash, role_code);
-      await appendAdminAudit({ type: 'USER_CREATED', payload: { actor_id: actorId, actor_email: actorEmail, target_email: email, role_code } }, actorId);
-      return { id: r.lastInsertRowid };
+      return db.transaction(async () => {
+        const existing = await dbGet(db, 'SELECT id FROM users WHERE email = ?', email);
+        if (existing) {
+          await appendAdminAudit({ type: 'USER_CREATE_DENIED', payload: { actor_id: actorId, actor_email: actorEmail, target_email: email, reason: 'duplicate_email' } }, actorId);
+          return { conflict: true } as const;
+        }
+        const r = await dbRun(db, 'INSERT INTO users (email, password_hash, role_code) VALUES (?, ?, ?)', email, passwordHash, role_code);
+        await appendAdminAudit({ type: 'USER_CREATED', payload: { actor_id: actorId, actor_email: actorEmail, target_email: email, role_code } }, actorId);
+        return { id: r.lastInsertRowid };
+      });
     });
     if ('conflict' in result && result.conflict) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });

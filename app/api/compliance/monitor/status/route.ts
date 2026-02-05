@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const status = getMonitorStatus();
+    const status = await getMonitorStatus();
     return NextResponse.json(status);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';

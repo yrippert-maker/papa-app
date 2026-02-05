@@ -11,7 +11,7 @@ import { execSync } from 'child_process';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.SETTINGS_VIEW);
   if (err) return err;

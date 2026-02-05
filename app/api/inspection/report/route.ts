@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbGet, dbAll } from '@/lib/db';
 import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
 import { badRequest } from '@/lib/api/error-response';
 
@@ -12,9 +12,9 @@ export const dynamic = 'force-dynamic';
  * Permission: INSPECTION.VIEW.
  * Query: kind=INPUT|OUTPUT, status=..., from_date, to_date (ISO date, optional).
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_VIEW, request);
+  const err = await requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_VIEW, request);
   if (err) return err;
 
   try {
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const fromDate = url.searchParams.get('from_date') ?? '';
     const toDate = url.searchParams.get('to_date') ?? '';
 
-    const db = getDbReadOnly();
+    const db = await getDbReadOnly();
 
     let cardsWhere = '1=1';
     const cardsParams: (string | number)[] = [];
@@ -45,18 +45,10 @@ export async function GET(request: Request) {
       cardsParams.push(toDate);
     }
 
-    const totalCards = db
-      .prepare(
-        `SELECT COUNT(*) as c FROM inspection_card c WHERE ${cardsWhere}`
-      )
-      .get(...cardsParams) as { c: number };
+    const totalCards = (await dbGet(db, `SELECT COUNT(*) as c FROM inspection_card c WHERE ${cardsWhere}`, ...cardsParams)) as { c: number };
     const total = totalCards?.c ?? 0;
 
-    const byStatus = db
-      .prepare(
-        `SELECT c.status, COUNT(*) as cnt FROM inspection_card c WHERE ${cardsWhere} GROUP BY c.status`
-      )
-      .all(...cardsParams) as Array<{ status: string; cnt: number }>;
+    const byStatus = (await dbAll(db, `SELECT c.status, COUNT(*) as cnt FROM inspection_card c WHERE ${cardsWhere} GROUP BY c.status`, ...cardsParams)) as Array<{ status: string; cnt: number }>;
 
     const completedCount = byStatus.find((r) => r.status === 'COMPLETED')?.cnt ?? 0;
     const cancelledCount = byStatus.find((r) => r.status === 'CANCELLED')?.cnt ?? 0;
@@ -70,7 +62,7 @@ export async function GET(request: Request) {
       WHERE ${cardsWhere}
       GROUP BY r.check_code, r.result
     `;
-    const resultsByCheck = db.prepare(resultsQuery).all(...cardsParams) as Array<{
+    const resultsByCheck = (await dbAll(db, resultsQuery, ...cardsParams)) as Array<{
       check_code: string;
       result: string;
       cnt: number;

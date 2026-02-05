@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getDb, withRetry } from '@/lib/db';
+import { getDb, withRetry, dbGet, dbAll, dbRun } from '@/lib/db';
 import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
 import { badRequest, rateLimitError } from '@/lib/api/error-response';
 import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
@@ -51,7 +51,7 @@ function validateResults(body: unknown): CheckResultInput[] {
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<Response> {
   const key = `inspection-check-results:${getClientKey(req)}`;
   const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
   if (!allowed) {
@@ -63,7 +63,7 @@ export async function POST(
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_MANAGE, req);
+  const err = await requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_MANAGE, req);
   if (err) return err;
 
   const { id } = await params;
@@ -84,13 +84,9 @@ export async function POST(
     const actorEmail = (session?.user?.email as string) ?? 'unknown';
 
     const output = await withRetry(
-      () => {
-      const db = getDb();
-      const card = db
-        .prepare(
-          'SELECT inspection_card_id, status, card_kind, card_no FROM inspection_card WHERE inspection_card_id = ?'
-        )
-        .get(id.trim()) as
+      async () => {
+      const db = await getDb();
+      const card = (await dbGet(db, 'SELECT inspection_card_id, status, card_kind, card_no FROM inspection_card WHERE inspection_card_id = ?', id.trim())) as
         | { inspection_card_id: string; status: InspectionCardStatus; card_kind: string; card_no: string }
         | undefined;
 
@@ -103,11 +99,7 @@ export async function POST(
       }
 
       // Valid check_codes for this card_kind from templates
-      const templates = db
-        .prepare(
-          'SELECT check_code FROM inspection_check_item_template WHERE card_kind = ?'
-        )
-        .all(card.card_kind) as Array<{ check_code: string }>;
+      const templates = (await dbAll(db, 'SELECT check_code FROM inspection_check_item_template WHERE card_kind = ?', card.card_kind)) as Array<{ check_code: string }>;
       const validCodes = new Set(templates.map((t) => t.check_code));
 
       const changed: Array<{ check_code: string; result: string; value: string; unit: string; comment: string | null }> = [];
@@ -115,11 +107,7 @@ export async function POST(
         if (!validCodes.has(r.check_code)) {
           return { invalidCheckCode: true, check_code: r.check_code } as const;
         }
-        const existing = db
-          .prepare(
-            'SELECT inspection_check_result_id, result, value, unit, comment FROM inspection_check_result WHERE inspection_card_id = ? AND check_code = ?'
-          )
-          .get(card.inspection_card_id, r.check_code) as
+        const existing = (await dbGet(db, 'SELECT inspection_check_result_id, result, value, unit, comment FROM inspection_check_result WHERE inspection_card_id = ? AND check_code = ?', card.inspection_card_id, r.check_code)) as
           | { inspection_check_result_id: string; result: string; value: string | null; unit: string | null; comment: string | null }
           | undefined;
 
@@ -138,26 +126,18 @@ export async function POST(
             (existing.unit ?? '') === u &&
             (existing.comment ?? '') === (comm ?? '');
           if (same) continue;
-          db.prepare(
-            'UPDATE inspection_check_result SET result = ?, value = ?, unit = ?, comment = ? WHERE inspection_check_result_id = ?'
-          ).run(r.result, val || null, u || null, comm, resultId);
+          await dbRun(db, 'UPDATE inspection_check_result SET result = ?, value = ?, unit = ?, comment = ? WHERE inspection_check_result_id = ?', r.result, val || null, u || null, comm, resultId);
         } else {
-          const checkItem = db
-            .prepare(
-              'SELECT check_item_id FROM inspection_check_item_template WHERE card_kind = ? AND check_code = ? LIMIT 1'
-            )
-            .get(card.card_kind, r.check_code) as { check_item_id: string } | undefined;
-          db.prepare(
-            `INSERT INTO inspection_check_result (inspection_check_result_id, inspection_card_id, check_item_id, check_code, result, value, unit, comment, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-          ).run(resultId, card.inspection_card_id, checkItem?.check_item_id ?? null, r.check_code, r.result, val || null, u || null, comm);
+          const checkItem = (await dbGet(db, 'SELECT check_item_id FROM inspection_check_item_template WHERE card_kind = ? AND check_code = ? LIMIT 1', card.card_kind, r.check_code)) as { check_item_id: string } | undefined;
+          await dbRun(db, `INSERT INTO inspection_check_result (inspection_check_result_id, inspection_card_id, check_item_id, check_code, result, value, unit, comment, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`, resultId, card.inspection_card_id, checkItem?.check_item_id ?? null, r.check_code, r.result, val || null, u || null, comm);
         }
         changed.push({ check_code: r.check_code, result: r.result, value: val, unit: u, comment: comm });
       }
 
       const recordedAt = new Date().toISOString();
       for (const c of changed) {
-        appendInspectionCheckRecordedEvent(db, actorId, {
+        await appendInspectionCheckRecordedEvent(db, actorId, {
           inspection_card_id: card.inspection_card_id,
           card_no: card.card_no,
           check_code: c.check_code,
@@ -170,9 +150,7 @@ export async function POST(
         });
       }
 
-      const allResults = db
-        .prepare('SELECT * FROM inspection_check_result WHERE inspection_card_id = ? ORDER BY created_at')
-        .all(card.inspection_card_id) as Array<Record<string, unknown>>;
+      const allResults = (await dbAll(db, 'SELECT * FROM inspection_check_result WHERE inspection_card_id = ? ORDER BY created_at', card.inspection_card_id)) as Array<Record<string, unknown>>;
 
       return { card: { ...card }, check_results: allResults, changed };
     },

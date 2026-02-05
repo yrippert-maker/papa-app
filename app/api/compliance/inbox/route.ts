@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') as 'NEW' | 'ACCEPTED' | 'PROPOSED' | 'APPLIED' | 'REJECTED' | undefined;
     const limit = parseInt(searchParams.get('limit') ?? '50', 10);
-    const items = listInbox({ status, limit });
+    const items = await listInbox({ status, limit });
     return NextResponse.json({ items });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbGet, dbAll } from '@/lib/db';
 import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
 import { badRequest } from '@/lib/api/error-response';
 
@@ -19,9 +19,9 @@ const MAX_LIMIT = 500;
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_VIEW, request);
+  const err = await requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_VIEW, request);
   if (err) return err;
 
   const { id } = await params;
@@ -39,32 +39,28 @@ export async function GET(
   if (Number.isNaN(offset) || offset < 0) offset = 0;
 
   try {
-    const db = getDbReadOnly();
+    const db = await getDbReadOnly();
 
-    const card = db.prepare('SELECT inspection_card_id FROM inspection_card WHERE inspection_card_id = ?').get(cardId);
+    const card = await dbGet(db, 'SELECT inspection_card_id FROM inspection_card WHERE inspection_card_id = ?', cardId);
     if (!card) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 });
     }
 
-    const total = db
-      .prepare(
-        `SELECT COUNT(*) as c FROM ledger_events
-         WHERE event_type IN ('INSPECTION_CARD_TRANSITION', 'INSPECTION_CHECK_RECORDED')
-           AND json_extract(payload_json, '$.inspection_card_id') = ?`
-      )
-      .get(cardId) as { c: number };
+    const total = (await dbGet(db, `
+      SELECT COUNT(*) as c FROM ledger_events
+      WHERE event_type IN ('INSPECTION_CARD_TRANSITION', 'INSPECTION_CHECK_RECORDED')
+        AND json_extract(payload_json, '$.inspection_card_id') = ?`,
+    cardId)) as { c: number };
     const totalCount = total?.c ?? 0;
 
-    const rows = db
-      .prepare(
-        `SELECT id, event_type, payload_json, created_at, block_hash, actor_id
-         FROM ledger_events
-         WHERE event_type IN ('INSPECTION_CARD_TRANSITION', 'INSPECTION_CHECK_RECORDED')
-           AND json_extract(payload_json, '$.inspection_card_id') = ?
-         ORDER BY created_at ASC
-         LIMIT ? OFFSET ?`
-      )
-      .all(cardId, limit, offset) as Array<{
+    const rows = (await dbAll(db, `
+      SELECT id, event_type, payload_json, created_at, block_hash, actor_id
+      FROM ledger_events
+      WHERE event_type IN ('INSPECTION_CARD_TRANSITION', 'INSPECTION_CHECK_RECORDED')
+        AND json_extract(payload_json, '$.inspection_card_id') = ?
+      ORDER BY created_at ASC
+      LIMIT ? OFFSET ?`,
+    cardId, limit, offset)) as Array<{
       id: number;
       event_type: string;
       payload_json: string;

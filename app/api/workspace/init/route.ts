@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 10 };
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
   const key = `workspace-init:${getClientKey(req)}`;
   const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
   if (!allowed) {
@@ -23,12 +23,12 @@ export async function POST(req: Request) {
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
+  const err = await requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) return err;
 
   try {
     const { created } = ensureWorkspaceStructure();
-    getDb(); // ensure DB + schema
+    await getDb(); // ensure DB + schema
     return NextResponse.json({ ok: true, created });
   } catch (e) {
     console.error('[workspace/init]', e);

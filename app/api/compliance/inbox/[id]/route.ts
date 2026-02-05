@@ -10,9 +10,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const item = getInboxItem(id);
+    const item = await getInboxItem(id);
     if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const proposal = getProposalByEventId(id);
+    const proposal = await getProposalByEventId(id);
     return NextResponse.json({
       ...item,
       proposal: proposal

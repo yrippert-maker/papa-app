@@ -19,25 +19,25 @@ export const dynamic = 'force-dynamic';
 /**
  * GET - Get break-glass status
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   const hasView = hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasView && !hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
     if (err) return err;
   }
 
   try {
-    const active = isBreakGlassActive();
+    const active = await isBreakGlassActive();
     
     if (!active) {
       return NextResponse.json({ active: false, state: null });
     }
     
-    const state = getBreakGlassState();
+    const state = await getBreakGlassState();
     if (!state) {
       return NextResponse.json({ active: false, state: null });
     }
@@ -64,14 +64,14 @@ export async function GET(request: Request) {
 /**
  * POST - Activate or deactivate break-glass
  */
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   // Only ADMIN can activate break-glass
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, request);
+    const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, request);
     if (err) return err;
   }
 
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
         );
       }
       
-      const state = activateBreakGlass(userId, reason);
+      const state = await activateBreakGlass(userId, reason);
       
       return NextResponse.json({
         success: true,
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       });
       
     } else if (action === 'deactivate') {
-      deactivateBreakGlass(userId, body.reason);
+      await deactivateBreakGlass(userId, body.reason);
       
       return NextResponse.json({
         success: true,

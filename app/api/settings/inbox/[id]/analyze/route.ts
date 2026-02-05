@@ -11,7 +11,7 @@ import { acceptChangeEvent, getInboxItem } from '@/lib/compliance-inbox-service'
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.SETTINGS_VIEW);
   if (err) return err;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getDb, withRetry } from '@/lib/db';
+import { getDb, withRetry, dbGet, dbRun } from '@/lib/db';
 import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
 import { badRequest, rateLimitError } from '@/lib/api/error-response';
 import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
@@ -20,7 +20,7 @@ const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 60 };
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<Response> {
   const key = `inspection-transition:${getClientKey(req)}`;
   const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
   if (!allowed) {
@@ -32,7 +32,7 @@ export async function POST(
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_MANAGE, req);
+  const err = await requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_MANAGE, req);
   if (err) return err;
 
   const { id } = await params;
@@ -52,11 +52,9 @@ export async function POST(
     const transitionedAt = new Date().toISOString();
 
     const result = await withRetry(
-      () => {
-      const db = getDb();
-      const card = db
-        .prepare('SELECT inspection_card_id, status, card_no FROM inspection_card WHERE inspection_card_id = ?')
-        .get(id.trim()) as { inspection_card_id: string; status: InspectionCardStatus; card_no: string } | undefined;
+      async () => {
+      const db = await getDb();
+      const card = (await dbGet(db, 'SELECT inspection_card_id, status, card_no FROM inspection_card WHERE inspection_card_id = ?', id.trim())) as { inspection_card_id: string; status: InspectionCardStatus; card_no: string } | undefined;
 
       if (!card) {
         return { notFound: true } as const;
@@ -70,12 +68,10 @@ export async function POST(
       }
 
       // Update card
-      db.prepare(
-        'UPDATE inspection_card SET status = ?, transitioned_by = ?, transitioned_at = ?, updated_at = datetime(\'now\') WHERE inspection_card_id = ?'
-      ).run(targetStatus, actorEmail, transitionedAt, card.inspection_card_id);
+      await dbRun(db, 'UPDATE inspection_card SET status = ?, transitioned_by = ?, transitioned_at = ?, updated_at = datetime(\'now\') WHERE inspection_card_id = ?', targetStatus, actorEmail, transitionedAt, card.inspection_card_id);
 
-      // Audit trail
-      appendInspectionTransitionEvent(db, actorId, {
+      // Audit trail (appendInspectionTransitionEvent is async)
+      await appendInspectionTransitionEvent(db, actorId, {
         inspection_card_id: card.inspection_card_id,
         card_no: card.card_no,
         from_status: card.status,
@@ -84,9 +80,7 @@ export async function POST(
         transitioned_at: transitionedAt,
       });
 
-      const updated = db
-        .prepare('SELECT * FROM inspection_card WHERE inspection_card_id = ?')
-        .get(card.inspection_card_id) as Record<string, unknown>;
+      const updated = (await dbGet(db, 'SELECT * FROM inspection_card WHERE inspection_card_id = ?', card.inspection_card_id)) as Record<string, unknown>;
 
       return { ...updated, from_status: card.status };
     },

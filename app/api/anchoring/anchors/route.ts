@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbGet, dbAll } from '@/lib/db';
 import type { AnchorListItem, AnchorListResponse, AnchorRowStatus } from '@/lib/types/anchoring';
 
 export const dynamic = 'force-dynamic';
@@ -20,9 +20,9 @@ function mapStatus(s: string): AnchorRowStatus {
   return 'pending';
 }
 
-export async function GET(req: Request) {
+export async function GET(req: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
+  const err = await requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) return err;
 
   try {
@@ -33,8 +33,8 @@ export async function GET(req: Request) {
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT, MAX_LIMIT);
     const offset = Math.max(0, parseInt(url.searchParams.get('offset') ?? '0', 10) || 0);
 
-    const db = getDbReadOnly();
-    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'").get();
+    const db = await getDbReadOnly();
+    const tableExists = await dbGet(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'");
     if (!tableExists) {
       return NextResponse.json({
         network: 'polygon',
@@ -55,17 +55,16 @@ export async function GET(req: Request) {
       params.push(status);
     }
 
-    const totalRow = db.prepare(`SELECT COUNT(*) as c FROM ledger_anchors WHERE ${where}`).get(...params) as { c: number };
+    const totalRow = (await dbGet(db, `SELECT COUNT(*) as c FROM ledger_anchors WHERE ${where}`, ...params)) as { c: number };
     const total = totalRow?.c ?? 0;
 
-    const rows = db
-      .prepare(
-        `SELECT id, period_start, period_end, events_count, status, merkle_root, network, chain_id,
-                contract_address, tx_hash, block_number, log_index, anchored_at, created_at
-         FROM ledger_anchors WHERE ${where}
-         ORDER BY period_start DESC LIMIT ? OFFSET ?`
-      )
-      .all(...params, limit, offset) as Array<{
+    const rows = (await dbAll(db,
+      `SELECT id, period_start, period_end, events_count, status, merkle_root, network, chain_id,
+              contract_address, tx_hash, block_number, log_index, anchored_at, created_at
+       FROM ledger_anchors WHERE ${where}
+       ORDER BY period_start DESC LIMIT ? OFFSET ?`,
+      ...params, limit, offset
+    )) as Array<{
       id: string;
       period_start: string;
       period_end: string;

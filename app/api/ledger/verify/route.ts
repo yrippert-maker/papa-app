@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbAll } from '@/lib/db';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
 import { verifyLedgerChain } from '@/lib/ledger-hash';
 import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   const key = getClientKey(req);
   const { allowed, retryAfterMs } = checkRateLimit(key, { windowMs: 60_000, max: 10 });
   if (!allowed) {
@@ -22,17 +22,13 @@ export async function GET(req: NextRequest) {
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.LEDGER_READ, req);
+  const err = await requirePermission(session, PERMISSIONS.LEDGER_READ, req);
   if (err) return err;
 
   const t0 = performance.now();
   try {
-    const db = getDbReadOnly();
-    const rows = db
-      .prepare(
-        'SELECT id, event_type, payload_json, prev_hash, block_hash, created_at, actor_id FROM ledger_events ORDER BY id'
-      )
-      .all() as Array<{ id?: number; event_type: string; payload_json: string; prev_hash: string | null; block_hash: string; created_at?: string; actor_id?: string | null }>;
+    const db = await getDbReadOnly();
+    const rows = (await dbAll(db, 'SELECT id, event_type, payload_json, prev_hash, block_hash, created_at, actor_id FROM ledger_events ORDER BY id')) as Array<{ id?: number; event_type: string; payload_json: string; prev_hash: string | null; block_hash: string; created_at?: string; actor_id?: string | null }>;
 
     verifyLedgerChain(rows);
     const timingMs = Math.round(performance.now() - t0);

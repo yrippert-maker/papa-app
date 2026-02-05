@@ -19,7 +19,7 @@ const SPEC_TO_DB: Record<string, ChangeEventStatus> = {
   REJECTED: 'REJECTED',
 };
 
-export async function GET(req: Request) {
+export async function GET(req: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.SETTINGS_VIEW);
   if (err) return err;

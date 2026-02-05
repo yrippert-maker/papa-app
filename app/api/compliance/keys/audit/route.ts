@@ -13,15 +13,15 @@ import { getKeyAuditEvents, type KeyAuditFilter } from '@/lib/compliance-service
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   // Allow COMPLIANCE.VIEW or ADMIN.MANAGE_USERS
-  const hasComplianceView = hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
-  const hasAdminAccess = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasComplianceView = await hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
+  const hasAdminAccess = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasComplianceView && !hasAdminAccess) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
     if (err) return err;
   }
 
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     const cursor = url.searchParams.get('cursor');
     if (cursor) filter.cursor = parseInt(cursor, 10);
     
-    const result = getKeyAuditEvents(filter);
+    const result = await getKeyAuditEvents(filter);
     
     return NextResponse.json(result);
   } catch (error) {

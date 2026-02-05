@@ -15,15 +15,15 @@ import { getVerifyStatsCSV, getKeyAuditCSV, type KeyAuditFilter } from '@/lib/co
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   // Allow COMPLIANCE.VIEW or ADMIN.MANAGE_USERS
   const hasComplianceView = hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
-  const hasAdminAccess = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdminAccess = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasComplianceView && !hasAdminAccess) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
     if (err) return err;
   }
 
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
           filter.action = action;
         }
         
-        csv = getKeyAuditCSV(filter);
+        csv = await getKeyAuditCSV(filter);
         
         // Include filter info in filename
         const parts = ['key-audit', timestamp];

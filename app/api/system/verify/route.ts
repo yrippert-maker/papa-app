@@ -9,7 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS, canWithAlias } from '@/lib/authz';
 import { runAuthzVerification } from '@/lib/authz-verify-runner';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbGet, dbAll } from '@/lib/db';
 import { verifyLedgerChain } from '@/lib/ledger-hash';
 import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 import { VERIFY_SKIP_REASONS } from '@/lib/verify-constants';
@@ -42,10 +42,10 @@ type InspectionResult =
   | { ok: true; message: string; scope: { card_count: number } }
   | { ok: false; error: string };
 
-function runInspectionVerification(): InspectionResult {
-  const db = getDbReadOnly();
+async function runInspectionVerification(): Promise<InspectionResult> {
+  const db = await getDbReadOnly();
   try {
-    const row = db.prepare('SELECT COUNT(*) as c FROM inspection_card').get() as { c: number } | undefined;
+    const row = (await dbGet(db, 'SELECT COUNT(*) as c FROM inspection_card')) as { c: number } | undefined;
     const cardCount = row?.c ?? 0;
     return { ok: true, message: 'Inspection subsystem ok', scope: { card_count: cardCount } };
   } catch (e) {
@@ -59,13 +59,11 @@ function runInspectionVerification(): InspectionResult {
   }
 }
 
-function runLedgerVerification(): LedgerResult {
-  const db = getDbReadOnly();
-  const rows = db
-    .prepare(
-      'SELECT id, event_type, payload_json, prev_hash, block_hash, created_at, actor_id FROM ledger_events ORDER BY id'
-    )
-    .all() as Array<{
+async function runLedgerVerification(): Promise<LedgerResult> {
+  const db = await getDbReadOnly();
+  const rows = (await dbAll(db,
+    'SELECT id, event_type, payload_json, prev_hash, block_hash, created_at, actor_id FROM ledger_events ORDER BY id'
+  )) as Array<{
     id?: number;
     event_type: string;
     payload_json: string;
@@ -87,7 +85,7 @@ function runLedgerVerification(): LedgerResult {
   return { ok: true, message: 'Ledger integrity: OK', scope };
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   const rid = requestId();
   const key = getClientKey(req);
   const { allowed, retryAfterMs } = checkRateLimit(key, { windowMs: 60_000, max: 10 });
@@ -107,7 +105,7 @@ export async function GET(req: NextRequest) {
   const actor = (session?.user as { email?: string } | undefined)?.email;
   logVerify({ request_id: rid, event: 'verify_start', actor });
 
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
+  const err = await requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) {
     const status = err.status;
     const code = status === 401 ? VerifyErrorCodes.UNAUTHORIZED : VerifyErrorCodes.FORBIDDEN;
@@ -120,7 +118,7 @@ export async function GET(req: NextRequest) {
   const hasLedgerRead = (session?.user as { permissions?: string[] } | undefined)?.permissions?.includes(
     'LEDGER.READ'
   );
-  const hasInspectionView = canWithAlias(session, PERMISSIONS.INSPECTION_VIEW);
+  const hasInspectionView = await canWithAlias(session, PERMISSIONS.INSPECTION_VIEW);
 
   const t0 = performance.now();
   const generatedAt = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -143,7 +141,7 @@ export async function GET(req: NextRequest) {
   let tInspectionMs = 0;
   if (hasInspectionView) {
     const tInspection = performance.now();
-    inspectionResult = runInspectionVerification();
+    inspectionResult = await runInspectionVerification();
     tInspectionMs = Math.round(performance.now() - tInspection);
   }
 
@@ -153,7 +151,7 @@ export async function GET(req: NextRequest) {
   if (hasLedgerRead) {
     const tLedger = performance.now();
     try {
-      ledgerResult = runLedgerVerification();
+      ledgerResult = await runLedgerVerification();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Ledger verification failed';
       logVerify({ request_id: rid, event: 'verify_end', actor, http_status: 503, error: VerifyErrorCodes.UPSTREAM_LEDGER_ERROR });

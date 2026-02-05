@@ -15,14 +15,14 @@ export const dynamic = 'force-dynamic';
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasManage = hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasManage = await hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasManage && !hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
     if (err) return err;
   }
 
@@ -60,7 +60,7 @@ export async function POST(
       );
     }
     
-    const req = approveRequest({
+    const req = await approveRequest({
       request_id: id,
       approver_id: approverId,
     });

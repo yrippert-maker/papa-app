@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbGet, dbAll } from '@/lib/db';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { WORKSPACE_ROOT } from '@/lib/config';
@@ -24,9 +24,9 @@ function parseIntSafe(v: string | null, def: number): number {
   return Number.isFinite(n) ? n : def;
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
+  const err = await requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) return err;
 
   try {
@@ -34,8 +34,8 @@ export async function GET(req: NextRequest) {
     const windowDays = Math.min(365, Math.max(1, parseIntSafe(url.searchParams.get('windowDays'), 30)));
     const checkGaps = url.searchParams.get('checkGaps') === 'true';
 
-    const db = getDbReadOnly();
-    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'").get();
+    const db = await getDbReadOnly();
+    const tableExists = await dbGet(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'");
     if (!tableExists) {
       return NextResponse.json({
         windowDays,
@@ -53,13 +53,12 @@ export async function GET(req: NextRequest) {
     const issues: AnchoringIssue[] = [];
 
     // 1) failed anchors
-    const failed = db
-      .prepare(
-        `SELECT id, period_start, period_end, status FROM ledger_anchors
-         WHERE period_start >= ? AND status = 'failed'
-         ORDER BY period_start DESC`
-      )
-      .all(windowStartStr) as Array<{ id: string; period_start: string; period_end: string; status: string }>;
+    const failed = (await dbAll(db,
+      `SELECT id, period_start, period_end, status FROM ledger_anchors
+       WHERE period_start >= ? AND status = 'failed'
+       ORDER BY period_start DESC`,
+      windowStartStr
+    )) as Array<{ id: string; period_start: string; period_end: string; status: string }>;
 
     for (const a of failed) {
       issues.push({
@@ -75,13 +74,12 @@ export async function GET(req: NextRequest) {
     }
 
     // 2) pending too long (>72h)
-    const pendingTooLong = db
-      .prepare(
-        `SELECT id, period_start, period_end, created_at, tx_hash FROM ledger_anchors
-         WHERE period_start >= ? AND status = 'pending' AND created_at < ?
-         ORDER BY created_at ASC`
-      )
-      .all(windowStartStr, pendingThresholdStr) as Array<{
+    const pendingTooLong = (await dbAll(db,
+      `SELECT id, period_start, period_end, created_at, tx_hash FROM ledger_anchors
+       WHERE period_start >= ? AND status = 'pending' AND created_at < ?
+       ORDER BY created_at ASC`,
+      windowStartStr, pendingThresholdStr
+    )) as Array<{
       id: string;
       period_start: string;
       period_end: string;
@@ -104,13 +102,12 @@ export async function GET(req: NextRequest) {
     }
 
     // 3) receipt missing for confirmed anchors (filesystem check)
-    const confirmed = db
-      .prepare(
-        `SELECT id, period_start, period_end, tx_hash, status FROM ledger_anchors
-         WHERE period_start >= ? AND status = 'confirmed'
-         ORDER BY period_start DESC`
-      )
-      .all(windowStartStr) as Array<{
+    const confirmed = (await dbAll(db,
+      `SELECT id, period_start, period_end, tx_hash, status FROM ledger_anchors
+       WHERE period_start >= ? AND status = 'confirmed'
+       ORDER BY period_start DESC`,
+      windowStartStr
+    )) as Array<{
       id: string;
       period_start: string;
       period_end: string;
@@ -141,12 +138,11 @@ export async function GET(req: NextRequest) {
 
     // 4) gaps in periods (optional)
     if (checkGaps) {
-      const rows = db
-        .prepare(
-          `SELECT id, period_start, period_end, status FROM ledger_anchors
-           WHERE period_start >= ? ORDER BY period_start ASC`
-        )
-        .all(windowStartStr) as Array<{ id: string; period_start: string; period_end: string; status: string }>;
+      const rows = (await dbAll(db,
+        `SELECT id, period_start, period_end, status FROM ledger_anchors
+         WHERE period_start >= ? ORDER BY period_start ASC`,
+        windowStartStr
+      )) as Array<{ id: string; period_start: string; period_end: string; status: string }>;
 
       for (let i = 1; i < rows.length; i++) {
         const prev = rows[i - 1];

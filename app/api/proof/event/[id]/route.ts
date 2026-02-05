@@ -14,7 +14,7 @@ export async function GET(
   try {
     const id = parseInt((await params).id, 10);
     if (isNaN(id)) return NextResponse.json({ error: 'Invalid event id' }, { status: 400 });
-    const proof = getEventProof(id);
+    const proof = await getEventProof(id);
     if (!proof) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     return NextResponse.json({
       event: {

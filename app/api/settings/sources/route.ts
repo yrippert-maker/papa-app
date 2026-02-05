@@ -65,7 +65,7 @@ async function seedAllowedSendersIfEmpty(db: Awaited<ReturnType<typeof getDb>>) 
   }
 }
 
-export async function GET() {
+export async function GET(): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.SETTINGS_VIEW);
   if (err) return err;
@@ -106,7 +106,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.SETTINGS_VIEW);
   if (err) return err;

@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbGet } from '@/lib/db';
 import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { createHash } from 'crypto';
@@ -19,16 +19,16 @@ const RECEIPTS_DIR = join(WORKSPACE_ROOT, '00_SYSTEM', 'anchor-receipts');
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, _req);
+  const err = await requirePermission(session, PERMISSIONS.WORKSPACE_READ, _req);
   if (err) return err;
 
   try {
     const { id: anchorId } = await params;
-    const db = getDbReadOnly();
+    const db = await getDbReadOnly();
 
-    const row = db.prepare('SELECT * FROM ledger_anchors WHERE id = ?').get(anchorId) as {
+    const row = (await dbGet(db, 'SELECT * FROM ledger_anchors WHERE id = ?', anchorId)) as {
       id: string;
       period_start: string;
       period_end: string;

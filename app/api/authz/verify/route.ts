@@ -7,7 +7,7 @@ import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   const key = getClientKey(req);
   const { allowed, retryAfterMs } = checkRateLimit(key, { windowMs: 60_000, max: 10 });
   if (!allowed) {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
+  const err = await requirePermission(session, PERMISSIONS.WORKSPACE_READ, req);
   if (err) return err;
 
   const t0 = performance.now();

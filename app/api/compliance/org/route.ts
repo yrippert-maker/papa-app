@@ -21,14 +21,14 @@ export const dynamic = 'force-dynamic';
 /**
  * GET - List orgs, teams, or user assignments
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   const hasView = hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasView && !hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
     if (err) return err;
   }
 
@@ -69,12 +69,12 @@ export async function GET(request: Request) {
 /**
  * POST - Create org, team, or assignment
  */
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   if (!hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, request);
+    const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, request);
     if (err) return err;
   }
 

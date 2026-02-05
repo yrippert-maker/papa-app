@@ -29,7 +29,7 @@ const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 60 };
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<Response> {
   const key = `admin-users:${getClientKey(req)}`;
   const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
   if (!allowed) {

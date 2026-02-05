@@ -5,11 +5,12 @@ import { join } from 'path';
 import { createHash } from 'crypto';
 import { authOptions } from '@/lib/auth-options';
 import { WORKSPACE_ROOT } from '@/lib/config';
-import { getDb, withRetry } from '@/lib/db';
+import { getDb, withRetry, dbGet, dbRun } from '@/lib/db';
 import { computeEventHash, canonicalJSON } from '@/lib/ledger-hash';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
 import { badRequest, rateLimitError } from '@/lib/api/error-response';
 import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
+import { queueAgentIngest } from '@/lib/agent/ingest-queue';
 
 const AI_INBOX_DIR = 'ai-inbox';
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -43,7 +44,7 @@ function isAllowedFile(name: string, size: number): { ok: true } | { ok: false; 
   return { ok: true };
 }
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
   const key = `files-upload:${getClientKey(req)}`;
   const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
   if (!allowed) {
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.FILES_UPLOAD, req);
+  const err = await requirePermission(session, PERMISSIONS.FILES_UPLOAD, req);
   if (err) return err;
 
   try {
@@ -79,15 +80,11 @@ export async function POST(req: Request) {
     const actorId = (session?.user?.id as string) ?? '';
     const tsUtc = new Date().toISOString();
     const payload = canonicalJSON({ action: 'FILE_REGISTERED', relative_path: relPath, checksum_sha256: checksumSha256 });
-    const row = await withRetry(() => {
-      const db = getDb();
-      db.prepare(
-        'INSERT INTO file_registry (relative_path, checksum_sha256, uploaded_by) VALUES (?, ?, ?)'
-      ).run(relPath, checksumSha256, 'user');
+    const row = await withRetry(async () => {
+      const db = await getDb();
+      await dbRun(db, 'INSERT INTO file_registry (relative_path, checksum_sha256, uploaded_by) VALUES (?, ?, ?)', relPath, checksumSha256, 'user');
 
-      const lastLedger = db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1').get() as
-        | { block_hash: string }
-        | undefined;
+      const lastLedger = (await dbGet(db, 'SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')) as { block_hash: string } | undefined;
       const prevHash = lastLedger?.block_hash ?? null;
       const blockHash = computeEventHash({
         prev_hash: prevHash,
@@ -96,15 +93,30 @@ export async function POST(req: Request) {
         actor_id: actorId,
         canonical_payload_json: payload,
       });
-      db.prepare(
-        'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run('FILE_REGISTERED', payload, prevHash, blockHash, tsUtc, actorId || null);
+      await dbRun(db, 'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)', 'FILE_REGISTERED', payload, prevHash, blockHash, tsUtc, actorId || null);
 
-      return db.prepare('SELECT id, created_at FROM file_registry WHERE relative_path = ?').get(relPath) as {
+      return (await dbGet(db, 'SELECT id, created_at FROM file_registry WHERE relative_path = ?', relPath)) as {
         id: number;
         created_at: string;
       };
     });
+
+    if (process.env.DATABASE_URL) {
+      const ext = (base.includes('.') ? '.' + base.split('.').pop()!.toLowerCase() : '').replace(/^\./, '') || '';
+      const allowedForAgent = ['pdf', 'docx', 'txt', 'md'].includes(ext);
+      if (allowedForAgent) {
+        const stat = await import('fs').then((fs) => fs.promises.stat(absPath));
+        queueAgentIngest({
+          path: relPath,
+          filename: base,
+          ext: ext ? `.${ext}` : '.bin',
+          sha256: checksumSha256,
+          sizeBytes: buf.length,
+          modifiedAt: stat.mtime,
+        }).catch(() => {});
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       id: row.id,

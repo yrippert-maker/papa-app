@@ -16,7 +16,7 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions);
     const { id } = await params;
-    const result = applyProposal(id, { applied_by: session?.user?.email ?? undefined });
+    const result = await applyProposal(id, { applied_by: session?.user?.email ?? undefined });
     return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';

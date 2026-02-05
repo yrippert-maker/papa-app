@@ -13,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const anchor = getAnchor(id);
+    const anchor = await getAnchor(id);
     if (!anchor) return NextResponse.json({ error: 'Anchor not found' }, { status: 404 });
     return NextResponse.json(anchor);
   } catch (e) {

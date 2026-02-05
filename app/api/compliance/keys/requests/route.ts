@@ -20,26 +20,26 @@ export const dynamic = 'force-dynamic';
 /**
  * GET - List requests
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasView = hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasView = await hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasView && !hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
     if (err) return err;
   }
 
   try {
     // Expire timed-out requests first
-    expireTimedOutRequests();
+    await expireTimedOutRequests();
     
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
     const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
     
-    const requests = listRequests({
+    const requests = await listRequests({
       status: status ? (status.split(',') as RequestStatus[]) : undefined,
       limit: Math.min(limit, 100),
     });
@@ -62,14 +62,14 @@ export async function GET(request: Request) {
 /**
  * POST - Create request
  */
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasManage = hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasManage = await hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasManage && !hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
     if (err) return err;
   }
 
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     
     const initiatorId = (session?.user?.id as string) ?? 'unknown';
     
-    const req = createRequest({
+    const req = await createRequest({
       action,
       target_key_id: body.target_key_id,
       reason: body.reason,

@@ -17,7 +17,7 @@ export async function POST(
     const session = await getServerSession(authOptions);
     const { id } = await params;
     const body = (await req.json().catch(() => ({}))) as { comment?: string; targets?: PatchTarget[] };
-    const { proposal_id } = acceptChangeEvent(id, {
+    const { proposal_id } = await acceptChangeEvent(id, {
       actor_user_id: session?.user?.email ?? undefined,
       actor_role: session?.user?.role ?? undefined,
       comment: body.comment,

@@ -38,7 +38,7 @@ function toSpecRole(roleCode: string): string {
 
 const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 60 };
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   const key = `settings-users:${getClientKey(req)}`;
   const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
   if (!allowed) return rateLimitError('Too many requests', req.headers, retryAfterMs ? Math.ceil(retryAfterMs / 1000) : undefined);
@@ -95,7 +95,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   if (err) return err;

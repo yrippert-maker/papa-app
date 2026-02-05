@@ -19,14 +19,14 @@ export const dynamic = 'force-dynamic';
 /**
  * GET - List legal holds
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
-  const hasView = hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
+  const hasView = await hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
   
   if (!hasAdmin && !hasView) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
     if (err) return err;
   }
 
@@ -53,12 +53,12 @@ export async function GET(request: Request) {
 /**
  * POST - Create or release legal hold
  */
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   if (!hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, request);
+    const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, request);
     if (err) return err;
   }
 

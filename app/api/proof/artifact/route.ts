@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     if (!sha256 || !/^[a-f0-9]{64}$/i.test(sha256)) {
       return NextResponse.json({ error: 'sha256 query param required (64 hex chars)' }, { status: 400 });
     }
-    const events = getEventsByArtifact(sha256);
+    const events = await getEventsByArtifact(sha256);
     return NextResponse.json({
       artifact_sha256: sha256,
       events: events.map((e) => ({

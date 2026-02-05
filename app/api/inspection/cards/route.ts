@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbAll } from '@/lib/db';
 import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
 import { badRequest } from '@/lib/api/error-response';
 import { parsePaginationParams } from '@/lib/pagination';
@@ -13,9 +13,9 @@ export const dynamic = 'force-dynamic';
  * Permission: INSPECTION.VIEW (или INSPECTION.MANAGE).
  * Query: kind=INPUT|OUTPUT, status=DRAFT|IN_PROGRESS|COMPLETED|CANCELLED, limit, offset.
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_VIEW, request);
+  const err = await requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_VIEW, request);
   if (err) return err;
 
   try {
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     const status = searchParams.get('status') as 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | null;
     const { limit, offset } = parsePaginationParams(searchParams);
 
-    const db = getDbReadOnly();
+    const db = await getDbReadOnly();
     let query = `
       SELECT c.*, r.request_no, r.request_kind, r.title as request_title
       FROM inspection_card c
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     }
     query += ' ORDER BY c.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
-    const cards = db.prepare(query).all(...params);
+    const cards = await dbAll(db, query, ...params);
     return NextResponse.json({
       cards,
       hasMore: (cards as unknown[]).length === limit,

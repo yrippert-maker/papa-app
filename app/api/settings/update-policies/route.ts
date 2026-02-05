@@ -91,7 +91,7 @@ function rowToNested(row: UpdatePoliciesRow | undefined) {
   };
 }
 
-export async function GET() {
+export async function GET(): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.SETTINGS_VIEW);
   if (err) return err;
@@ -110,7 +110,7 @@ export async function GET() {
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   const err = await requirePermission(session, PERMISSIONS.SETTINGS_VIEW);
   if (err) return err;

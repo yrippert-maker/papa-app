@@ -44,7 +44,7 @@ export type EvidenceVerifyResponse = {
   errors?: string[];
 };
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   // Rate limit: 20 requests per minute
   const clientKey = getClientKey(request);
   const rateCheck = checkRateLimit(`evidence-verify:${clientKey}`, { max: 20, windowMs: 60_000 });
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   }
 
   const session = await getServerSession(authOptions);
-  const permError = requirePermission(session, 'INSPECTION.VIEW');
+  const permError = await requirePermission(session, 'INSPECTION.VIEW');
   if (permError) {
     incEvidenceVerifyMetric('unauthorized');
     return permError;

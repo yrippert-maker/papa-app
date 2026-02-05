@@ -19,14 +19,14 @@ export const dynamic = 'force-dynamic';
 /**
  * GET - List post-mortems
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasView = hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
+  const hasView = await hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
   const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasView && !hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
     if (err) return err;
   }
 
@@ -54,14 +54,14 @@ export async function GET(request: Request) {
 /**
  * POST - Update or approve post-mortem
  */
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasManage = hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
+  const hasManage = await hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
   const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasManage && !hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
     if (err) return err;
   }
 

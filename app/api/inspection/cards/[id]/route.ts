@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbGet, dbAll } from '@/lib/db';
 import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
 import { badRequest } from '@/lib/api/error-response';
 
@@ -14,9 +14,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_VIEW, request);
+  const err = await requirePermissionWithAlias(session, PERMISSIONS.INSPECTION_VIEW, request);
   if (err) return err;
 
   const { id } = await params;
@@ -25,37 +25,31 @@ export async function GET(
   }
 
   try {
-    const db = getDbReadOnly();
-    const card = db
-      .prepare(
-        `SELECT c.*, r.request_no, r.request_kind, r.title as request_title, r.status as request_status
-         FROM inspection_card c
-         LEFT JOIN tmc_request r ON r.tmc_request_id = c.tmc_request_id
-         WHERE c.inspection_card_id = ?`
-      )
-      .get(id.trim()) as Record<string, unknown> | undefined;
+    const db = await getDbReadOnly();
+    const card = (await dbGet(db, `
+      SELECT c.*, r.request_no, r.request_kind, r.title as request_title, r.status as request_status
+      FROM inspection_card c
+      LEFT JOIN tmc_request r ON r.tmc_request_id = c.tmc_request_id
+      WHERE c.inspection_card_id = ?`,
+    id.trim())) as Record<string, unknown> | undefined;
 
     if (!card) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 });
     }
 
-    const results = db
-      .prepare(
-        `SELECT r.* FROM inspection_check_result r
-         WHERE r.inspection_card_id = ?
-         ORDER BY r.created_at`
-      )
-      .all(id.trim()) as Array<Record<string, unknown>>;
+    const results = (await dbAll(db, `
+      SELECT r.* FROM inspection_check_result r
+      WHERE r.inspection_card_id = ?
+      ORDER BY r.created_at`,
+    id.trim())) as Array<Record<string, unknown>>;
 
     const cardKind = (card.card_kind as string) ?? 'INPUT';
-    const templates = db
-      .prepare(
-        `SELECT check_code, check_title, check_description, mandatory
-         FROM inspection_check_item_template
-         WHERE card_kind = ?
-         ORDER BY item_order`
-      )
-      .all(cardKind) as Array<{ check_code: string; check_title: string; check_description: string | null; mandatory: number }>;
+    const templates = (await dbAll(db, `
+      SELECT check_code, check_title, check_description, mandatory
+      FROM inspection_check_item_template
+      WHERE card_kind = ?
+      ORDER BY item_order`,
+    cardKind)) as Array<{ check_code: string; check_title: string; check_description: string | null; mandatory: number }>;
 
     const hints: Record<string, { title: string; description: string | null; mandatory: boolean }> = {};
     for (const t of templates) {

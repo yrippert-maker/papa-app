@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbAll } from '@/lib/db';
 import { requirePermissionWithAlias, PERMISSIONS } from '@/lib/authz';
 import { badRequest } from '@/lib/api/error-response';
 import { parsePaginationParams } from '@/lib/pagination';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermissionWithAlias(session, PERMISSIONS.TMC_REQUEST_VIEW, request);
+  const err = await requirePermissionWithAlias(session, PERMISSIONS.TMC_REQUEST_VIEW, request);
   if (err) return err;
 
   try {
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const status = searchParams.get('status') || '';
     const { limit, offset } = parsePaginationParams(searchParams);
 
-    const db = getDbReadOnly();
+    const db = await getDbReadOnly();
     let query = `
       SELECT l.*, i.name as item_name, i.item_code, i.unit
       FROM tmc_stock_lot l
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     }
     query += ' ORDER BY l.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
-    const lots = db.prepare(query).all(...params);
+    const lots = await dbAll(db, query, ...params);
     return NextResponse.json({ lots, hasMore: (lots as unknown[]).length === limit });
   } catch (e) {
     if (e instanceof Error && /^Invalid (limit|cursor|offset)$/.test(e.message)) {

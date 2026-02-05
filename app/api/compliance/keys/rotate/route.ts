@@ -23,20 +23,20 @@ import { isBreakGlassActive, recordBreakGlassAction } from '@/lib/key-lifecycle-
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   // Allow COMPLIANCE.MANAGE or ADMIN.MANAGE_USERS
-  const hasComplianceManage = hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
-  const hasAdminAccess = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasComplianceManage = await hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
+  const hasAdminAccess = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasComplianceManage && !hasAdminAccess) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
     if (err) return err;
   }
 
   // Check break-glass mode
-  if (!isBreakGlassActive()) {
+  if (!(await isBreakGlassActive())) {
     return NextResponse.json(
       {
         error: {
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     
     // Log to ledger with break-glass flag
     const actorId = (session?.user?.id as string) ?? null;
-    logKeyAction('KEY_ROTATED', {
+    await logKeyAction('KEY_ROTATED', {
       key_id: oldKeyId ?? 'none',
       new_key_id: newKey.key_id,
       break_glass: true,

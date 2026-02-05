@@ -26,15 +26,15 @@ export const dynamic = 'force-dynamic';
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ keyId: string }> }
-) {
+): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   // Allow COMPLIANCE.MANAGE or ADMIN.MANAGE_USERS
   const hasComplianceManage = hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
-  const hasAdminAccess = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdminAccess = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasComplianceManage && !hasAdminAccess) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
     if (err) return err;
   }
 
@@ -48,7 +48,7 @@ export async function POST(
   }
 
   // Check break-glass mode
-  if (!isBreakGlassActive()) {
+  if (!(await isBreakGlassActive())) {
     return NextResponse.json(
       {
         error: {
@@ -90,7 +90,7 @@ export async function POST(
     
     // Log to ledger with break-glass flag
     const actorId = (session?.user?.id as string) ?? null;
-    logKeyAction('KEY_REVOKED', { key_id: keyId, reason, break_glass: true }, actorId);
+    await logKeyAction('KEY_REVOKED', { key_id: keyId, reason, break_glass: true }, actorId);
     
     // Record action
     recordBreakGlassAction('REVOKE', `Revoked key ${keyId}: ${reason}`);

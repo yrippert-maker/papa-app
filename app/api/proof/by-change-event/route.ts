@@ -3,7 +3,7 @@
  * Находит ledger events по change_event_id в payload, возвращает proof последнего.
  */
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDb, dbGet } from '@/lib/db';
 import { getEventProof } from '@/lib/ledger-anchoring-service';
 
 export const dynamic = 'force-dynamic';
@@ -16,19 +16,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'changeEventId required' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const pattern = `%"change_event_id":"${changeEventId}"%`;
-    const row = db
-      .prepare(
-        `SELECT id FROM ledger_events WHERE payload_json LIKE ? ORDER BY id DESC LIMIT 1`
-      )
-      .get(pattern) as { id: number } | undefined;
+    const row = (await dbGet(db, `SELECT id FROM ledger_events WHERE payload_json LIKE ? ORDER BY id DESC LIMIT 1`, pattern)) as { id: number } | undefined;
 
     if (!row) {
       return NextResponse.json({ found: false, message: 'No ledger event for this change' }, { status: 404 });
     }
 
-    const proof = getEventProof(row.id);
+    const proof = await getEventProof(row.id);
     if (!proof) return NextResponse.json({ error: 'Proof not found' }, { status: 404 });
 
     return NextResponse.json({

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST() {
   try {
-    const event = createTestChangeEvent();
+    const event = await createTestChangeEvent();
     return NextResponse.json({
       ok: true,
       created: event.id,

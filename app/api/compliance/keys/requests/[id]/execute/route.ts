@@ -15,14 +15,14 @@ export const dynamic = 'force-dynamic';
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   const hasManage = hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasManage && !hasAdmin) {
-    const err = requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
+    const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);
     if (err) return err;
   }
 
@@ -36,7 +36,7 @@ export async function POST(
   }
 
   try {
-    const req = getRequest(id);
+    const req = await getRequest(id);
     if (!req) {
       return NextResponse.json(
         { error: { code: 'NOT_FOUND', message: 'Request not found' } },
@@ -89,7 +89,7 @@ export async function POST(
       }
       
       // Log to ledger
-      logKeyAction('KEY_REVOKED', {
+      await logKeyAction('KEY_REVOKED', {
         key_id: targetKeyId,
         reason,
         approval_request_id: id,
@@ -105,7 +105,7 @@ export async function POST(
     }
     
     // Mark as executed
-    const executed = markExecuted(id, executorId, result);
+    const executed = await markExecuted(id, executorId, result);
     
     return NextResponse.json({
       success: true,
