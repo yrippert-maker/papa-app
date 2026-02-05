@@ -14,7 +14,7 @@
 - `smoke-prod`, `smoke-docker`, `smoke-electron` — callers
 - Post-mortem template + автосвязка при CRITICAL
 
-**PR (baseline):** _TODO после merge — вставить ссылку_
+**PR (baseline):** [60cddbf](https://github.com/yrippert-maker/papa-app/commit/60cddbf)
 
 **Использование:** эталон для smoke/monitoring пайплайнов, release smoke ([release-smoke-pattern.md](./release-smoke-pattern.md)).
 
