@@ -18,6 +18,9 @@ export const Permissions = {
   INSPECTION_MANAGE: 'INSPECTION.MANAGE',
   COMPLIANCE_VIEW: 'COMPLIANCE.VIEW',
   COMPLIANCE_MANAGE: 'COMPLIANCE.MANAGE',
+  SETTINGS_VIEW: 'SETTINGS.VIEW',
+  DOC_VIEW: 'DOC.VIEW',
+  DOC_EDIT: 'DOC.EDIT',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
