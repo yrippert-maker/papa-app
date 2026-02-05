@@ -3,7 +3,9 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { getDbReadOnly, dbGet } from "./db";
 import { getPermissionsForRole, PERMISSIONS } from "./authz";
-import { prisma } from "./prisma";
+import { prisma } from "@/lib/prisma";
+import { getUserRoles } from "@/services/auth/getUserRoles";
+import { logAuditEvent } from "@/services/audit/logAuditEvent";
 
 const secret = process.env.NEXTAUTH_SECRET;
 const isProd = process.env.NODE_ENV === "production";
@@ -30,15 +32,18 @@ export const authOptions: NextAuthOptions = {
           const email = credentials.username.trim().toLowerCase();
           const password = credentials.password;
 
-          // Dev admin via env (portal demo / local dev)
+          // Dev admin: только при NODE_ENV !== production И явном DEV_ADMIN=true
+          const devAdminAllowed =
+            process.env.NODE_ENV !== "production" && process.env.DEV_ADMIN === "true";
           const devEmail = process.env.AUTH_ADMIN_EMAIL;
           const devPassword = process.env.AUTH_ADMIN_PASSWORD;
-          if (devEmail && devPassword && email === devEmail.trim() && password === devPassword) {
+          if (devAdminAllowed && devEmail && devPassword && email === devEmail.trim() && password === devPassword) {
             return {
               id: "dev-admin",
               name: email.split("@")[0],
               email,
               role: "admin",
+              roles: ["admin"],
             };
           }
 
@@ -50,12 +55,14 @@ export const authOptions: NextAuthOptions = {
             if (!user || user.status !== "ACTIVE" || !user.passwordHash) return null;
             const ok = await bcrypt.compare(password, user.passwordHash);
             if (!ok) return null;
-            const roleName = user.roles[0]?.role.name ?? "user";
+            const roleNames = user.roles.map((ur) => ur.role.name);
+            const roleName = roleNames[0] ?? "user";
             return {
               id: user.id,
               name: user.name ?? user.email.split("@")[0],
               email: user.email,
               role: roleName,
+              roles: roleNames,
             };
           }
 
@@ -102,6 +109,7 @@ export const authOptions: NextAuthOptions = {
       const allowedPaths = [
         "/",
         "/login",
+        "/403",
         "/documents",
         "/operations",
         "/compliance",
@@ -113,6 +121,7 @@ export const authOptions: NextAuthOptions = {
         "/safety",
         "/mail",
         "/admin",
+        "/audit",
         "/settings",
         "/system",
         "/traceability",
@@ -139,19 +148,26 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = (user as { id?: string }).id;
         const role = (user as { role?: string }).role;
-        // Единая нормализация: admin → ADMIN (RBAC в БД и UI)
+        const roles = (user as { roles?: string[] }).roles;
         token.role = role ? role.toUpperCase() : role;
+        token.roles = roles?.map((r) => r.toLowerCase()) ?? (role ? [role.toLowerCase()] : []);
+        if (!token.roles?.length && token.id && usePrisma) {
+          try {
+            token.roles = await getUserRoles(token.id);
+          } catch (e) {
+            console.warn("[auth jwt] getUserRoles failed:", e);
+          }
+        }
         try {
-          const isAdmin = role?.toUpperCase() === "ADMIN";
-          // ADMIN всегда получает полный набор прав (независимо от RBAC в БД)
+          const isAdmin = token.roles?.includes("admin") ?? role?.toUpperCase() === "ADMIN";
           if (isAdmin) {
             token.permissions = Object.values(PERMISSIONS);
           } else {
             token.permissions = role ? Array.from(await getPermissionsForRole(role.toUpperCase())) : [];
           }
         } catch (e) {
-          console.warn('[auth jwt] getPermissionsForRole failed:', e);
-          token.permissions = role?.toUpperCase() === "ADMIN" ? Object.values(PERMISSIONS) : [];
+          console.warn("[auth jwt] getPermissionsForRole failed:", e);
+          token.permissions = token.roles?.includes("admin") ? Object.values(PERMISSIONS) : [];
         }
       }
       return token;
@@ -160,10 +176,27 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.roles = (token.roles as string[]) ?? [];
         session.user.permissions = (token.permissions as string[]) ?? [];
       }
       return session;
     },
   },
   secret: secret ?? "dev-secret-change-in-production",
+  events: {
+    async signIn({ user }) {
+      try {
+        if (usePrisma && user.id && user.id !== "dev-admin") {
+          await logAuditEvent({
+            actorUserId: user.id,
+            action: "auth.sign_in",
+            target: user.email ?? user.id,
+            metadata: { provider: "credentials" },
+          });
+        }
+      } catch (e) {
+        console.warn("[auth signIn] logAuditEvent failed:", e);
+      }
+    },
+  },
 };
