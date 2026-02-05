@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "forceConsistentCasingInFileNames": true
+  },
+  "exclude": ["node_modules", "electron/bundle", "__tests__", "00_SYSTEM", "data", ".next"]
+}

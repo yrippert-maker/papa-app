@@ -24,8 +24,17 @@ jobs:
       - name: Check DB imports
         run: npm run check:db-imports
 
+      - name: Lint JSON (package.json)
+        run: npm run lint:json
+
       - name: Lint
         run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Check build context
+        run: npm run check:build-context
 
       - name: Test
         run: npm test

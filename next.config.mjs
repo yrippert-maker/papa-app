@@ -45,6 +45,7 @@ const nextConfig = {
     config.resolve ??= {};
     config.resolve.alias ??= {};
     config.resolve.alias["@"] = path.resolve(__dirname, ".");
+    config.resolve.alias["@lib"] = path.resolve(__dirname, "lib");
     config.resolve.alias["@services"] = path.resolve(__dirname, "services");
     config.watchOptions = {
       ...config.watchOptions,

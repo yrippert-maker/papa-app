@@ -29,7 +29,13 @@ const authMiddleware = withAuth(rbacMiddleware, {
 export default function middleware(req: NextRequest, event: { next: (r: NextRequest) => Promise<Response> }) {
   // Static assets и API — не трогать (matcher должен исключать, но belt-and-suspenders)
   const pathname = req.nextUrl.pathname;
-  if (pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname === '/favicon.ico') {
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname === '/favicon.ico' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml'
+  ) {
     return NextResponse.next();
   }
   if (isE2EModeInProduction) {
