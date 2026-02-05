@@ -214,3 +214,8 @@
     "wait-on": "^9.0.3"
   }
 }
+{
+  "scripts": {
+    "postinstall": "prisma generate --schema=prisma/schema.prisma"
+  }
+}
