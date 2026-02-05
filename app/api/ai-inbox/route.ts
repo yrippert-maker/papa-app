@@ -2,23 +2,21 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { listWorkspace } from '@/lib/workspace';
-import { getDbReadOnly } from '@/lib/db';
+import { getDbReadOnly, dbAll } from '@/lib/db';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
 
 export const dynamic = 'force-dynamic';
 
 /** GET /api/ai-inbox — список файлов в ai-inbox. Permission: AI_INBOX.VIEW */
-export async function GET(req: Request) {
+export async function GET(req: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.AI_INBOX_VIEW, req);
+  const err = await requirePermission(session, PERMISSIONS.AI_INBOX_VIEW, req);
   if (err) return err;
 
   try {
     const entries = listWorkspace('ai-inbox');
-    const db = getDbReadOnly();
-    const registry = db
-      .prepare('SELECT relative_path FROM file_registry')
-      .all() as Array<{ relative_path: string }>;
+    const db = await getDbReadOnly();
+    const registry = (await dbAll(db, 'SELECT relative_path FROM file_registry')) as Array<{ relative_path: string }>;
     const registeredPaths = new Set(registry.map((r) => r.relative_path));
     const full = entries.map((e) => ({
       name: e.name,
