@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
 import { badRequest, rateLimitError } from '@/lib/api/error-response';
 import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
-import { getDb, getDbReadOnly, withRetry } from '@/lib/db';
+import { getDb, getDbReadOnly, withRetry, dbGet, dbAll, dbRun } from '@/lib/db';
 import { hashSync } from 'bcryptjs';
 import { z } from 'zod';
 import { appendAdminAudit } from '@/lib/admin-audit';
@@ -18,16 +18,16 @@ const createUserSchema = z.object({
   role_code: z.enum(['ADMIN', 'MANAGER', 'STOREKEEPER', 'ENGINEER', 'AUDITOR']),
 });
 
-export async function GET(req: Request) {
+export async function GET(req: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
+  const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
   if (err) return err;
 
   try {
     const url = new URL(req.url);
     const { limit, cursor } = parsePaginationParams(url.searchParams);
 
-    const db = getDbReadOnly();
+    const db = await getDbReadOnly();
     let rows: Array<{ id: number; email: string; role_code: string; created_at: string }>;
     let nextCursor: string | null = null;
 
@@ -36,20 +36,20 @@ export async function GET(req: Request) {
       if (Number.isNaN(afterId) || afterId < 1) {
         return badRequest('Invalid cursor', req.headers);
       }
-      rows = db.prepare(`
+      rows = (await dbAll(db, `
         SELECT id, email, role_code, created_at
         FROM users
         WHERE id < ?
         ORDER BY id DESC
         LIMIT ?
-      `).all(afterId, limit + 1) as Array<{ id: number; email: string; role_code: string; created_at: string }>;
+      `, afterId, limit + 1)) as Array<{ id: number; email: string; role_code: string; created_at: string }>;
     } else {
-      rows = db.prepare(`
+      rows = (await dbAll(db, `
         SELECT id, email, role_code, created_at
         FROM users
         ORDER BY id DESC
         LIMIT ?
-      `).all(limit + 1) as Array<{ id: number; email: string; role_code: string; created_at: string }>;
+      `, limit + 1)) as Array<{ id: number; email: string; role_code: string; created_at: string }>;
     }
 
     const hasMore = rows.length > limit;
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
 
 const WRITE_RATE_LIMIT = { windowMs: 60_000, max: 60 };
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
   const key = `admin-users:${getClientKey(req)}`;
   const { allowed, retryAfterMs } = checkRateLimit(key, WRITE_RATE_LIMIT);
   if (!allowed) {
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
+  const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
   if (err) return err;
 
   try {
@@ -105,24 +105,24 @@ export async function POST(req: Request) {
     const actorEmail = (session?.user?.email as string) ?? 'unknown';
     const actorId = (session?.user?.id as string) ?? '0';
 
-    const result = await withRetry(() => {
-      const db = getDb();
-      const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-      if (existing) {
-        appendAdminAudit(
-          { type: 'USER_CREATE_DENIED', payload: { actor_id: actorId, actor_email: actorEmail, target_email: email, reason: 'duplicate_email' } },
+    const result = await withRetry(async () => {
+      const db = await getDb();
+      return db.transaction(async () => {
+        const existing = await dbGet(db, 'SELECT id FROM users WHERE email = ?', email);
+        if (existing) {
+          await appendAdminAudit(
+            { type: 'USER_CREATE_DENIED', payload: { actor_id: actorId, actor_email: actorEmail, target_email: email, reason: 'duplicate_email' } },
+            actorId
+          );
+          return { conflict: true } as const;
+        }
+        const r = await dbRun(db, 'INSERT INTO users (email, password_hash, role_code) VALUES (?, ?, ?)', email, passwordHash, role_code);
+        await appendAdminAudit(
+          { type: 'USER_CREATED', payload: { actor_id: actorId, actor_email: actorEmail, target_email: email, role_code } },
           actorId
         );
-        return { conflict: true } as const;
-      }
-      const r = db.prepare(
-        'INSERT INTO users (email, password_hash, role_code) VALUES (?, ?, ?)'
-      ).run(email, passwordHash, role_code);
-      appendAdminAudit(
-        { type: 'USER_CREATED', payload: { actor_id: actorId, actor_email: actorEmail, target_email: email, role_code } },
-        actorId
-      );
-      return { id: r.lastInsertRowid as number };
+        return { id: r.lastInsertRowid as number };
+      });
     });
 
     if ('conflict' in result && result.conflict) {
