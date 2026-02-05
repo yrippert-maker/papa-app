@@ -6,7 +6,7 @@ RUN node --version && npm --version
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
 # prisma generate не требует DATABASE_URL (только генерация клиента)
-RUN npm ci && npx prisma generate
+RUN npm ci && npx prisma generate --schema=prisma/schema.prisma
 
 # ---- build
 FROM node:22.12-alpine AS build
