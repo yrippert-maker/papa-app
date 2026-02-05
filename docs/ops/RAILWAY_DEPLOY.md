@@ -66,6 +66,7 @@ Railway → Settings → Variables:
 **Опциональные**
 
 * `WORKSPACE_ROOT` — путь для файловых операций (если нужен; иначе не задавать)
+* `AUTH_TRUST_HOST=true` — для NextAuth/Auth.js на Railway (если ругается на host/URL)
 
 ---
 
