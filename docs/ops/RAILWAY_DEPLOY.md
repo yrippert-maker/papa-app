@@ -298,9 +298,22 @@ psql "$DATABASE_URL" -c "select count(*) from \"AuditEvent\";"
 
 ## D) Nixpacks / fetchTarball / nix-env failed
 
-Если в логе видно `nix-env`, `fetchTarball`, `nixpkgs` — Railway использует Nixpacks вместо Dockerfile.
+Если в логе видно `nix-env`, `fetchTarball`, `nixpkgs` — Railway использует Nixpacks.
 
-**Решение:** в `railway.json` задать `"builder": "DOCKERFILE"`. При наличии Dockerfile в репо Railway будет собирать через Docker, без Nix.
+**Решение:** Railway → Service → Settings → Build → **Builder = Dockerfile** → Redeploy. При наличии Dockerfile в репо Railway будет собирать через Docker, без Nix.
+
+**Альтернатива:** Clear build cache + Redeploy (иногда помогает при сетевых ошибках fetchTarball).
+
+## E) Переключение между Nixpacks и Dockerfile
+
+Оба билдера настроены и должны проходить:
+
+| Builder   | Start command   | Когда использовать                          |
+|-----------|-----------------|---------------------------------------------|
+| Dockerfile| `node server.js`| По умолчанию; обходит проблемы Nix/fetchTarball |
+| Nixpacks  | `npm run start` | Запасной; при падении Docker — Clear cache + Nixpacks |
+
+Переключение: Railway → Service → Settings → Build → **Builder** → выбрать Nixpacks или Dockerfile → Redeploy.
 
 ---
 

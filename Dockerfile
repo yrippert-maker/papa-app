@@ -22,6 +22,8 @@ FROM node:20-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Railway передаёт PORT; standalone server.js читает process.env.PORT
+ENV PORT=3000
 
 # standalone output
 COPY --from=build /app/.next/standalone ./

@@ -11,7 +11,7 @@ NIXPACKS_NODE_VERSION = "20"
 cmds = ["npm install"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["npx prisma generate", "npm run build"]
 
 [start]
 cmd = "npm run start"

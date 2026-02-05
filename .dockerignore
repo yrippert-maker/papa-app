@@ -10,3 +10,5 @@ __tests__
 *.spec.*
 .dockerignore
 Dockerfile*
+npm-debug.log
+.DS_Store
