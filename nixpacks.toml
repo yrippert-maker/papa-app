@@ -1,4 +1,9 @@
-# Railway/Nixpacks: Node 20 + npm install (обход EBADENGINE / npm ci EUSAGE)
+# Railway/Nixpacks: Node 20.19+ для Prisma (20.18.x не поддерживается)
+# Nixpacks принимает только мажорные версии — для 20.19+ нужен nixpkgsArchive
+[phases.setup]
+nixpkgsArchive = "e84845a184ca3d7c3502d360fbe6d0522e06109f"
+nixPkgs = ["nodejs_20"]
+
 [variables]
 NIXPACKS_NODE_VERSION = "20"
 
@@ -7,3 +12,6 @@ cmds = ["npm install"]
 
 [phases.build]
 cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
