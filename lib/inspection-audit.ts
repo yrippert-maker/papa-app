@@ -3,7 +3,7 @@
  * v0.1.10: Inspection MANAGE
  */
 import { computeEventHash, canonicalJSON } from '@/lib/ledger-hash';
-import type { getDb } from '@/lib/db';
+import type { DbAdapter } from '@/lib/adapters/types';
 
 export type InspectionTransitionPayload = {
   inspection_card_id: string;
@@ -18,11 +18,11 @@ export type InspectionTransitionPayload = {
  * Appends INSPECTION_CARD_TRANSITION event to ledger.
  * Must be called within the same db transaction/retry as the card update.
  */
-export function appendInspectionTransitionEvent(
-  db: ReturnType<typeof getDb>,
+export async function appendInspectionTransitionEvent(
+  db: DbAdapter,
   actorId: string,
   payload: InspectionTransitionPayload
-): string {
+): Promise<string> {
   const event_type = 'INSPECTION_CARD_TRANSITION';
   const tsUtc = payload.transitioned_at;
   const payloadRecord: Record<string, unknown> = {
@@ -36,9 +36,7 @@ export function appendInspectionTransitionEvent(
 
   const payloadJson = canonicalJSON(payloadRecord);
 
-  const last = db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1').get() as
-    | { block_hash: string }
-    | undefined;
+  const last = (await (await db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')).get()) as { block_hash: string } | undefined;
   const prevHash = last?.block_hash ?? null;
 
   const blockHash = computeEventHash({
@@ -49,9 +47,7 @@ export function appendInspectionTransitionEvent(
     canonical_payload_json: payloadJson,
   });
 
-  db.prepare(
-    'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(event_type, payloadJson, prevHash, blockHash, tsUtc, actorId || null);
+  await (await db.prepare('INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)')).run(event_type, payloadJson, prevHash, blockHash, tsUtc, actorId || null);
 
   return blockHash;
 }
@@ -72,12 +68,14 @@ export type InspectionCheckRecordedPayload = {
  * Appends INSPECTION_CHECK_RECORDED event to ledger.
  * Must be called within the same db transaction/retry as the check result write.
  * Only call when data actually changed (idempotency: no duplicate events).
+ * Accepts DbAdapter | Promise<DbAdapter> for Railway/CI type resolution.
  */
-export function appendInspectionCheckRecordedEvent(
-  db: ReturnType<typeof getDb>,
+export async function appendInspectionCheckRecordedEvent(
+  dbOrPromise: DbAdapter | Promise<DbAdapter>,
   actorId: string,
   payload: InspectionCheckRecordedPayload
-): string {
+): Promise<string> {
+  const db = await dbOrPromise;
   const event_type = 'INSPECTION_CHECK_RECORDED';
   const tsUtc = payload.recorded_at;
   const payloadRecord: Record<string, unknown> = {
@@ -94,9 +92,7 @@ export function appendInspectionCheckRecordedEvent(
 
   const payloadJson = canonicalJSON(payloadRecord);
 
-  const last = db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1').get() as
-    | { block_hash: string }
-    | undefined;
+  const last = (await (await db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')).get()) as { block_hash: string } | undefined;
   const prevHash = last?.block_hash ?? null;
 
   const blockHash = computeEventHash({
@@ -107,9 +103,7 @@ export function appendInspectionCheckRecordedEvent(
     canonical_payload_json: payloadJson,
   });
 
-  db.prepare(
-    'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(event_type, payloadJson, prevHash, blockHash, tsUtc, actorId || null);
+  await (await db.prepare('INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)')).run(event_type, payloadJson, prevHash, blockHash, tsUtc, actorId || null);
 
   return blockHash;
 }

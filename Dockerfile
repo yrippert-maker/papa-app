@@ -5,8 +5,9 @@ WORKDIR /app
 RUN node --version && npm --version
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
-# prisma generate не требует DATABASE_URL (только генерация клиента)
-RUN npm ci && npx prisma generate --schema=prisma/schema.prisma
+# NODE_ENV=development + --include=dev: гарантирует devDeps (prisma, types) для build
+ENV NODE_ENV=development
+RUN npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
 
 # ---- build
 FROM node:22.12-alpine AS build
