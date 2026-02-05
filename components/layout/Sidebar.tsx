@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useSidebar } from '@/components/context/SidebarContext';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
@@ -150,6 +149,34 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Админ',
+    items: [
+      {
+        href: '/settings',
+        label: 'Настройки',
+        tooltip: 'Источники, доступ, режимы обновлений',
+        permission: 'SETTINGS.VIEW',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31 2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/admin/users',
+        label: 'Пользователи',
+        tooltip: 'Управление пользователями и ролями',
+        permission: 'ADMIN.MANAGE_USERS',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
     label: 'Compliance',
     items: [
       {
@@ -160,6 +187,17 @@ const navGroups: NavGroup[] = [
         icon: (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/compliance/decisions',
+        label: 'История решений',
+        tooltip: 'Decision History — решения верификации audit pack',
+        permission: 'COMPLIANCE.VIEW',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ),
       },
@@ -267,17 +305,6 @@ const navGroups: NavGroup[] = [
           </svg>
         ),
       },
-      {
-        href: '/admin/users',
-        label: 'Пользователи',
-        tooltip: 'Управление пользователями и ролями',
-        permission: 'ADMIN.MANAGE_USERS',
-        icon: (
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-        ),
-      },
     ],
   },
 ];
@@ -296,14 +323,14 @@ function BadgeLink({
   children: React.ReactNode;
 }) {
   return (
-    <Link
+    <a
       href={href}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 cursor-pointer ${className}`}
       title={title}
       aria-label={ariaLabel}
     >
       {children}
-    </Link>
+    </a>
   );
 }
 
@@ -370,7 +397,7 @@ export function Sidebar() {
   const hasPermission = (perm?: string) => !perm || permissions.includes(perm);
 
   return (
-    <aside className={`fixed left-0 top-0 h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all duration-300 z-40 ${collapsed ? 'w-20' : 'w-64'}`}>
+    <aside className={`fixed left-0 top-0 h-full overflow-hidden bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all duration-300 z-40 ${collapsed ? 'w-20' : 'w-64'}`}>
       {/* Logo - ПАПА */}
       <div className="h-20 flex items-center px-6 border-b border-slate-200 dark:border-slate-700">
         {!collapsed ? (
@@ -407,13 +434,13 @@ export function Sidebar() {
                   {items.map((item) => {
                     const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
                     return (
-                      <Link
+                      <a
                         key={item.href}
                         href={item.href}
                         title={item.tooltip}
                         aria-label={item.tooltip}
                         aria-current={isActive ? 'page' : undefined}
-                        className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                        className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer
                           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800
                           ${isActive
                             ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500'
@@ -422,7 +449,7 @@ export function Sidebar() {
                       >
                         <span className="flex-shrink-0 opacity-90">{item.icon}</span>
                         {!collapsed && <span>{item.label}</span>}
-                      </Link>
+                      </a>
                     );
                   })}
                 </div>

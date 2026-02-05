@@ -4,7 +4,7 @@
  * Permission-first: endpoint проверяет permission, не роль. See docs/AUTHZ_MODEL.md.
  * v0.1.8: canWithAlias() for TMC.REQUEST.* / INSPECTION.* with legacy aliases.
  */
-import { getDbReadOnly } from './db';
+import { getDbReadOnly, dbAll } from './db';
 import type { Session } from 'next-auth';
 import { Permissions, type Permission as Perm } from './authz/permissions';
 import { hasPermissionWithAlias } from './authz/rbac-aliases';
@@ -13,36 +13,49 @@ export const PERMISSIONS = Permissions;
 export type Permission = Perm;
 
 /** Возвращает список permissions для роли. */
-export function getPermissionsForRole(roleCode: string): Set<string> {
-  const db = getDbReadOnly();
-  const rows = db
-    .prepare(
-      'SELECT perm_code FROM rbac_role_permission WHERE role_code = ?'
-    )
-    .all(roleCode) as Array<{ perm_code: string }>;
-  return new Set(rows.map((r) => r.perm_code));
+export async function getPermissionsForRole(roleCode: string): Promise<Set<string>> {
+  try {
+    const db = await getDbReadOnly();
+    // Нормализация: admin → ADMIN (RBAC в БД хранит uppercase)
+    const code = roleCode?.toUpperCase() ?? '';
+    const rows = (await dbAll(db, 'SELECT perm_code FROM rbac_role_permission WHERE role_code = ?', code)) as Array<{ perm_code: string }>;
+    return new Set(rows.map((r) => r.perm_code));
+  } catch (e) {
+    console.warn('[authz] getPermissionsForRole failed:', e);
+    return new Set();
+  }
 }
 
 /** Проверяет, имеет ли пользователь указанное разрешение (exact match). */
-export function can(session: Session | null, permission: Permission): boolean {
+export async function can(session: Session | null, permission: Permission): Promise<boolean> {
   if (!session?.user?.id) return false;
-  const roleCode = (session.user as { role?: string }).role;
+  const user = session.user as { role?: string; permissions?: string[] };
+  // Приоритет: permissions из JWT (session), иначе — из БД
+  if (user.permissions && user.permissions.length > 0) {
+    return user.permissions.includes(permission);
+  }
+  const roleCode = user.role;
   if (!roleCode) return false;
-  const perms = getPermissionsForRole(roleCode);
+  const perms = await getPermissionsForRole(roleCode);
   return perms.has(permission);
 }
 
 /** Alias for can() — checks if user has permission. */
-export function hasPermission(session: Session | null, permission: Permission): boolean {
+export async function hasPermission(session: Session | null, permission: Permission): Promise<boolean> {
   return can(session, permission);
 }
 
 /** Проверяет permission с учётом aliases (TMC.REQUEST.*, TMC.VIEW, INSPECTION.*). */
-export function canWithAlias(session: Session | null, permission: Perm): boolean {
+export async function canWithAlias(session: Session | null, permission: Perm): Promise<boolean> {
   if (!session?.user?.id) return false;
-  const roleCode = (session.user as { role?: string }).role;
+  const user = session.user as { role?: string; permissions?: string[] };
+  // Приоритет: permissions из JWT (session), иначе — из БД
+  if (user.permissions && user.permissions.length > 0) {
+    return hasPermissionWithAlias(new Set(user.permissions), permission);
+  }
+  const roleCode = user.role;
   if (!roleCode) return false;
-  const perms = getPermissionsForRole(roleCode);
+  const perms = await getPermissionsForRole(roleCode);
   return hasPermissionWithAlias(perms, permission);
 }
 
@@ -51,21 +64,21 @@ import { unauthorized, forbidden } from '@/lib/api/error-response';
 
 /**
  * Обёртка для API route handler: требует permission, иначе возвращает 401/403.
- * Использовать: const err = requirePermission(session, PERMISSIONS.FILES_LIST, request);
+ * Использовать: const err = await requirePermission(session, PERMISSIONS.FILES_LIST, request);
  * if (err) return err;
  *
  * request — опционально; при наличии используется x-request-id для корреляции.
  */
-export function requirePermission(
+export async function requirePermission(
   session: Session | null,
   permission: Permission,
   request?: Request | null
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const headers = request?.headers;
   if (!session?.user?.id) {
     return unauthorized(headers);
   }
-  if (!can(session, permission)) {
+  if (!(await can(session, permission))) {
     return forbidden(headers);
   }
   return null;
@@ -75,16 +88,16 @@ export function requirePermission(
  * Требует permission с учётом aliases (TMC.REQUEST.*, TMC.VIEW, INSPECTION.*).
  * Использовать для TMC items/lots/requests и Inspection endpoints.
  */
-export function requirePermissionWithAlias(
+export async function requirePermissionWithAlias(
   session: Session | null,
   permission: Permission,
   request?: Request | null
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const headers = request?.headers;
   if (!session?.user?.id) {
     return unauthorized(headers);
   }
-  if (!canWithAlias(session, permission)) {
+  if (!(await canWithAlias(session, permission))) {
     return forbidden(headers);
   }
   return null;
