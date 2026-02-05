@@ -4,10 +4,11 @@ import { authOptions } from '@/lib/auth-options';
 import { requirePermission, PERMISSIONS } from '@/lib/authz';
 import { badRequest, rateLimitError } from '@/lib/api/error-response';
 import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
-import { getDb, withRetry } from '@/lib/db';
+import { getDb, withRetry, dbGet, dbRun } from '@/lib/db';
 import { hashSync } from 'bcryptjs';
 import { z } from 'zod';
 import { appendAdminAudit } from '@/lib/admin-audit';
+import { isLastAdminBlockedError, logSecurityEvent } from '@/lib/security-event';
 import { randomBytes } from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +41,7 @@ export async function PATCH(
   }
 
   const session = await getServerSession(authOptions);
-  const err = requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
+  const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, req);
   if (err) return err;
 
   const { id } = await params;
@@ -64,75 +65,71 @@ export async function PATCH(
     const actorId = (session?.user?.id as string) ?? '0';
     const actorEmail = (session?.user?.email as string) ?? 'unknown';
 
-    const updated = await withRetry(() => {
-      const db = getDb();
-      const row = db.prepare('SELECT id, email, role_code FROM users WHERE id = ?').get(userId) as
-        | { id: number; email: string; role_code: string }
-        | undefined;
-      if (!row) return { notFound: true } as const;
+    const updated = await withRetry(async () => {
+      const db = await getDb();
+      return db.transaction(async () => {
+        const row = (await dbGet(db, 'SELECT id, email, role_code FROM users WHERE id = ?', userId)) as
+          | { id: number; email: string; role_code: string }
+          | undefined;
+        if (!row) return { notFound: true } as const;
 
-      if (role_code && role_code !== row.role_code) {
-        if (String(row.id) === actorId) {
-        appendAdminAudit(
-          {
-            type: 'USER_ROLE_CHANGE_DENIED',
-            payload: {
-              actor_id: actorId,
-              actor_email: actorEmail,
-              target_id: String(row.id),
-              target_email: row.email,
-              reason: 'self_demote',
+        if (role_code && role_code !== row.role_code) {
+          if (String(row.id) === actorId) {
+            await appendAdminAudit(
+              {
+                type: 'USER_ROLE_CHANGE_DENIED',
+                payload: {
+                  actor_id: actorId,
+                  actor_email: actorEmail,
+                  target_id: String(row.id),
+                  target_email: row.email,
+                  reason: 'self_demote',
+                },
+              },
+              actorId
+            );
+            return { selfDemote: true } as const;
+          }
+          await dbRun(db, 'UPDATE users SET role_code = ?, updated_at = datetime(\'now\') WHERE id = ?', role_code, userId);
+          await appendAdminAudit(
+            {
+              type: 'USER_ROLE_CHANGED',
+              payload: {
+                actor_id: actorId,
+                actor_email: actorEmail,
+                target_id: String(row.id),
+                target_email: row.email,
+                old_role: row.role_code,
+                new_role: role_code,
+              },
             },
-          },
-          actorId
-        );
-          return { selfDemote: true } as const;
+            actorId
+          );
         }
-        db.prepare('UPDATE users SET role_code = ?, updated_at = datetime(\'now\') WHERE id = ?').run(
-          role_code,
-          userId
-        );
-        appendAdminAudit(
-          {
-            type: 'USER_ROLE_CHANGED',
-            payload: {
-              actor_id: actorId,
-              actor_email: actorEmail,
-              target_id: String(row.id),
-              target_email: row.email,
-              old_role: row.role_code,
-              new_role: role_code,
-            },
-          },
-          actorId
-        );
-      }
 
-    let newPassword: string | null = null;
-      if (reset_password) {
-        newPassword = randomPassword(12);
-        const passwordHash = hashSync(newPassword, 12);
-        db.prepare('UPDATE users SET password_hash = ?, updated_at = datetime(\'now\') WHERE id = ?').run(
-          passwordHash,
-          userId
-        );
-        appendAdminAudit(
-          {
-            type: 'USER_PASSWORD_RESET',
-            payload: {
-              actor_id: actorId,
-              actor_email: actorEmail,
-              target_id: String(row.id),
-              target_email: row.email,
+        let newPassword: string | null = null;
+        if (reset_password) {
+          newPassword = randomPassword(12);
+          const passwordHash = hashSync(newPassword, 12);
+          await dbRun(db, 'UPDATE users SET password_hash = ?, updated_at = datetime(\'now\') WHERE id = ?', passwordHash, userId);
+          await appendAdminAudit(
+            {
+              type: 'USER_PASSWORD_RESET',
+              payload: {
+                actor_id: actorId,
+                actor_email: actorEmail,
+                target_id: String(row.id),
+                target_email: row.email,
+              },
             },
-          },
-          actorId
-        );
-    }
+            actorId
+          );
+        }
 
-    const u = db.prepare('SELECT id, email, role_code, created_at, updated_at FROM users WHERE id = ?').get(userId) as
-        { id: number; email: string; role_code: string; created_at: string; updated_at: string };
-      return { ...u, newPassword };
+        const u = (await dbGet(db, 'SELECT id, email, role_code, created_at, updated_at FROM users WHERE id = ?', userId)) as
+          { id: number; email: string; role_code: string; created_at: string; updated_at: string };
+        return { ...u, newPassword };
+      });
     });
 
     if ('notFound' in updated && updated.notFound) {
@@ -147,6 +144,14 @@ export async function PATCH(
       ...(np ? { temporary_password: np } : {}),
     });
   } catch (e) {
+    if (isLastAdminBlockedError(e)) {
+      await logSecurityEvent({
+        action: 'last_admin_blocked',
+        actorUserId: session?.user?.id ?? null,
+        target: `users/${userId}`,
+        metadata: { reason: 'db_trigger', message: e instanceof Error ? e.message : String(e) },
+      });
+    }
     console.error('[admin/users PATCH]', e);
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Update failed' },

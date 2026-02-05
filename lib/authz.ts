@@ -61,6 +61,7 @@ export async function canWithAlias(session: Session | null, permission: Perm): P
 
 import { NextResponse } from 'next/server';
 import { unauthorized, forbidden } from '@/lib/api/error-response';
+import { logRbacAccessDeniedIfSampled } from '@/lib/rbac-audit';
 
 /**
  * Обёртка для API route handler: требует permission, иначе возвращает 401/403.
@@ -79,6 +80,12 @@ export async function requirePermission(
     return unauthorized(headers);
   }
   if (!(await can(session, permission))) {
+    logRbacAccessDeniedIfSampled({
+      request: request ?? null,
+      actorUserId: session.user.id,
+      permission,
+      path: request ? new URL(request.url).pathname : undefined,
+    }).catch(() => {});
     return forbidden(headers);
   }
   return null;
@@ -98,6 +105,12 @@ export async function requirePermissionWithAlias(
     return unauthorized(headers);
   }
   if (!(await canWithAlias(session, permission))) {
+    logRbacAccessDeniedIfSampled({
+      request: request ?? null,
+      actorUserId: session.user.id,
+      permission,
+      path: request ? new URL(request.url).pathname : undefined,
+    }).catch(() => {});
     return forbidden(headers);
   }
   return null;

@@ -12,6 +12,7 @@ import { getDb, withRetry, dbGet, dbAll, dbRun } from '@/lib/db';
 import { hashSync } from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { appendAdminAudit } from '@/lib/admin-audit';
+import { isLastAdminBlockedError, logSecurityEvent } from '@/lib/security-event';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,6 +82,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const updated = (await dbGet(db, 'SELECT id, email, role_code, is_active FROM users WHERE id = ?', userId)) as { id: number; email: string; role_code: string; is_active?: number };
     return NextResponse.json({ id: `u_${updated.id}`, email: updated.email, role: toSpecRole(updated.role_code), active: updated.is_active !== undefined ? Boolean(updated.is_active) : true, lastLoginAt: null });
   } catch (e) {
+    if (isLastAdminBlockedError(e)) {
+      await logSecurityEvent({
+        action: 'last_admin_blocked',
+        actorUserId: session?.user?.id ?? null,
+        target: `users/${userId}`,
+        metadata: { reason: 'db_trigger', op: 'PATCH', message: e instanceof Error ? e.message : String(e) },
+      });
+    }
     console.error('[settings/users PATCH]', e);
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Update failed' }, { status: 500 });
   }
@@ -104,6 +113,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     await dbRun(db, 'DELETE FROM users WHERE id = ?', userId);
     return NextResponse.json({ ok: true });
   } catch (e) {
+    if (isLastAdminBlockedError(e)) {
+      await logSecurityEvent({
+        action: 'last_admin_blocked',
+        actorUserId: session?.user?.id ?? null,
+        target: `users/${userId}`,
+        metadata: { reason: 'db_trigger', op: 'DELETE', message: e instanceof Error ? e.message : String(e) },
+      });
+    }
     console.error('[settings/users DELETE]', e);
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Delete failed' }, { status: 500 });
   }
