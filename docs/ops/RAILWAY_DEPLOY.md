@@ -256,6 +256,28 @@ psql "$DATABASE_URL" -c "select count(*) from \"AuditEvent\";"
 
 # Troubleshooting (коротко)
 
+## Build failures: как отличить причину
+
+**Если в логах `Type error ...`** — это **НЕ** build context. Сначала чиним TypeScript (см. ниже).
+
+**Если в логах `Module not found: Can't resolve '@/...'`** — тогда применяем чек-лист: commit hash в Railway, кэш, `.dockerignore`, Dockerfile `COPY`.
+
+### Type error (например `Property 'then' does not exist on type 'DbPreparedStatement'`)
+
+* `next build` всегда запускает строгий TS-чек; Railway падает, пока ошибка не исправлена.
+* Локально воспроизвести: `rm -rf .next && npm run build`
+* Найти место: `git grep -n "\.then(" -- '*.ts' '*.tsx'` или `git grep -n "prepare(" lib db app`
+* Типичная ошибка: `db.prepare(sql).then(...)` — `DbPreparedStatement` синхронный, у него нет `.then`. Использовать `async/await` или `stmt.run/get/all` напрямую.
+
+### Module not found
+
+1. Убедиться, что Railway собирает нужный коммит (Deployments → commit hash).
+2. Проверить `.dockerignore` — не исключает ли `lib/**` или `**/*.ts`.
+3. Проверить Dockerfile — `COPY . .` должен копировать весь проект.
+4. Очистить build cache (Redeploy without cache).
+
+---
+
 ## A) 500 на `/api/auth/*`
 
 Почти всегда:
@@ -273,6 +295,12 @@ psql "$DATABASE_URL" -c "select count(*) from \"AuditEvent\";"
 * проверь `DATABASE_URL`
 * проверь права/доступ к Supabase
 * смотри логи миграции (`db:migrate:prod`)
+
+## D) Nixpacks / fetchTarball / nix-env failed
+
+Если в логе видно `nix-env`, `fetchTarball`, `nixpkgs` — Railway использует Nixpacks вместо Dockerfile.
+
+**Решение:** в `railway.json` задать `"builder": "DOCKERFILE"`. При наличии Dockerfile в репо Railway будет собирать через Docker, без Nix.
 
 ---
 
