@@ -3,8 +3,10 @@
 import { useSession } from 'next-auth/react';
 
 type PageHeaderProps = {
-  title: string;
-  subtitle?: string;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+
+  subtitle?: string; // если реально используется
   /** Показать пользователя справа (по умолчанию — да для дашборда) */
   showUser?: boolean;
   /** Дополнительные действия справа */
@@ -19,7 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
   AUDITOR: 'Аудитор',
 };
 
-export function PageHeader({ title, subtitle, showUser = true, actions }: PageHeaderProps) {
+export function PageHeader({ title, description, subtitle, showUser = true, actions }: PageHeaderProps) {
   const { data: session } = useSession();
   const user = session?.user;
   const role = (user as { role?: string } | undefined)?.role;
@@ -33,8 +35,8 @@ export function PageHeader({ title, subtitle, showUser = true, actions }: PageHe
             <h1 className="text-xl lg:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
               {title}
             </h1>
-            {subtitle && (
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
+            {(description ?? subtitle) && (
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{description ?? subtitle}</p>
             )}
           </div>
           <div className="flex items-center gap-3">
