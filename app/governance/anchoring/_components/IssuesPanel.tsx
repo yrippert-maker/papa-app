@@ -192,6 +192,7 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
   const [hideAcknowledged, setHideAcknowledged] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [ackVersion, setAckVersion] = React.useState(0);
+  const [serverAckMap, setServerAckMap] = React.useState<Record<string, ServerAck>>({});
   const [groupBy, setGroupBy] = React.useState<'none' | 'type' | 'severity' | 'anchorId'>('none');
   const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(new Set());
 
@@ -257,6 +258,30 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
   }, [data]);
 
   const q = React.useMemo(() => normalize(search), [search]);
+const isAcked = React.useCallback(
+  (i: AnchoringIssue) => {
+    const fp = i._fingerprint;
+    if (fp && serverAckMap[fp]) return true;   // server ack exists
+    return !!getLocalAck(i.id);                // local ack exists
+  },
+  [serverAckMap]
+);
+
+const ackDisplay = React.useCallback(
+  (i: AnchoringIssue): string | null => {
+    const fp = i._fingerprint;
+    if (fp) {
+      const rec = serverAckMap[fp];
+      if (rec?.ack_by) {
+        // если хочешь показывать срок — раскомментируй:
+        // return rec.expires_at ? `${rec.ack_by} · until ${rec.expires_at.slice(0, 10)}` : rec.ack_by;
+        return rec.ack_by;
+      }
+    }
+    return null; // для local ack показываем просто "yes" (через ?? 'yes' в UI)
+  },
+  [serverAckMap]
+);
 
   const filtered = React.useMemo(() => {
     const issues = data?.issues ?? [];
@@ -332,43 +357,54 @@ export function IssuesPanel({ windowDays = 30, checkGaps = true, className }: Pr
 
   const onAck = React.useCallback(
     async (i: AnchoringIssue) => {
-      if (i._fingerprint) {
+      const fp = i._fingerprint;
+
+      if (fp) {
         const ackBy = window.prompt('Ack by (name/email):')?.trim() ?? '';
         if (!ackBy) return;
+
         const ackReason = window.prompt('Reason (optional):')?.trim() ?? '';
         const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+
         try {
           const res = await fetch('/api/anchoring/ack', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              fingerprint: i._fingerprint,
+              fingerprint: fp,
               pack_sha256: null,
               ack_by: ackBy,
               ack_reason: ackReason || undefined,
               expires_at: expiresAt,
             }),
           });
+
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const j = await res.json();
-          if (j?.ok)
+
+          const j: unknown = await res.json();
+          const ok = !!(j && typeof j === 'object' && (j as any).ok);
+
+          if (ok) {
             setServerAckMap((prev) => ({
               ...prev,
-              [i._fingerprint!]: { ack_by: ackBy, expires_at: expiresAt },
+              [fp]: { ack_by: ackBy, expires_at: expiresAt },
             }));
+          }
+
           setAckVersion((v) => v + 1);
         } catch (e) {
           console.error(e);
           window.alert('Failed to acknowledge');
         }
-      } else {
-        setLocalAck(i.id);
-        setAckVersion((v) => v + 1);
-      }
-    },
-    []
-  );
 
+        return;
+      }
+
+      // no fingerprint -> local ack
+      setLocalAck(i.id);
+      setAckVersion((v) => v + 1);
+    },[]);
+    
   const onCopy = React.useCallback(
     async (key: string, text: string) => {
       // если уже залочено — игнорируем повторный клик
