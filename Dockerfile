@@ -19,11 +19,13 @@ RUN test -f lib/system/health/s3-health.ts && test -f lib/db.ts && test -f lib/d
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG WORKSPACE_ROOT=/tmp/build
 ARG NEXTAUTH_SECRET=build-placeholder
-ARG GIT_SHA=unknown
+ARG RAILWAY_GIT_COMMIT_SHA
 ENV WORKSPACE_ROOT=$WORKSPACE_ROOT
 ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
-ENV GIT_SHA=$GIT_SHA
-RUN echo "Building commit: $GIT_SHA"
+ENV GIT_SHA=$RAILWAY_GIT_COMMIT_SHA
+RUN echo "Building commit: ${GIT_SHA:-unknown}"
+# Debug: show RAILWAY_* vars (remove after confirming GIT_SHA works)
+RUN env | sort | grep -E '^RAILWAY_|^GIT_SHA' || true
 RUN rm -rf .next node_modules/.cache
 RUN npm run check:root
 
