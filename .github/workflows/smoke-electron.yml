@@ -52,9 +52,8 @@ jobs:
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
-      # Playwright --with-deps тянет X-зависимости. Если флаки "Missing X server" — раскомментировать xvfb:
-      # - run: sudo apt-get install -y xvfb && Xvfb :99 -screen 0 1024x768x24 &
-      # - run: export DISPLAY=:99
+      - name: Install Xvfb (headless Electron)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Electron smoke (Playwright)
         env:
@@ -65,7 +64,7 @@ jobs:
           ELECTRON_ENABLE_LOGGING: "1"
           ELECTRON_ENABLE_STACK_DUMPING: "1"
           SMOKE_ARTIFACTS_DIR: /tmp/electron-smoke
-        run: npm run electron:smoke 2>&1 | tee /tmp/smoke-electron.log
+        run: xvfb-run -a npm run electron:smoke 2>&1 | tee /tmp/smoke-electron.log
 
       - name: Dump logs on failure
         if: failure()
