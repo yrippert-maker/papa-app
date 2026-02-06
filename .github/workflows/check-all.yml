@@ -1,0 +1,29 @@
+# Extended check: root + all apps (lint, typecheck, build).
+# Runs nightly and on manual trigger.
+name: check-all
+
+on:
+  schedule:
+    - cron: "30 5 * * *"  # 08:30 MSK (after smoke-prod, smoke-docker)
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Check all (root + apps)
+        run: npm run check:all
+        env:
+          WORKSPACE_ROOT: /tmp/papa-check-all
+          NEXTAUTH_SECRET: ci-check-all-secret

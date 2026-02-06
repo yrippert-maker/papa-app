@@ -30,25 +30,16 @@ jobs:
       - name: Lint JSON (package.json)
         run: npm run lint:json
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Check build context
-        run: npm run check:build-context
+      - name: Check (lint + typecheck + build root + portal)
+        run: npm run check
+        env:
+          WORKSPACE_ROOT: /tmp/papa-build-data
+          NEXTAUTH_SECRET: ci-secret-for-build
 
       - name: Test
         run: npm test
         env:
           WORKSPACE_ROOT: /tmp/papa-test-data
-
-      - name: Build
-        run: npm run build
-        env:
-          WORKSPACE_ROOT: /tmp/papa-build-data
-          NEXTAUTH_SECRET: ci-secret-for-build
 
       - name: Regulatory bundle
         run: npm run bundle:regulatory
