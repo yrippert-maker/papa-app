@@ -7,7 +7,7 @@
  * 3. Initiator or approver executes (EXECUTED)
  * 4. Timeout moves to EXPIRED
  */
-import { getDb, getDbReadOnly } from './db';
+import { getDb, getDbReadOnly, dbGet, dbAll, dbRun } from './db';
 import { computeEventHash, canonicalJSON } from './ledger-hash';
 import crypto from 'crypto';
 
@@ -94,8 +94,8 @@ function computeSignature(payload: Record<string, unknown>, secret: string): str
 /**
  * Creates a new key lifecycle request.
  */
-export function createRequest(input: CreateRequestInput): KeyLifecycleRequest {
-  const db = getDb();
+export async function createRequest(input: CreateRequestInput): Promise<KeyLifecycleRequest> {
+  const db = await getDb();
   const id = generateRequestId();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + APPROVAL_TIMEOUT_MS);
@@ -119,11 +119,11 @@ export function createRequest(input: CreateRequestInput): KeyLifecycleRequest {
   // Sign intent (in production, use user's private key)
   const signature = computeSignature(intentPayload, `intent-${input.initiator_id}`);
   
-  db.prepare(`
+  await dbRun(db, `
     INSERT INTO key_lifecycle_requests 
     (id, action, target_key_id, reason, status, initiator_id, initiator_signature, created_at, expires_at)
     VALUES (?, ?, ?, ?, 'PENDING', ?, ?, ?, ?)
-  `).run(
+  `,
     id,
     input.action,
     input.target_key_id ?? null,
@@ -135,22 +135,22 @@ export function createRequest(input: CreateRequestInput): KeyLifecycleRequest {
   );
   
   // Log to ledger
-  logToLedger('KEY_REQUEST_CREATED', {
+  await logToLedger('KEY_REQUEST_CREATED', {
     request_id: id,
     action: input.action,
     target_key_id: input.target_key_id ?? null,
     reason: input.reason ?? null,
   }, input.initiator_id);
   
-  return getRequest(id)!;
+  return (await getRequest(id))!;
 }
 
 /**
  * Approves a pending request (must be different user).
  */
-export function approveRequest(input: ApproveInput): KeyLifecycleRequest {
-  const db = getDb();
-  const request = getRequest(input.request_id);
+export async function approveRequest(input: ApproveInput): Promise<KeyLifecycleRequest> {
+  const db = await getDb();
+  const request = await getRequest(input.request_id);
   
   if (!request) {
     throw new Error('Request not found');
@@ -166,7 +166,7 @@ export function approveRequest(input: ApproveInput): KeyLifecycleRequest {
   
   // Check expiration
   if (new Date(request.expires_at) < new Date()) {
-    expireRequest(request.id);
+    await expireRequest(request.id);
     throw new Error('Request has expired');
   }
   
@@ -183,7 +183,7 @@ export function approveRequest(input: ApproveInput): KeyLifecycleRequest {
   
   const signature = computeSignature(approvalPayload, `approval-${input.approver_id}`);
   
-  db.prepare(`
+  await dbRun(db, `
     UPDATE key_lifecycle_requests 
     SET status = 'APPROVED', 
         approver_id = ?, 
@@ -191,7 +191,7 @@ export function approveRequest(input: ApproveInput): KeyLifecycleRequest {
         approved_at = ?,
         expires_at = ?
     WHERE id = ?
-  `).run(
+  `,
     input.approver_id,
     signature,
     now.toISOString(),
@@ -205,15 +205,15 @@ export function approveRequest(input: ApproveInput): KeyLifecycleRequest {
     approver_id: input.approver_id,
   }, input.approver_id);
   
-  return getRequest(input.request_id)!;
+  return (await getRequest(input.request_id))!;
 }
 
 /**
  * Rejects a pending request.
  */
-export function rejectRequest(input: RejectInput): KeyLifecycleRequest {
-  const db = getDb();
-  const request = getRequest(input.request_id);
+export async function rejectRequest(input: RejectInput): Promise<KeyLifecycleRequest> {
+  const db = await getDb();
+  const request = await getRequest(input.request_id);
   
   if (!request) {
     throw new Error('Request not found');
@@ -225,34 +225,34 @@ export function rejectRequest(input: RejectInput): KeyLifecycleRequest {
   
   const now = new Date();
   
-  db.prepare(`
+  await dbRun(db, `
     UPDATE key_lifecycle_requests 
     SET status = 'REJECTED',
         rejection_reason = ?,
         rejected_at = ?
     WHERE id = ?
-  `).run(
+  `,
     input.reason ?? 'Rejected by reviewer',
     now.toISOString(),
     input.request_id
   );
   
   // Log to ledger
-  logToLedger('KEY_REQUEST_REJECTED', {
+  await logToLedger('KEY_REQUEST_REJECTED', {
     request_id: input.request_id,
     rejector_id: input.rejector_id,
     reason: input.reason ?? null,
   }, input.rejector_id);
   
-  return getRequest(input.request_id)!;
+  return (await getRequest(input.request_id))!;
 }
 
 /**
  * Marks a request as executed.
  */
-export function markExecuted(requestId: string, executorId: string, result: string): KeyLifecycleRequest {
-  const db = getDb();
-  const request = getRequest(requestId);
+export async function markExecuted(requestId: string, executorId: string, result: string): Promise<KeyLifecycleRequest> {
+  const db = await getDb();
+  const request = await getRequest(requestId);
   
   if (!request) {
     throw new Error('Request not found');
@@ -264,59 +264,59 @@ export function markExecuted(requestId: string, executorId: string, result: stri
   
   // Check expiration
   if (new Date(request.expires_at) < new Date()) {
-    expireRequest(request.id);
+    await expireRequest(request.id);
     throw new Error('Approval has expired');
   }
   
   const now = new Date();
   
-  db.prepare(`
+  await dbRun(db, `
     UPDATE key_lifecycle_requests 
     SET status = 'EXECUTED',
         executed_at = ?,
         execution_result = ?
     WHERE id = ?
-  `).run(
+  `,
     now.toISOString(),
     result,
     requestId
   );
   
   // Log to ledger
-  logToLedger('KEY_REQUEST_EXECUTED', {
+  await logToLedger('KEY_REQUEST_EXECUTED', {
     request_id: requestId,
     executor_id: executorId,
     action: request.action,
     target_key_id: request.target_key_id,
   }, executorId);
   
-  return getRequest(requestId)!;
+  return (await getRequest(requestId))!;
 }
 
 /**
  * Expires a request.
  */
-function expireRequest(requestId: string): void {
-  const db = getDb();
-  db.prepare(`
+async function expireRequest(requestId: string): Promise<void> {
+  const db = await getDb();
+  await dbRun(db, `
     UPDATE key_lifecycle_requests 
     SET status = 'EXPIRED'
     WHERE id = ? AND status IN ('PENDING', 'APPROVED')
-  `).run(requestId);
+  `, requestId);
 }
 
 /**
  * Expires all timed-out requests.
  */
-export function expireTimedOutRequests(): number {
-  const db = getDb();
+export async function expireTimedOutRequests(): Promise<number> {
+  const db = await getDb();
   const now = new Date().toISOString();
   
-  const result = db.prepare(`
+  const result = await dbRun(db, `
     UPDATE key_lifecycle_requests 
     SET status = 'EXPIRED'
     WHERE status IN ('PENDING', 'APPROVED') AND expires_at < ?
-  `).run(now);
+  `, now);
   
   return result.changes;
 }
@@ -324,21 +324,21 @@ export function expireTimedOutRequests(): number {
 /**
  * Gets a request by ID.
  */
-export function getRequest(id: string): KeyLifecycleRequest | null {
-  const db = getDbReadOnly();
-  const row = db.prepare('SELECT * FROM key_lifecycle_requests WHERE id = ?').get(id) as KeyLifecycleRequest | undefined;
+export async function getRequest(id: string): Promise<KeyLifecycleRequest | null> {
+  const db = await getDbReadOnly();
+  const row = (await dbGet(db, 'SELECT * FROM key_lifecycle_requests WHERE id = ?', id)) as KeyLifecycleRequest | undefined;
   return row ?? null;
 }
 
 /**
  * Lists requests with optional filters.
  */
-export function listRequests(options: {
+export async function listRequests(options: {
   status?: RequestStatus | RequestStatus[];
   initiator_id?: string;
   limit?: number;
-} = {}): KeyLifecycleRequest[] {
-  const db = getDbReadOnly();
+} = {}): Promise<KeyLifecycleRequest[]> {
+  const db = await getDbReadOnly();
   let query = 'SELECT * FROM key_lifecycle_requests WHERE 1=1';
   const params: (string | number)[] = [];
   
@@ -364,23 +364,23 @@ export function listRequests(options: {
     params.push(options.limit);
   }
   
-  return db.prepare(query).all(...params) as KeyLifecycleRequest[];
+  return (await dbAll(db, query, ...params)) as KeyLifecycleRequest[];
 }
 
 /**
  * Gets pending requests count.
  */
-export function getPendingCount(): number {
-  const db = getDbReadOnly();
-  const row = db.prepare("SELECT COUNT(*) as count FROM key_lifecycle_requests WHERE status = 'PENDING'").get() as { count: number };
+export async function getPendingCount(): Promise<number> {
+  const db = await getDbReadOnly();
+  const row = (await dbGet(db, "SELECT COUNT(*) as count FROM key_lifecycle_requests WHERE status = 'PENDING'")) as { count: number };
   return row.count;
 }
 
 /**
  * Finds an approved request for an action.
  */
-export function findApprovedRequest(action: RequestAction, targetKeyId?: string): KeyLifecycleRequest | null {
-  const db = getDbReadOnly();
+export async function findApprovedRequest(action: RequestAction, targetKeyId?: string): Promise<KeyLifecycleRequest | null> {
+  const db = await getDbReadOnly();
   let query = "SELECT * FROM key_lifecycle_requests WHERE action = ? AND status = 'APPROVED'";
   const params: string[] = [action];
   
@@ -391,19 +391,19 @@ export function findApprovedRequest(action: RequestAction, targetKeyId?: string)
   
   query += ' ORDER BY approved_at DESC LIMIT 1';
   
-  const row = db.prepare(query).get(...params) as KeyLifecycleRequest | undefined;
+  const row = (await dbGet(db, query, ...params)) as KeyLifecycleRequest | undefined;
   return row ?? null;
 }
 
 /**
  * Logs key lifecycle event to ledger.
  */
-function logToLedger(eventType: string, payload: Record<string, unknown>, actorId: string): string {
-  const db = getDb();
+async function logToLedger(eventType: string, payload: Record<string, unknown>, actorId: string): Promise<string> {
+  const db = await getDb();
   const tsUtc = new Date().toISOString();
   const payloadJson = canonicalJSON(payload);
   
-  const last = db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1').get() as { block_hash: string } | undefined;
+  const last = (await dbGet(db, 'SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')) as { block_hash: string } | undefined;
   const prevHash = last?.block_hash ?? null;
   
   const blockHash = computeEventHash({
@@ -414,9 +414,7 @@ function logToLedger(eventType: string, payload: Record<string, unknown>, actorI
     canonical_payload_json: payloadJson,
   });
   
-  db.prepare(
-    'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(eventType, payloadJson, prevHash, blockHash, tsUtc, actorId);
+  await dbRun(db, 'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)', eventType, payloadJson, prevHash, blockHash, tsUtc, actorId);
   
   return blockHash;
 }

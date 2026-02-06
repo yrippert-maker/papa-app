@@ -6,7 +6,7 @@ import { createHash } from 'crypto';
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { WORKSPACE_ROOT } from './config';
-import { getDbReadOnly, getDb } from './db';
+import { getDbReadOnly, getDb, dbGet, dbAll, dbRun } from './db';
 import { canonicalJSON, computeEventHash } from './ledger-hash';
 
 // ========== Types ==========
@@ -129,12 +129,12 @@ function saveRateLimits(items: ApproverRateLimit[]): void {
 
 // ========== Break-Glass Post-Mortem ==========
 
-export function createPostMortem(breakGlassEvent: {
+export async function createPostMortem(breakGlassEvent: {
   activated_by: string;
   activated_at: string;
   deactivated_at: string | null;
   actions_taken: Array<{ action: string; timestamp: string; details: string }>;
-}): BreakGlassPostMortem {
+}): Promise<BreakGlassPostMortem> {
   const postmortems = loadPostMortems();
   
   const dueDate = new Date(breakGlassEvent.deactivated_at ?? new Date());
@@ -163,7 +163,7 @@ export function createPostMortem(breakGlassEvent: {
   savePostMortems(postmortems);
   
   // Log to ledger
-  logGovernanceEvent('POSTMORTEM_CREATED', {
+  await logGovernanceEvent('POSTMORTEM_CREATED', {
     postmortem_id: pm.postmortem_id,
     break_glass_activated_by: breakGlassEvent.activated_by,
     due_date: pm.due_date,
@@ -172,13 +172,13 @@ export function createPostMortem(breakGlassEvent: {
   return pm;
 }
 
-export function updatePostMortem(postmortemId: string, update: {
+export async function updatePostMortem(postmortemId: string, update: {
   assigned_to?: string;
   findings?: string;
   root_cause?: string;
   remediation?: string;
   status?: PostMortemStatus;
-}, updatedBy: string): BreakGlassPostMortem | null {
+}, updatedBy: string): Promise<BreakGlassPostMortem | null> {
   const postmortems = loadPostMortems();
   const pm = postmortems.find(p => p.postmortem_id === postmortemId);
   
@@ -194,7 +194,7 @@ export function updatePostMortem(postmortemId: string, update: {
   savePostMortems(postmortems);
   
   // Log update
-  logGovernanceEvent('POSTMORTEM_UPDATED', {
+  await logGovernanceEvent('POSTMORTEM_UPDATED', {
     postmortem_id: postmortemId,
     updated_by: updatedBy,
     new_status: pm.status,
@@ -203,7 +203,7 @@ export function updatePostMortem(postmortemId: string, update: {
   return pm;
 }
 
-export function approvePostMortem(postmortemId: string, approvedBy: string): BreakGlassPostMortem | null {
+export async function approvePostMortem(postmortemId: string, approvedBy: string): Promise<BreakGlassPostMortem | null> {
   const postmortems = loadPostMortems();
   const pm = postmortems.find(p => p.postmortem_id === postmortemId);
   
@@ -223,7 +223,7 @@ export function approvePostMortem(postmortemId: string, approvedBy: string): Bre
   savePostMortems(postmortems);
   
   // Log approval
-  logGovernanceEvent('POSTMORTEM_APPROVED', {
+  await logGovernanceEvent('POSTMORTEM_APPROVED', {
     postmortem_id: postmortemId,
     approved_by: approvedBy,
   }, approvedBy);
@@ -251,18 +251,18 @@ export function listPostMortems(status?: PostMortemStatus): BreakGlassPostMortem
 
 // ========== Anomaly Detection ==========
 
-export function detectAnomalies(): AnomalyAlert[] {
+export async function detectAnomalies(): Promise<AnomalyAlert[]> {
   const newAnomalies: AnomalyAlert[] = [];
-  const db = getDbReadOnly();
+  const db = await getDbReadOnly();
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   
   // 1. Frequent approvals per user
-  const approvals = db.prepare(`
+  const approvals = (await dbAll(db, `
     SELECT payload_json, actor_id, created_at FROM ledger_events
     WHERE event_type = 'KEY_REQUEST_APPROVED'
     AND created_at >= ?
-  `).all(dayAgo.toISOString()) as { payload_json: string; actor_id: string; created_at: string }[];
+  `, dayAgo.toISOString())) as { payload_json: string; actor_id: string; created_at: string }[];
   
   const approvalsByUser: Record<string, number> = {};
   for (const a of approvals) {
@@ -286,11 +286,11 @@ export function detectAnomalies(): AnomalyAlert[] {
   }
   
   // 2. Near-expiry abuse (approved within threshold of expiry)
-  const requests = db.prepare(`
+  const requests = (await dbAll(db, `
     SELECT * FROM key_lifecycle_requests
     WHERE status = 'APPROVED' OR status = 'EXECUTED'
     AND approved_at >= ?
-  `).all(dayAgo.toISOString()) as Array<{
+  `, dayAgo.toISOString())) as Array<{
     id: string;
     initiator_id: string;
     approver_id: string;
@@ -347,10 +347,10 @@ export function detectAnomalies(): AnomalyAlert[] {
   
   // 4. Burst requests (many in short window)
   const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000);
-  const recentRequests = db.prepare(`
+  const recentRequests = (await dbGet(db, `
     SELECT COUNT(*) as count FROM key_lifecycle_requests
     WHERE created_at >= ?
-  `).get(thirtyMinAgo.toISOString()) as { count: number };
+  `, thirtyMinAgo.toISOString())) as { count: number };
   
   if (recentRequests.count >= ANOMALY_THRESHOLDS.BURST_THRESHOLD) {
     newAnomalies.push({
@@ -369,11 +369,11 @@ export function detectAnomalies(): AnomalyAlert[] {
   // 5. Off-hours activity
   const currentHour = now.getUTCHours();
   if (currentHour >= ANOMALY_THRESHOLDS.OFF_HOURS_START || currentHour < ANOMALY_THRESHOLDS.OFF_HOURS_END) {
-    const offHoursActivity = db.prepare(`
+    const offHoursActivity = (await dbGet(db, `
       SELECT COUNT(*) as count FROM ledger_events
       WHERE event_type LIKE 'KEY_%'
       AND created_at >= ?
-    `).get(new Date(now.getTime() - 60 * 60 * 1000).toISOString()) as { count: number };
+    `, new Date(now.getTime() - 60 * 60 * 1000).toISOString())) as { count: number };
     
     if (offHoursActivity.count > 0) {
       newAnomalies.push({
@@ -522,12 +522,12 @@ export function getApproverStats(): Array<{
 
 // ========== Ledger Integration ==========
 
-function logGovernanceEvent(eventType: string, payload: Record<string, unknown>, actorId: string): string {
-  const db = getDb();
+async function logGovernanceEvent(eventType: string, payload: Record<string, unknown>, actorId: string): Promise<string> {
+  const db = await getDb();
   const tsUtc = new Date().toISOString();
   const payloadJson = canonicalJSON(payload);
   
-  const last = db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1').get() as { block_hash: string } | undefined;
+  const last = (await dbGet(db, 'SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')) as { block_hash: string } | undefined;
   const prevHash = last?.block_hash ?? null;
   
   const blockHash = computeEventHash({
@@ -538,9 +538,7 @@ function logGovernanceEvent(eventType: string, payload: Record<string, unknown>,
     canonical_payload_json: payloadJson,
   });
   
-  db.prepare(
-    'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(eventType, payloadJson, prevHash, blockHash, tsUtc, actorId);
+  await dbRun(db, 'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)', eventType, payloadJson, prevHash, blockHash, tsUtc, actorId);
   
   return blockHash;
 }

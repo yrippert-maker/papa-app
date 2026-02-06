@@ -31,7 +31,7 @@ export async function getAlerts(limit = 12): Promise<Alert[]> {
 
   try {
     const { getAnchoringHealth } = await import('./anchoring-health-service');
-    const health = getAnchoringHealth();
+    const health = await getAnchoringHealth();
     if (health.status === 'FAILED') {
       alerts.push({
         id: `anchoring_failed_${health.lastConfirmedAt ?? 'none'}`,
@@ -67,7 +67,7 @@ export async function getAlerts(limit = 12): Promise<Alert[]> {
 
   try {
     const { listInbox } = await import('./compliance-inbox-service');
-    const items = listInbox({ status: 'NEW', limit: 5 });
+    const items = await listInbox({ status: 'NEW', limit: 5 });
     for (const it of items.slice(0, 3)) {
       alerts.push({
         id: `reg-${it.id}`,

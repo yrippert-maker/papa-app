@@ -68,7 +68,7 @@ export async function POST(
       const newKey = rotateKeys();
       
       // Log to ledger
-      logKeyAction('KEY_ROTATED', {
+      await logKeyAction('KEY_ROTATED', {
         key_id: oldKeyId ?? 'none',
         new_key_id: newKey.key_id,
         approval_request_id: id,

@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getDb } from './db';
+import { getDb, dbGet, dbRun } from './db';
 
 /** Canonical JSON for hash input (sorted keys, no whitespace). */
 export function canonicalJSON(obj: Record<string, unknown>): string {
@@ -103,19 +103,17 @@ export function verifyLedgerChain(events: LedgerEvent[]): boolean {
  * Append a ledger event (for anomaly detection, etc).
  * Uses normative hash formula with actor_id.
  */
-export function appendLedgerEvent(input: {
+export async function appendLedgerEvent(input: {
   event_type: string;
   user_id?: string | null;
   payload: Record<string, unknown>;
-}): void {
-  const db = getDb();
+}): Promise<void> {
+  const db = await getDb();
   const eventType = input.event_type;
   const payloadJson = canonicalJSON(input.payload);
   const tsUtc = new Date().toISOString();
   const actorId = input.user_id ?? '';
-  const last = db
-    .prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')
-    .get() as { block_hash: string } | undefined;
+  const last = (await dbGet(db, 'SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')) as { block_hash: string } | undefined;
   const prevHash = last?.block_hash ?? null;
   const blockHash = computeEventHash({
     prev_hash: prevHash,
@@ -124,7 +122,5 @@ export function appendLedgerEvent(input: {
     actor_id: actorId,
     canonical_payload_json: payloadJson,
   });
-  db.prepare(
-    'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(eventType, payloadJson, prevHash, blockHash, tsUtc, actorId || null);
+  await dbRun(db, 'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)', eventType, payloadJson, prevHash, blockHash, tsUtc, actorId || null);
 }

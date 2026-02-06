@@ -21,7 +21,7 @@ import { canonicalJSON } from './ledger-hash';
 import { listPolicies, exportPoliciesForVerification, computePolicyHash, loadPolicy } from './policy-repository';
 import { getKeysStatus } from './compliance-service';
 import { listSnapshots } from './audit-snapshot-service';
-import { getDbReadOnly } from './db';
+import { getDbReadOnly, dbGet } from './db';
 
 const ATTESTATIONS_DIR = join(WORKSPACE_ROOT, '00_SYSTEM', 'attestations');
 
@@ -117,35 +117,35 @@ function getPreviousAttestationHash(): string | null {
   }
 }
 
-function countEventsInPeriod(period: AttestationPeriod): ComplianceMetrics {
-  const db = getDbReadOnly();
+async function countEventsInPeriod(period: AttestationPeriod): Promise<ComplianceMetrics> {
+  const db = await getDbReadOnly();
   
-  const getCount = (eventType: string): number => {
-    const result = db.prepare(`
+  const getCount = async (eventType: string): Promise<number> => {
+    const result = (await dbGet(db, `
       SELECT COUNT(*) as count FROM ledger_events 
       WHERE event_type = ? 
       AND created_at >= ? AND created_at <= ?
-    `).get(eventType, period.from, period.to) as { count: number };
+    `, eventType, period.from, period.to)) as { count: number };
     return result.count;
   };
   
-  const getLikeCount = (pattern: string): number => {
-    const result = db.prepare(`
+  const getLikeCount = async (pattern: string): Promise<number> => {
+    const result = (await dbGet(db, `
       SELECT COUNT(*) as count FROM ledger_events 
       WHERE event_type LIKE ? 
       AND created_at >= ? AND created_at <= ?
-    `).get(pattern, period.from, period.to) as { count: number };
+    `, pattern, period.from, period.to)) as { count: number };
     return result.count;
   };
   
   return {
-    approval_requests_created: getCount('KEY_REQUEST_CREATED'),
-    approval_requests_approved: getCount('KEY_REQUEST_APPROVED'),
-    approval_requests_rejected: getCount('KEY_REQUEST_REJECTED'),
-    approval_requests_expired: getCount('KEY_REQUEST_EXPIRED'),
-    break_glass_activations: getCount('BREAK_GLASS_ACTIVATED'),
-    policy_violations: getLikeCount('POLICY_VIOLATION%'),
-    anomalies_detected: getLikeCount('ANOMALY_%'),
+    approval_requests_created: await getCount('KEY_REQUEST_CREATED'),
+    approval_requests_approved: await getCount('KEY_REQUEST_APPROVED'),
+    approval_requests_rejected: await getCount('KEY_REQUEST_REJECTED'),
+    approval_requests_expired: await getCount('KEY_REQUEST_EXPIRED'),
+    break_glass_activations: await getCount('BREAK_GLASS_ACTIVATED'),
+    policy_violations: await getLikeCount('POLICY_VIOLATION%'),
+    anomalies_detected: await getLikeCount('ANOMALY_%'),
   };
 }
 
@@ -204,7 +204,7 @@ function generateStandardAssertions(
 
 // ========== Attestation Generation ==========
 
-export function generateAttestation(input: {
+export async function generateAttestation(input: {
   period: AttestationPeriod;
   attester: {
     role: string;
@@ -213,7 +213,7 @@ export function generateAttestation(input: {
   };
   scope: string;
   exceptions?: string[];
-}): SignedAttestation {
+}): Promise<SignedAttestation> {
   ensureAttestationsDir();
   
   // Gather policy state
@@ -228,7 +228,7 @@ export function generateAttestation(input: {
   
   // Gather key state
   const keysStatus = getKeysStatus();
-  const metrics = countEventsInPeriod(input.period);
+  const metrics = await countEventsInPeriod(input.period);
   
   const keysSummary: KeysAttestationSummary = {
     active_key_id: keysStatus.active?.key_id ?? null,
@@ -302,12 +302,12 @@ export function saveAttestation(signedAttestation: SignedAttestation): string {
 /**
  * Generates and saves a quarterly attestation.
  */
-export function generateQuarterlyAttestation(
+export async function generateQuarterlyAttestation(
   year: number,
   quarter: 1 | 2 | 3 | 4,
   attester: { role: string; user_id: string; organization: string },
   exceptions?: string[]
-): string {
+): Promise<string> {
   const quarterStart = new Date(year, (quarter - 1) * 3, 1);
   const quarterEnd = new Date(year, quarter * 3, 0, 23, 59, 59, 999);
   
@@ -318,7 +318,7 @@ export function generateQuarterlyAttestation(
     label: `Q${quarter} ${year}`,
   };
   
-  const attestation = generateAttestation({
+  const attestation = await generateAttestation({
     period,
     attester,
     scope: `Quarterly compliance attestation for Q${quarter} ${year}`,
@@ -331,11 +331,11 @@ export function generateQuarterlyAttestation(
 /**
  * Generates and saves an annual attestation.
  */
-export function generateAnnualAttestation(
+export async function generateAnnualAttestation(
   year: number,
   attester: { role: string; user_id: string; organization: string },
   exceptions?: string[]
-): string {
+): Promise<string> {
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
   
@@ -346,7 +346,7 @@ export function generateAnnualAttestation(
     label: `FY ${year}`,
   };
   
-  const attestation = generateAttestation({
+  const attestation = await generateAttestation({
     period,
     attester,
     scope: `Annual compliance attestation for fiscal year ${year}`,

@@ -44,7 +44,7 @@ export async function GET(request: Request): Promise<Response> {
       limit: Math.min(limit, 100),
     });
     
-    const pendingCount = getPendingCount();
+    const pendingCount = await getPendingCount();
     
     return NextResponse.json({
       requests,

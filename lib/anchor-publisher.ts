@@ -2,7 +2,7 @@
  * Anchor Publisher — публикация Merkle root в Polygon (AnchorRegistry).
  * Offline audit: receipt сохраняется в workspace для auditor pack.
  */
-import { getDb } from './db';
+import { getDb, dbGet, dbRun } from './db';
 import { createHash } from 'crypto';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -54,8 +54,8 @@ export async function publishAnchor(anchorId: string): Promise<PublishResult> {
     return { ok: false, anchor_id: anchorId, error: 'ANCHOR_* env not set (publish disabled)' };
   }
 
-  const db = getDb();
-  const row = db.prepare('SELECT * FROM ledger_anchors WHERE id = ?').get(anchorId) as {
+  const db = await getDb();
+  const row = (await dbGet(db, 'SELECT * FROM ledger_anchors WHERE id = ?', anchorId)) as {
     period_start: string;
     period_end: string;
     merkle_root: string;
@@ -97,9 +97,7 @@ export async function publishAnchor(anchorId: string): Promise<PublishResult> {
       args: [merkleRoot as `0x${string}`, BigInt(periodStart), BigInt(periodEnd), anchorIdBytes32 as `0x${string}`],
     });
 
-    db.prepare(
-      `UPDATE ledger_anchors SET tx_hash = ?, status = ?, network = ?, chain_id = ?, contract_address = ? WHERE id = ?`
-    ).run(hash, 'pending', 'polygon', String(config.chainId), config.contractAddress, anchorId);
+    await dbRun(db, `UPDATE ledger_anchors SET tx_hash = ?, status = ?, network = ?, chain_id = ?, contract_address = ? WHERE id = ?`, hash, 'pending', 'polygon', String(config.chainId), config.contractAddress, anchorId);
 
     return { ok: true, anchor_id: anchorId, tx_hash: hash };
   } catch (e) {
@@ -186,8 +184,8 @@ export async function confirmAnchor(anchorId: string): Promise<ConfirmResult> {
   const rpc = config?.rpcUrl ?? process.env.ANCHOR_RPC_URL;
   if (!rpc) return { ok: false, anchor_id: anchorId, error: 'ANCHOR_RPC_URL not set' };
 
-  const db = getDb();
-  const row = db.prepare('SELECT * FROM ledger_anchors WHERE id = ?').get(anchorId) as {
+  const db = await getDb();
+  const row = (await dbGet(db, 'SELECT * FROM ledger_anchors WHERE id = ?', anchorId)) as {
     id: string;
     tx_hash: string | null;
     status: string;
@@ -198,7 +196,7 @@ export async function confirmAnchor(anchorId: string): Promise<ConfirmResult> {
   } | undefined;
   if (!row || !row.tx_hash) return { ok: false, anchor_id: anchorId, error: 'No tx_hash' };
   if (row.status === 'confirmed') {
-    const r = db.prepare('SELECT block_number, log_index FROM ledger_anchors WHERE id = ?').get(anchorId) as {
+    const r = (await dbGet(db, 'SELECT block_number, log_index FROM ledger_anchors WHERE id = ?', anchorId)) as {
       block_number: number | null;
       log_index: number | null;
     };
@@ -232,9 +230,7 @@ export async function confirmAnchor(anchorId: string): Promise<ConfirmResult> {
     );
     const logIndex = matchingLog ? parseInt(matchingLog.logIndex, 16) : 0;
 
-    db.prepare(
-      `UPDATE ledger_anchors SET status = ?, block_number = ?, log_index = ?, anchored_at = datetime('now') WHERE id = ?`
-    ).run('confirmed', blockNumber, logIndex, anchorId);
+    await dbRun(db, `UPDATE ledger_anchors SET status = ?, block_number = ?, log_index = ?, anchored_at = datetime('now') WHERE id = ?`, 'confirmed', blockNumber, logIndex, anchorId);
 
     // Save receipt for offline audit (auditor pack)
     try {

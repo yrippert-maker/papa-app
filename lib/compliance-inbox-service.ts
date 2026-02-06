@@ -2,7 +2,7 @@
  * Compliance Inbox Service
  * Change events, patch proposals, accept/reject/apply flow.
  */
-import { getDb } from './db';
+import { getDb, dbGet, dbAll, dbRun } from './db';
 import { randomUUID } from 'crypto';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -54,8 +54,8 @@ function loadDocumentMap(): { root_path: string; documents: Array<{ id: string; 
   return map;
 }
 
-export function listInbox(opts?: { status?: ChangeEventStatus; limit?: number }): ChangeEvent[] {
-  const db = getDb();
+export async function listInbox(opts?: { status?: ChangeEventStatus; limit?: number }): Promise<ChangeEvent[]> {
+  const db = await getDb();
   const limit = opts?.limit ?? 50;
   let sql = 'SELECT * FROM compliance_change_event ORDER BY created_at DESC LIMIT ?';
   const params: (string | number)[] = [limit];
@@ -63,34 +63,34 @@ export function listInbox(opts?: { status?: ChangeEventStatus; limit?: number })
     sql = 'SELECT * FROM compliance_change_event WHERE status = ? ORDER BY created_at DESC LIMIT ?';
     params.unshift(opts.status);
   }
-  const rows = db.prepare(sql).all(...params) as ChangeEvent[];
+  const rows = (await dbAll(db, sql, ...params)) as ChangeEvent[];
   return rows;
 }
 
-export function getInboxItem(id: string): ChangeEvent | null {
-  const db = getDb();
-  const row = db.prepare('SELECT * FROM compliance_change_event WHERE id = ?').get(id) as ChangeEvent | undefined;
+export async function getInboxItem(id: string): Promise<ChangeEvent | null> {
+  const db = await getDb();
+  const row = (await dbGet(db, 'SELECT * FROM compliance_change_event WHERE id = ?', id)) as ChangeEvent | undefined;
   return row ?? null;
 }
 
-export function getProposalByEventId(changeEventId: string): PatchProposal | null {
-  const db = getDb();
-  const row = db.prepare('SELECT * FROM compliance_patch_proposal WHERE change_event_id = ? AND status = ?').get(changeEventId, 'proposed') as PatchProposal | undefined;
+export async function getProposalByEventId(changeEventId: string): Promise<PatchProposal | null> {
+  const db = await getDb();
+  const row = (await dbGet(db, 'SELECT * FROM compliance_patch_proposal WHERE change_event_id = ? AND status = ?', changeEventId, 'proposed')) as PatchProposal | undefined;
   return row ?? null;
 }
 
-export function getProposal(id: string): PatchProposal | null {
-  const db = getDb();
-  const row = db.prepare('SELECT * FROM compliance_patch_proposal WHERE id = ?').get(id) as PatchProposal | undefined;
+export async function getProposal(id: string): Promise<PatchProposal | null> {
+  const db = await getDb();
+  const row = (await dbGet(db, 'SELECT * FROM compliance_patch_proposal WHERE id = ?', id)) as PatchProposal | undefined;
   return row ?? null;
 }
 
-export function acceptChangeEvent(
+export async function acceptChangeEvent(
   changeEventId: string,
   opts: { actor_user_id?: string; actor_role?: string; comment?: string; targets?: PatchTarget[] }
-): { proposal_id: string } {
-  const db = getDb();
-  const event = getInboxItem(changeEventId);
+): Promise<{ proposal_id: string }> {
+  const db = await getDb();
+  const event = await getInboxItem(changeEventId);
   if (!event) throw new Error('Change event not found');
   if (event.status !== 'NEW') throw new Error('Event already processed');
 
@@ -98,41 +98,31 @@ export function acceptChangeEvent(
   const targets = opts.targets ?? [];
   const targetsJson = JSON.stringify(targets);
 
-  db.prepare(
-    'INSERT INTO compliance_patch_proposal (id, change_event_id, apply_mode, status, targets_json) VALUES (?, ?, ?, ?, ?)'
-  ).run(proposalId, changeEventId, 'manual', 'proposed', targetsJson);
+  await dbRun(db, 'INSERT INTO compliance_patch_proposal (id, change_event_id, apply_mode, status, targets_json) VALUES (?, ?, ?, ?, ?)', proposalId, changeEventId, 'manual', 'proposed', targetsJson);
 
-  db.prepare(
-    'INSERT INTO compliance_decision_log (change_event_id, action, actor_user_id, actor_role, comment) VALUES (?, ?, ?, ?, ?)'
-  ).run(changeEventId, 'accept', opts.actor_user_id ?? null, opts.actor_role ?? null, opts.comment ?? null);
+  await dbRun(db, 'INSERT INTO compliance_decision_log (change_event_id, action, actor_user_id, actor_role, comment) VALUES (?, ?, ?, ?, ?)', changeEventId, 'accept', opts.actor_user_id ?? null, opts.actor_role ?? null, opts.comment ?? null);
 
-  db.prepare(
-    "UPDATE compliance_change_event SET status = ?, updated_at = datetime('now') WHERE id = ?"
-  ).run('PROPOSED', changeEventId);
+  await dbRun(db, "UPDATE compliance_change_event SET status = ?, updated_at = datetime('now') WHERE id = ?", 'PROPOSED', changeEventId);
 
   return { proposal_id: proposalId };
 }
 
-export function rejectChangeEvent(
+export async function rejectChangeEvent(
   changeEventId: string,
   opts: { actor_user_id?: string; actor_role?: string; comment?: string }
-): void {
-  const db = getDb();
-  const event = getInboxItem(changeEventId);
+): Promise<void> {
+  const db = await getDb();
+  const event = await getInboxItem(changeEventId);
   if (!event) throw new Error('Change event not found');
   if (event.status !== 'NEW') throw new Error('Event already processed');
 
-  db.prepare(
-    'INSERT INTO compliance_decision_log (change_event_id, action, actor_user_id, actor_role, comment) VALUES (?, ?, ?, ?, ?)'
-  ).run(changeEventId, 'reject', opts.actor_user_id ?? null, opts.actor_role ?? null, opts.comment ?? null);
+  await dbRun(db, 'INSERT INTO compliance_decision_log (change_event_id, action, actor_user_id, actor_role, comment) VALUES (?, ?, ?, ?, ?)', changeEventId, 'reject', opts.actor_user_id ?? null, opts.actor_role ?? null, opts.comment ?? null);
 
-  db.prepare(
-    "UPDATE compliance_change_event SET status = ?, updated_at = datetime('now') WHERE id = ?"
-  ).run('REJECTED', changeEventId);
+  await dbRun(db, "UPDATE compliance_change_event SET status = ?, updated_at = datetime('now') WHERE id = ?", 'REJECTED', changeEventId);
 
   try {
-    const { appendAnchoredEvent } = require('./ledger-anchoring-service');
-    appendAnchoredEvent({
+    const { appendAnchoredEvent } = await import('./ledger-anchoring-service');
+    await appendAnchoredEvent({
       event_type: 'DOC_REJECTED',
       payload: { change_event_id: changeEventId },
       actor_id: opts.actor_user_id ?? undefined,
@@ -147,16 +137,16 @@ export function rejectChangeEvent(
  * Apply patch proposal. Creates revision records.
  * DOCX patching: stub — логируем, но реальное редактирование DOCX требует docx-библиотеки.
  */
-export function applyProposal(
+export async function applyProposal(
   proposalId: string,
   opts: { applied_by?: string }
-): { applied: boolean; message: string } {
-  const db = getDb();
-  const proposal = getProposal(proposalId);
+): Promise<{ applied: boolean; message: string }> {
+  const db = await getDb();
+  const proposal = await getProposal(proposalId);
   if (!proposal) throw new Error('Proposal not found');
   if (proposal.status !== 'proposed') throw new Error('Proposal already applied or superseded');
 
-  const event = getInboxItem(proposal.change_event_id);
+  const event = await getInboxItem(proposal.change_event_id);
   if (!event) throw new Error('Change event not found');
 
   const map = loadDocumentMap();
@@ -175,22 +165,16 @@ export function applyProposal(
 
     // Stub: реальное редактирование DOCX требует docx-библиотеки (mammoth, docx, etc.)
     // Пока создаём revision с before_sha256; after будет при реальной реализации
-    db.prepare(
-      'INSERT INTO compliance_revision (id, proposal_id, document_id, section_id, before_sha256, before_path) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(revId, proposalId, t.document_id, t.section_locator, beforeSha, doc.path);
+    await dbRun(db, 'INSERT INTO compliance_revision (id, proposal_id, document_id, section_id, before_sha256, before_path) VALUES (?, ?, ?, ?, ?, ?)', revId, proposalId, t.document_id, t.section_locator, beforeSha, doc.path);
   }
 
-  db.prepare(
-    "UPDATE compliance_patch_proposal SET status = ?, applied_at = datetime('now'), applied_by = ? WHERE id = ?"
-  ).run('applied', opts.applied_by ?? null, proposalId);
+  await dbRun(db, "UPDATE compliance_patch_proposal SET status = ?, applied_at = datetime('now'), applied_by = ? WHERE id = ?", 'applied', opts.applied_by ?? null, proposalId);
 
-  db.prepare(
-    "UPDATE compliance_change_event SET status = ?, updated_at = datetime('now') WHERE id = ?"
-  ).run('APPLIED', proposal.change_event_id);
+  await dbRun(db, "UPDATE compliance_change_event SET status = ?, updated_at = datetime('now') WHERE id = ?", 'APPLIED', proposal.change_event_id);
 
   try {
-    const { appendAnchoredEvent } = require('./ledger-anchoring-service');
-    appendAnchoredEvent({
+    const { appendAnchoredEvent } = await import('./ledger-anchoring-service');
+    await appendAnchoredEvent({
       event_type: 'PATCH_APPLIED',
       payload: { proposal_id: proposalId, change_event_id: proposal.change_event_id, targets_count: targets.length },
       actor_id: opts.applied_by ?? undefined,
@@ -206,13 +190,11 @@ export function applyProposal(
   };
 }
 
-export function createTestChangeEvent(): ChangeEvent {
+export async function createTestChangeEvent(): Promise<ChangeEvent> {
   const id = `ce-${randomUUID().slice(0, 8)}`;
-  const db = getDb();
-  db.prepare(
-    `INSERT INTO compliance_change_event (id, source, title, summary, severity, tags, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(
+  const db = await getDb();
+  await dbRun(db, `INSERT INTO compliance_change_event (id, source, title, summary, severity, tags, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     id,
     'TEST',
     'Test change event (monitor:run)',
@@ -221,15 +203,11 @@ export function createTestChangeEvent(): ChangeEvent {
     JSON.stringify(['quality', 'test']),
     'NEW'
   );
-  return getInboxItem(id)!;
+  return (await getInboxItem(id))!;
 }
 
-export function getMonitorStatus(): { last_run: string | null; new_count: number } {
-  const db = getDb();
-  const row = db
-    .prepare(
-      "SELECT MAX(created_at) as last_run, COUNT(*) as new_count FROM compliance_change_event WHERE status = 'NEW'"
-    )
-    .get() as { last_run: string | null; new_count: number };
+export async function getMonitorStatus(): Promise<{ last_run: string | null; new_count: number }> {
+  const db = await getDb();
+  const row = (await dbGet(db, "SELECT MAX(created_at) as last_run, COUNT(*) as new_count FROM compliance_change_event WHERE status = 'NEW'")) as { last_run: string | null; new_count: number };
   return { last_run: row?.last_run ?? null, new_count: (row?.new_count as number) ?? 0 };
 }

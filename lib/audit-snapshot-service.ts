@@ -2,7 +2,7 @@
  * Audit Snapshot Service
  * Generates periodic signed snapshots for compliance auditing.
  */
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { WORKSPACE_ROOT } from './config';
@@ -10,7 +10,7 @@ import { getKeysStatus } from './compliance-service';
 import { getKeyAuditEvents } from './compliance-service';
 import { signExportHash, getActiveKeyId } from './evidence-signing';
 import { RETENTION_POLICY, computePolicyHash } from './retention-service';
-import { getDbReadOnly } from './db';
+import { getDbReadOnly, dbGet } from './db';
 import { canonicalJSON } from './ledger-hash';
 
 const SNAPSHOTS_DIR = join(WORKSPACE_ROOT, '00_SYSTEM', 'audit-snapshots');
@@ -84,26 +84,26 @@ function getPreviousSnapshotHash(): string | null {
 /**
  * Counts events in a period from the ledger.
  */
-function countEventsInPeriod(period: SnapshotPeriod): { rotations: number; revocations: number; approval_requests: number } {
-  const db = getDbReadOnly();
+async function countEventsInPeriod(period: SnapshotPeriod): Promise<{ rotations: number; revocations: number; approval_requests: number }> {
+  const db = await getDbReadOnly();
   
-  const rotations = db.prepare(`
+  const rotations = (await dbGet(db, `
     SELECT COUNT(*) as count FROM ledger_events 
     WHERE event_type = 'COMPLIANCE_KEY_ROTATED' 
     AND created_at >= ? AND created_at <= ?
-  `).get(period.from, period.to) as { count: number };
+  `, period.from, period.to)) as { count: number };
   
-  const revocations = db.prepare(`
+  const revocations = (await dbGet(db, `
     SELECT COUNT(*) as count FROM ledger_events 
     WHERE event_type = 'COMPLIANCE_KEY_REVOKED' 
     AND created_at >= ? AND created_at <= ?
-  `).get(period.from, period.to) as { count: number };
+  `, period.from, period.to)) as { count: number };
   
-  const approvalRequests = db.prepare(`
+  const approvalRequests = (await dbGet(db, `
     SELECT COUNT(*) as count FROM ledger_events 
     WHERE event_type LIKE 'KEY_REQUEST_%' 
     AND created_at >= ? AND created_at <= ?
-  `).get(period.from, period.to) as { count: number };
+  `, period.from, period.to)) as { count: number };
   
   return {
     rotations: rotations.count,
@@ -123,16 +123,16 @@ function computeSnapshotHash(snapshot: Omit<AuditSnapshot, 'snapshot_hash'>): st
 /**
  * Generates an audit snapshot for a period.
  */
-export function generateSnapshot(period: SnapshotPeriod): SignedSnapshot {
+export async function generateSnapshot(period: SnapshotPeriod): Promise<SignedSnapshot> {
   ensureSnapshotsDir();
   
   const keysStatus = getKeysStatus();
-  const events = countEventsInPeriod(period);
+  const events = await countEventsInPeriod(period);
   const previousHash = getPreviousSnapshotHash();
   
   const snapshotBase: Omit<AuditSnapshot, 'snapshot_hash'> = {
     snapshot_version: '1.0.0',
-    snapshot_id: crypto.randomUUID(),
+    snapshot_id: randomUUID(),
     generated_at: new Date().toISOString(),
     period,
     policy: {
@@ -190,7 +190,7 @@ export function saveSnapshot(signedSnapshot: SignedSnapshot): string {
 /**
  * Generates and saves a daily snapshot.
  */
-export function generateDailySnapshot(date?: Date): string {
+export async function generateDailySnapshot(date?: Date): Promise<string> {
   const d = date ?? new Date();
   d.setUTCHours(0, 0, 0, 0);
   
@@ -202,14 +202,14 @@ export function generateDailySnapshot(date?: Date): string {
     to: new Date(d.getTime() - 1).toISOString(),
   };
   
-  const snapshot = generateSnapshot(period);
+  const snapshot = await generateSnapshot(period);
   return saveSnapshot(snapshot);
 }
 
 /**
  * Generates and saves a weekly snapshot.
  */
-export function generateWeeklySnapshot(date?: Date): string {
+export async function generateWeeklySnapshot(date?: Date): Promise<string> {
   const d = date ?? new Date();
   d.setUTCHours(0, 0, 0, 0);
   
@@ -222,7 +222,7 @@ export function generateWeeklySnapshot(date?: Date): string {
     to: new Date(to.getTime() - 1).toISOString(),
   };
   
-  const snapshot = generateSnapshot(period);
+  const snapshot = await generateSnapshot(period);
   return saveSnapshot(snapshot);
 }
 

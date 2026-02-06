@@ -2,7 +2,7 @@
  * Anchoring health service — computes OK | DELAYED | FAILED.
  * Source: ledger_anchors.
  */
-import { getDbReadOnly } from './db';
+import { getDbReadOnly, dbGet } from './db';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { createHash } from 'crypto';
@@ -17,12 +17,10 @@ const PENDING_THRESHOLD_HOURS = 72;
 
 const RECEIPTS_DIR = join(WORKSPACE_ROOT, '00_SYSTEM', 'anchor-receipts');
 
-export function getAnchoringHealth(): AnchoringHealth {
-  const db = getDbReadOnly();
+export async function getAnchoringHealth(): Promise<AnchoringHealth> {
+  const db = await getDbReadOnly();
 
-  const tableExists = db
-    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'")
-    .get();
+  const tableExists = await dbGet(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'");
   if (!tableExists) {
     return {
       network: 'polygon',
@@ -45,31 +43,19 @@ export function getAnchoringHealth(): AnchoringHealth {
   const pendingThreshold = new Date(now.getTime() - PENDING_THRESHOLD_HOURS * 60 * 60 * 1000);
   const pendingThresholdStr = pendingThreshold.toISOString();
 
-  const lastConfirmed = db
-    .prepare(
-      `SELECT anchored_at FROM ledger_anchors 
+  const lastConfirmed = (await dbGet(db, `SELECT anchored_at FROM ledger_anchors 
        WHERE status = 'confirmed' AND anchored_at IS NOT NULL 
-       ORDER BY anchored_at DESC LIMIT 1`
-    )
-    .get() as { anchored_at: string } | undefined;
+       ORDER BY anchored_at DESC LIMIT 1`)) as { anchored_at: string } | undefined;
 
-  const counts = db
-    .prepare(
-      `SELECT 
+  const counts = (await dbGet(db, `SELECT 
         SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
         SUM(CASE WHEN status = 'empty' THEN 1 ELSE 0 END) as empty,
         SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
        FROM ledger_anchors 
-       WHERE period_start >= ?`
-    )
-    .get(windowStartStr) as { confirmed: number; empty: number; failed: number };
+       WHERE period_start >= ?`, windowStartStr)) as { confirmed: number; empty: number; failed: number };
 
-  const pendingOld = db
-    .prepare(
-      `SELECT COUNT(*) as c FROM ledger_anchors 
-       WHERE status IN ('pending') AND created_at < ?`
-    )
-    .get(pendingThresholdStr) as { c: number };
+  const pendingOld = (await dbGet(db, `SELECT COUNT(*) as c FROM ledger_anchors 
+       WHERE status IN ('pending') AND created_at < ?`, pendingThresholdStr)) as { c: number };
 
   const confirmedInWindow = counts?.confirmed ?? 0;
   const emptyInWindow = counts?.empty ?? 0;

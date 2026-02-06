@@ -3,7 +3,7 @@
  * 
  * Detects and logs security anomalies with STRIDE threat mapping.
  */
-import { getDbReadOnly, getDb } from './db';
+import { getDbReadOnly, getDb, dbGet, dbAll } from './db';
 import { appendLedgerEvent } from './ledger-hash';
 
 // ========== Types ==========
@@ -299,12 +299,12 @@ function createAnomaly(
 
 // ========== Logging & Response ==========
 
-export function logAnomaly(anomaly: Anomaly): void {
+export async function logAnomaly(anomaly: Anomaly): Promise<void> {
   const config = ANOMALY_CONFIGS.find(c => c.id === anomaly.anomaly_type);
   
   if (config?.response.log_to_ledger) {
     try {
-      appendLedgerEvent({
+      await appendLedgerEvent({
         event_type: `ANOMALY_${anomaly.category}_${anomaly.anomaly_type.replace('-', '_')}`,
         user_id: anomaly.source.user_id,
         payload: {
@@ -328,7 +328,7 @@ export function logAnomaly(anomaly: Anomaly): void {
 
 // ========== Specific Detectors ==========
 
-export function detectFailedLogin(ip: string, userId: string | null): void {
+export async function detectFailedLogin(ip: string, userId: string | null): Promise<void> {
   const source: AnomalySource = {
     ip,
     user_id: userId,
@@ -338,15 +338,15 @@ export function detectFailedLogin(ip: string, userId: string | null): void {
   
   const anomaly = detectThresholdAnomaly('AUTH-001', source, ip);
   if (anomaly) {
-    logAnomaly(anomaly);
+    await logAnomaly(anomaly);
   }
 }
 
-export function detectSelfApprovalAttempt(
+export async function detectSelfApprovalAttempt(
   userId: string,
   requestId: string,
   ip: string | null
-): void {
+): Promise<void> {
   const source: AnomalySource = {
     ip,
     user_id: userId,
@@ -362,16 +362,16 @@ export function detectSelfApprovalAttempt(
   });
   
   if (anomaly) {
-    logAnomaly(anomaly);
+    await logAnomaly(anomaly);
   }
 }
 
-export function detectPermissionDenied(
+export async function detectPermissionDenied(
   userId: string,
   permission: string,
   endpoint: string,
   ip: string | null
-): void {
+): Promise<void> {
   const source: AnomalySource = {
     ip,
     user_id: userId,
@@ -384,16 +384,16 @@ export function detectPermissionDenied(
   
   if (anomaly) {
     anomaly.details.denied_permission = permission;
-    logAnomaly(anomaly);
+    await logAnomaly(anomaly);
   }
 }
 
-export function detectBreakGlassActivation(
+export async function detectBreakGlassActivation(
   userId: string,
   reason: string,
   expiresAt: string,
   ip: string | null
-): void {
+): Promise<void> {
   const source: AnomalySource = {
     ip,
     user_id: userId,
@@ -408,7 +408,7 @@ export function detectBreakGlassActivation(
   });
   
   if (anomaly) {
-    logAnomaly(anomaly);
+    await logAnomaly(anomaly);
   }
 }
 
@@ -436,11 +436,11 @@ export function detectLedgerChainBroken(
   }
 }
 
-export function detectPolicyDrift(
+export async function detectPolicyDrift(
   policyId: string,
   expectedHash: string,
   actualHash: string
-): void {
+): Promise<void> {
   const source: AnomalySource = {
     ip: null,
     user_id: null,
@@ -456,22 +456,22 @@ export function detectPolicyDrift(
   });
   
   if (anomaly) {
-    logAnomaly(anomaly);
+    await logAnomaly(anomaly);
   }
 }
 
 // ========== Query Functions ==========
 
-export function getRecentAnomalies(
+export async function getRecentAnomalies(
   hours: number = 24,
   category?: AnomalyCategory
-): Array<{
+): Promise<Array<{
   event_id: number;
   event_type: string;
   created_at: string;
   payload: Record<string, unknown>;
-}> {
-  const db = getDbReadOnly();
+}>> {
+  const db = await getDbReadOnly();
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   
   let sql = `
@@ -489,7 +489,7 @@ export function getRecentAnomalies(
   
   sql += ` ORDER BY created_at DESC LIMIT 100`;
   
-  const rows = db.prepare(sql).all(...params) as Array<{
+  const rows = (await dbAll(db, sql, ...params)) as Array<{
     id: number;
     event_type: string;
     created_at: string;
@@ -504,20 +504,20 @@ export function getRecentAnomalies(
   }));
 }
 
-export function getAnomalyStats(days: number = 7): {
+export async function getAnomalyStats(days: number = 7): Promise<{
   total: number;
   by_category: Record<AnomalyCategory, number>;
   by_severity: Record<Severity, number>;
-} {
-  const db = getDbReadOnly();
+}> {
+  const db = await getDbReadOnly();
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   
-  const rows = db.prepare(`
+  const rows = (await dbAll(db, `
     SELECT event_type, payload
     FROM ledger_events
     WHERE event_type LIKE 'ANOMALY_%'
     AND created_at >= ?
-  `).all(cutoff) as Array<{ event_type: string; payload: string }>;
+  `, cutoff)) as Array<{ event_type: string; payload: string }>;
   
   const byCategory: Record<string, number> = {
     AUTH: 0,

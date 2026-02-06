@@ -2,7 +2,7 @@
  * Ledger Anchoring Service (Variant B: Anchoring)
  * Append-only events with signing; Merkle anchors; Proof API.
  */
-import { getDb } from './db';
+import { getDb, dbGet, dbAll, dbRun } from './db';
 import { computeEventHash, canonicalJSON, verifyLedgerChain } from './ledger-hash';
 import { signExportHash, verifyExportHash } from './evidence-signing';
 import { createHash } from 'crypto';
@@ -51,15 +51,15 @@ export interface LedgerEventRow {
 /**
  * Appends event to ledger with signature (anchoring-ready).
  */
-export function appendAnchoredEvent(input: AppendAnchoredInput): LedgerEventRow {
-  const db = getDb();
+export async function appendAnchoredEvent(input: AppendAnchoredInput): Promise<LedgerEventRow> {
+  const db = await getDb();
   const ts = new Date().toISOString();
   const actorId = input.actor_id ?? '';
   const payloadObj = { ...input.payload };
   const payloadC14n = canonicalJSON(payloadObj);
   const payloadC14nSha = createHash('sha256').update(payloadC14n, 'utf8').digest('hex');
 
-  const last = db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1').get() as
+  const last = (await dbGet(db, 'SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')) as
     | { block_hash: string }
     | undefined;
   const prevHash = last?.block_hash ?? null;
@@ -74,12 +74,10 @@ export function appendAnchoredEvent(input: AppendAnchoredInput): LedgerEventRow 
 
   const { signature, keyId } = signExportHash(eventHash);
 
-  db.prepare(
-    `INSERT INTO ledger_events (
+  await dbRun(db, `INSERT INTO ledger_events (
       event_type, payload_json, prev_hash, block_hash, created_at, actor_id,
       artifact_sha256, artifact_ref, payload_c14n_sha256, signature, key_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     input.event_type,
     payloadC14n,
     prevHash,
@@ -93,28 +91,28 @@ export function appendAnchoredEvent(input: AppendAnchoredInput): LedgerEventRow 
     keyId
   );
 
-  const row = db.prepare('SELECT * FROM ledger_events ORDER BY id DESC LIMIT 1').get() as LedgerEventRow;
+  const row = (await dbGet(db, 'SELECT * FROM ledger_events ORDER BY id DESC LIMIT 1')) as LedgerEventRow;
   return row;
 }
 
 /**
  * Gets event by id with full proof data.
  */
-export function getEventProof(id: number): {
+export async function getEventProof(id: number): Promise<{
   event: LedgerEventRow;
   signatureValid: boolean;
   chainValid: boolean;
   anchor: { id: string; merkle_root: string | null; tx_hash: string | null; status: string } | null;
-} | null {
-  const db = getDb();
-  const event = db.prepare('SELECT * FROM ledger_events WHERE id = ?').get(id) as LedgerEventRow | undefined;
+} | null> {
+  const db = await getDb();
+  const event = (await dbGet(db, 'SELECT * FROM ledger_events WHERE id = ?', id)) as LedgerEventRow | undefined;
   if (!event) return null;
 
   const signatureValid = event.signature
     ? verifyExportHash(event.block_hash, event.signature, event.key_id ?? undefined)
     : false;
 
-  const all = db.prepare('SELECT event_type, prev_hash, block_hash, created_at, actor_id, payload_json FROM ledger_events ORDER BY id').all() as Array<{
+  const all = (await dbAll(db, 'SELECT event_type, prev_hash, block_hash, created_at, actor_id, payload_json FROM ledger_events ORDER BY id')) as Array<{
     event_type: string;
     prev_hash: string | null;
     block_hash: string;
@@ -131,7 +129,7 @@ export function getEventProof(id: number): {
 
   let anchor: { id: string; merkle_root: string | null; tx_hash: string | null; status: string } | null = null;
   if (event.anchor_id) {
-    const a = db.prepare('SELECT id, merkle_root, tx_hash, status FROM ledger_anchors WHERE id = ?').get(event.anchor_id) as
+    const a = (await dbGet(db, 'SELECT id, merkle_root, tx_hash, status FROM ledger_anchors WHERE id = ?', event.anchor_id)) as
       | { id: string; merkle_root: string | null; tx_hash: string | null; status: string }
       | undefined;
     if (a) anchor = a;
@@ -143,15 +141,15 @@ export function getEventProof(id: number): {
 /**
  * Finds events by artifact_sha256.
  */
-export function getEventsByArtifact(sha256: string): LedgerEventRow[] {
-  const db = getDb();
-  return db.prepare('SELECT * FROM ledger_events WHERE artifact_sha256 = ? ORDER BY id').all(sha256) as LedgerEventRow[];
+export async function getEventsByArtifact(sha256: string): Promise<LedgerEventRow[]> {
+  const db = await getDb();
+  return (await dbAll(db, 'SELECT * FROM ledger_events WHERE artifact_sha256 = ? ORDER BY id', sha256)) as LedgerEventRow[];
 }
 
 /**
  * Gets anchor by id.
  */
-export function getAnchor(id: string): {
+export async function getAnchor(id: string): Promise<{
   id: string;
   period_start: string;
   period_end: string;
@@ -162,9 +160,9 @@ export function getAnchor(id: string): {
   anchored_at: string | null;
   status: string;
   events_count: number;
-} | null {
-  const db = getDb();
-  const row = db.prepare('SELECT * FROM ledger_anchors WHERE id = ?').get(id) as {
+} | null> {
+  const db = await getDb();
+  const row = (await dbGet(db, 'SELECT * FROM ledger_anchors WHERE id = ?', id)) as {
     id: string;
     period_start: string;
     period_end: string;
@@ -206,33 +204,21 @@ export function buildMerkleRoot(hashes: string[]): string {
  * Idempotent: if anchor for this period already exists (pending|confirmed|empty), returns existing id.
  * 0 events → status=empty, merkle_root=null (no publish).
  */
-export function createAnchor(periodStart: string, periodEnd: string): string {
-  const db = getDb();
-  const existing = db
-    .prepare(
-      `SELECT id FROM ledger_anchors WHERE period_start = ? AND period_end = ? AND status IN ('pending','confirmed','empty') LIMIT 1`
-    )
-    .get(periodStart, periodEnd) as { id: string } | undefined;
+export async function createAnchor(periodStart: string, periodEnd: string): Promise<string> {
+  const db = await getDb();
+  const existing = (await dbGet(db, `SELECT id FROM ledger_anchors WHERE period_start = ? AND period_end = ? AND status IN ('pending','confirmed','empty') LIMIT 1`, periodStart, periodEnd)) as { id: string } | undefined;
   if (existing) return existing.id;
 
-  const events = db
-    .prepare(
-      `SELECT id, block_hash FROM ledger_events WHERE created_at >= ? AND created_at < ? AND block_hash IS NOT NULL ORDER BY id`
-    )
-    .all(periodStart, periodEnd) as Array<{ id: number; block_hash: string }>;
+  const events = (await dbAll(db, `SELECT id, block_hash FROM ledger_events WHERE created_at >= ? AND created_at < ? AND block_hash IS NOT NULL ORDER BY id`, periodStart, periodEnd)) as Array<{ id: number; block_hash: string }>;
 
   const hashes = events.map((e) => e.block_hash);
   const id = `anchor-${randomUUID().slice(0, 8)}`;
 
   if (events.length === 0) {
-    db.prepare(
-      `INSERT INTO ledger_anchors (id, period_start, period_end, merkle_root, status, events_count) VALUES (?, ?, ?, NULL, 'empty', 0)`
-    ).run(id, periodStart, periodEnd);
+    await dbRun(db, `INSERT INTO ledger_anchors (id, period_start, period_end, merkle_root, status, events_count) VALUES (?, ?, ?, NULL, 'empty', 0)`, id, periodStart, periodEnd);
   } else {
     const merkleRoot = buildMerkleRoot(hashes);
-    db.prepare(
-      `INSERT INTO ledger_anchors (id, period_start, period_end, merkle_root, status, events_count) VALUES (?, ?, ?, ?, 'pending', ?)`
-    ).run(id, periodStart, periodEnd, merkleRoot, events.length);
+    await dbRun(db, `INSERT INTO ledger_anchors (id, period_start, period_end, merkle_root, status, events_count) VALUES (?, ?, ?, ?, 'pending', ?)`, id, periodStart, periodEnd, merkleRoot, events.length);
   }
 
   return id;

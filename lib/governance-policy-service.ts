@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { WORKSPACE_ROOT } from './config';
 import { canonicalJSON, computeEventHash } from './ledger-hash';
-import { getDb, getDbReadOnly } from './db';
+import { getDb, getDbReadOnly, dbGet, dbAll, dbRun } from './db';
 
 // ========== Types ==========
 
@@ -236,7 +236,7 @@ export function listPolicies(): ApprovalPolicy[] {
   return loadPolicies();
 }
 
-export function createPolicy(input: Omit<ApprovalPolicy, 'policy_id' | 'created_at' | 'updated_at'>): ApprovalPolicy {
+export async function createPolicy(input: Omit<ApprovalPolicy, 'policy_id' | 'created_at' | 'updated_at'>): Promise<ApprovalPolicy> {
   const policies = loadPolicies();
   
   const policy: ApprovalPolicy = {
@@ -249,12 +249,12 @@ export function createPolicy(input: Omit<ApprovalPolicy, 'policy_id' | 'created_
   policies.push(policy);
   savePolicies(policies);
   
-  logPolicyEvent('POLICY_CREATED', { policy_id: policy.policy_id, name: policy.name }, 'system');
+  await logPolicyEvent('POLICY_CREATED', { policy_id: policy.policy_id, name: policy.name }, 'system');
   
   return policy;
 }
 
-export function updatePolicy(policyId: string, updates: Partial<ApprovalPolicy>): ApprovalPolicy | null {
+export async function updatePolicy(policyId: string, updates: Partial<ApprovalPolicy>): Promise<ApprovalPolicy | null> {
   const policies = loadPolicies();
   const policy = policies.find(p => p.policy_id === policyId);
   
@@ -263,14 +263,14 @@ export function updatePolicy(policyId: string, updates: Partial<ApprovalPolicy>)
   Object.assign(policy, updates, { updated_at: new Date().toISOString() });
   savePolicies(policies);
   
-  logPolicyEvent('POLICY_UPDATED', { policy_id: policyId }, 'system');
+  await logPolicyEvent('POLICY_UPDATED', { policy_id: policyId }, 'system');
   
   return policy;
 }
 
 // ========== Delegated Approvers ==========
 
-export function createDelegation(input: {
+export async function createDelegation(input: {
   delegator_id: string;
   delegate_id: string;
   key_classes: KeyClass[];
@@ -280,7 +280,7 @@ export function createDelegation(input: {
   period_hours: number;
   valid_until?: string;
   reason: string;
-}): DelegatedApprover {
+}): Promise<DelegatedApprover> {
   const delegations = loadDelegations();
   
   const delegation: DelegatedApprover = {
@@ -305,7 +305,7 @@ export function createDelegation(input: {
   delegations.push(delegation);
   saveDelegations(delegations);
   
-  logPolicyEvent('DELEGATION_CREATED', {
+  await logPolicyEvent('DELEGATION_CREATED', {
     delegation_id: delegation.delegation_id,
     delegator: input.delegator_id,
     delegate: input.delegate_id,
@@ -314,7 +314,7 @@ export function createDelegation(input: {
   return delegation;
 }
 
-export function revokeDelegation(delegationId: string, revokedBy: string): DelegatedApprover | null {
+export async function revokeDelegation(delegationId: string, revokedBy: string): Promise<DelegatedApprover | null> {
   const delegations = loadDelegations();
   const delegation = delegations.find(d => d.delegation_id === delegationId);
   
@@ -325,7 +325,7 @@ export function revokeDelegation(delegationId: string, revokedBy: string): Deleg
   
   saveDelegations(delegations);
   
-  logPolicyEvent('DELEGATION_REVOKED', { delegation_id: delegationId }, revokedBy);
+  await logPolicyEvent('DELEGATION_REVOKED', { delegation_id: delegationId }, revokedBy);
   
   return delegation;
 }
@@ -476,21 +476,21 @@ export type ApprovalValidation = {
   can_execute: boolean;
 };
 
-export function validateApprovals(
+export async function validateApprovals(
   requestId: string,
   keyClass: KeyClass,
   orgId?: string,
   teamId?: string
-): ApprovalValidation {
+): Promise<ApprovalValidation> {
   const policy = getPolicy(keyClass, orgId, teamId);
-  const db = getDbReadOnly();
+  const db = await getDbReadOnly();
   
   // Get approvals from ledger
-  const approvalEvents = db.prepare(`
+  const approvalEvents = (await dbAll(db, `
     SELECT payload_json, actor_id FROM ledger_events
     WHERE event_type = 'KEY_REQUEST_APPROVED'
     AND json_extract(payload_json, '$.request_id') = ?
-  `).all(requestId) as { payload_json: string; actor_id: string }[];
+  `, requestId)) as { payload_json: string; actor_id: string }[];
   
   const approvers = approvalEvents.map(e => e.actor_id);
   const uniqueApprovers = Array.from(new Set(approvers));
@@ -533,12 +533,12 @@ export function validateApprovals(
 
 // ========== Ledger Integration ==========
 
-function logPolicyEvent(eventType: string, payload: Record<string, unknown>, actorId: string): string {
-  const db = getDb();
+async function logPolicyEvent(eventType: string, payload: Record<string, unknown>, actorId: string): Promise<string> {
+  const db = await getDb();
   const tsUtc = new Date().toISOString();
   const payloadJson = canonicalJSON(payload);
   
-  const last = db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1').get() as { block_hash: string } | undefined;
+  const last = (await dbGet(db, 'SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')) as { block_hash: string } | undefined;
   const prevHash = last?.block_hash ?? null;
   
   const blockHash = computeEventHash({
@@ -549,9 +549,7 @@ function logPolicyEvent(eventType: string, payload: Record<string, unknown>, act
     canonical_payload_json: payloadJson,
   });
   
-  db.prepare(
-    'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(eventType, payloadJson, prevHash, blockHash, tsUtc, actorId);
+  await dbRun(db, 'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)', eventType, payloadJson, prevHash, blockHash, tsUtc, actorId);
   
   return blockHash;
 }

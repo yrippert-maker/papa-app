@@ -15,7 +15,7 @@ import {
 } from './evidence-signing';
 import { getEvidenceVerifyMetrics } from './metrics/evidence-verify';
 import { getDeadLetterMetrics } from './metrics/dead-letter';
-import { getDbReadOnly, getDb } from './db';
+import { getDbReadOnly, getDb, dbGet, dbAll, dbRun } from './db';
 import { computeEventHash, canonicalJSON } from './ledger-hash';
 
 const KEYS_DIR = join(WORKSPACE_ROOT, '00_SYSTEM', 'keys');
@@ -215,17 +215,17 @@ export type KeyAuditResponse = {
 /**
  * Logs a key action to the ledger.
  */
-export function logKeyAction(
+export async function logKeyAction(
   action: 'KEY_ROTATED' | 'KEY_REVOKED',
   payload: { key_id: string; new_key_id?: string; reason?: string; approval_request_id?: string; break_glass?: boolean },
   actorId: string | null
-): string {
-  const db = getDb();
+): Promise<string> {
+  const db = await getDb();
   const tsUtc = new Date().toISOString();
   const eventType = `COMPLIANCE_${action}`;
   const payloadJson = canonicalJSON(payload as Record<string, unknown>);
   
-  const last = db.prepare('SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1').get() as { block_hash: string } | undefined;
+  const last = (await dbGet(db, 'SELECT block_hash FROM ledger_events ORDER BY id DESC LIMIT 1')) as { block_hash: string } | undefined;
   const prevHash = last?.block_hash ?? null;
   
   const blockHash = computeEventHash({
@@ -236,9 +236,7 @@ export function logKeyAction(
     canonical_payload_json: payloadJson,
   });
   
-  db.prepare(
-    'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(eventType, payloadJson, prevHash, blockHash, tsUtc, actorId);
+  await dbRun(db, 'INSERT INTO ledger_events (event_type, payload_json, prev_hash, block_hash, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?)', eventType, payloadJson, prevHash, blockHash, tsUtc, actorId);
   
   return blockHash;
 }
@@ -246,8 +244,8 @@ export function logKeyAction(
 /**
  * Gets key audit events from ledger with filters and pagination.
  */
-export function getKeyAuditEvents(filter: KeyAuditFilter = {}): KeyAuditResponse {
-  const db = getDbReadOnly();
+export async function getKeyAuditEvents(filter: KeyAuditFilter = {}): Promise<KeyAuditResponse> {
+  const db = await getDbReadOnly();
   const limit = Math.min(filter.limit ?? 50, 1000);
   
   // Build WHERE clause
@@ -280,7 +278,7 @@ export function getKeyAuditEvents(filter: KeyAuditFilter = {}): KeyAuditResponse
   const countConditions = conditions.filter(c => !c.startsWith('id <'));
   const countParams = params.filter((_, i) => !conditions[i]?.startsWith('id <'));
   const countQuery = `SELECT COUNT(*) as count FROM ledger_events WHERE ${countConditions.join(' AND ')}`;
-  const totalRow = db.prepare(countQuery).get(...countParams) as { count: number };
+  const totalRow = (await dbGet(db, countQuery, ...countParams)) as { count: number };
   const total = totalRow.count;
   
   // Get events
@@ -293,7 +291,7 @@ export function getKeyAuditEvents(filter: KeyAuditFilter = {}): KeyAuditResponse
   `;
   params.push(limit + 1); // +1 to detect has_more
   
-  const rows = db.prepare(query).all(...params) as Array<{
+  const rows = (await dbAll(db, query, ...params)) as Array<{
     id: number;
     event_type: string;
     payload_json: string;
@@ -363,8 +361,8 @@ export function getVerifyStatsCSV(): string {
 /**
  * Generates CSV string for key audit events with optional filters.
  */
-export function getKeyAuditCSV(filter: Omit<KeyAuditFilter, 'cursor'> = {}): string {
-  const { events } = getKeyAuditEvents({ ...filter, limit: 10000 });
+export async function getKeyAuditCSV(filter: Omit<KeyAuditFilter, 'cursor'> = {}): Promise<string> {
+  const { events } = await getKeyAuditEvents({ ...filter, limit: 10000 });
   
   const lines: string[] = [
     'timestamp,action,key_id,new_key_id,reason,actor_id,block_hash',

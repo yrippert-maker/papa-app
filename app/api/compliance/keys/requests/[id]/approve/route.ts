@@ -52,7 +52,7 @@ export async function POST(
   }
 
   try {
-    const existing = getRequest(id);
+    const existing = await getRequest(id);
     if (!existing) {
       return NextResponse.json(
         { error: { code: 'NOT_FOUND', message: 'Request not found' } },
