@@ -1,6 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcrypt";
+import { compare as bcryptCompare } from "bcryptjs";
 import { getDbReadOnly, dbGet } from "./db";
 import { getPermissionsForRole, PERMISSIONS } from "./authz";
 import { prisma } from "@/lib/prisma";
@@ -53,7 +53,7 @@ export const authOptions: NextAuthOptions = {
               include: { roles: { include: { role: true } } },
             });
             if (!user || user.status !== "ACTIVE" || !user.passwordHash) return null;
-            const ok = await bcrypt.compare(password, user.passwordHash);
+            const ok = await bcryptCompare(password, user.passwordHash);
             if (!ok) return null;
             const roleNames = user.roles.map((ur) => ur.role.name);
             const roleName = roleNames[0] ?? "user";
@@ -71,8 +71,7 @@ export const authOptions: NextAuthOptions = {
             | { id: number; email: string; password_hash: string; role_code: string }
             | undefined;
           if (!row) return null;
-          const { compareSync } = await import("bcryptjs");
-          if (!compareSync(password, row.password_hash)) return null;
+          if (!(await bcryptCompare(password, row.password_hash))) return null;
           return {
             id: String(row.id),
             name: row.email.split("@")[0],

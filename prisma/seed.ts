@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import bcrypt from "bcrypt";
+import { hash } from "bcryptjs";
 
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is required for seed");
@@ -25,7 +25,7 @@ async function main() {
 
   const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
-  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  const passwordHash = await hash(adminPassword, 12);
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
