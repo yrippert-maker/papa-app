@@ -234,6 +234,28 @@ NODE_MODULE_VERSION 132. Please try re-compiling or re-installing...
 
 ---
 
+## 12. Первый admin в проде (Prisma + Postgres)
+
+**Симптом:** auth работает (401 на неверные креды), но пользователей в БД нет.
+
+**⚠️ Seed запускать один раз** (не при каждом деплое). При повторном запуске seed проверяет: если admin уже существует — ничего не делает.
+
+```bash
+SEED_ADMIN_EMAIL=admin@company.com SEED_ADMIN_PASSWORD='StrongPassw0rd!' npx prisma db seed
+```
+
+**Где запускать:**
+- **Railway Run Command** (одноразово): Railway → Service → ⋮ → Run Command
+- **Локально** с `DATABASE_URL` из Railway Variables (скопировать в .env)
+
+**Переменные:** `DATABASE_URL` обязателен; `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` — опционально (дефолт: admin@example.com / ChangeMe123!).
+
+**Проверка:** `SELECT email, status FROM "User";` — должен появиться admin.
+
+**TLS (self-signed cert):** см. [docs/ops/DB_SEED_TLS.md](DB_SEED_TLS.md). Кратко: `NODE_EXTRA_CA_CERTS` (безопасно) или `npm run db:seed:supabase` (fallback, только локально).
+
+---
+
 ## 8. Рассинхрон коммитов
 
 Railway может собирать старый коммит, если:

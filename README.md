@@ -40,7 +40,17 @@ npm run dev
 | `npm test` | Unit-тесты |
 | `npm run test:e2e` | E2E smoke (build + migrate + seed + start) |
 | `npm run migrate` | Применить миграции БД |
-| `npm run seed:admin` | Создать первого admin |
+| `npm run seed:admin` | Создать первого admin (SQLite) |
+| `npm run db:seed` | Prisma seed (Postgres) |
+| `npm run db:seed:supabase` | Seed для Supabase/облака (TLS workaround) |
+
+## БД: seed и TLS (Supabase / облачный Postgres)
+
+При `self-signed certificate in certificate chain`:
+- **Безопасно:** `NODE_EXTRA_CA_CERTS=/path/to/ca.pem npm run db:seed`
+- **Fallback:** `npm run db:seed:supabase` — отключает TLS-валидацию **для всего процесса**; только локально, не в проде
+
+Подробнее: [docs/ops/DB_SEED_TLS.md](docs/ops/DB_SEED_TLS.md)
 
 ## Документация
 

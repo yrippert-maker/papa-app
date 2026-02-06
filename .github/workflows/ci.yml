@@ -18,6 +18,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Cache Next.js
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Validate package.json
         run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json OK')"
 
@@ -29,6 +35,9 @@ jobs:
 
       - name: Lint JSON (package.json)
         run: npm run lint:json
+
+      - name: Check docs/seed consistency
+        run: npm run check:docs-seed
 
       - name: Check (lint + typecheck + build root + portal)
         run: npm run check
@@ -65,6 +74,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Cache Next.js
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Validate package.json
         run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json OK')"
