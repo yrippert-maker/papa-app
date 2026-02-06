@@ -7,7 +7,9 @@
     "not op_mini all"
   ],
   "private": true,
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3001",
@@ -21,7 +23,7 @@
     "electron:build": "npm run build && npm run electron:prep && npm run next-cache-check && electron-builder",
     "next-size-report": "node scripts/next-size-report.mjs",
     "next-cache-check": "node scripts/next-cache-check.mjs",
-    "build": "rimraf .next && next build",
+    "build": "next build",
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "ci:build": "npm ci && npx prisma generate && npm run build",
     "ci:check": "npm run lint && npm run typecheck",
@@ -136,7 +138,8 @@
     "mro:monitor": "node scripts/mro-monitor.mjs",
     "mail:ingest": "node scripts/mail-ingest.mjs",
     "mail:collect": "node scripts/mail-collector.mjs",
-    "mail:triage": "node scripts/mail-triage-agent.mjs"
+    "mail:triage": "node scripts/mail-triage-agent.mjs",
+    "postinstall": "prisma generate --schema=prisma/schema.prisma"
   },
   "overrides": {
     "openai": {
@@ -166,7 +169,7 @@
     "jszip": "^3.10.1",
     "mailparser": "^3.7.2",
     "nanoid": "^5.0.9",
-    "next": "14.2.35",
+    "next": "^14.2.35",
     "next-auth": "^4.24.13",
     "openai": "^4.73.0",
     "p-limit": "^6.1.0",
@@ -174,8 +177,8 @@
     "pg": "^8.18.0",
     "pgvector": "^0.2.1",
     "pizzip": "^3.1.7",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -212,10 +215,5 @@
     "typescript": "^5",
     "viem": "^2.21.0",
     "wait-on": "^9.0.3"
-  }
-}
-{
-  "scripts": {
-    "postinstall": "prisma generate --schema=prisma/schema.prisma"
   }
 }
