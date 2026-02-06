@@ -139,7 +139,7 @@
     "mail:ingest": "node scripts/mail-ingest.mjs",
     "mail:collect": "node scripts/mail-collector.mjs",
     "mail:triage": "node scripts/mail-triage-agent.mjs",
-    "postinstall": "prisma generate --schema=prisma/schema.prisma"
+    "postinstall": "npx prisma generate --schema=prisma/schema.prisma"
   },
   "overrides": {
     "openai": {
