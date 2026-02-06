@@ -19,10 +19,13 @@ RUN test -f lib/system/health/s3-health.ts && test -f lib/db.ts && test -f lib/d
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG WORKSPACE_ROOT=/tmp/build
 ARG NEXTAUTH_SECRET=build-placeholder
+ARG GIT_SHA=unknown
 ENV WORKSPACE_ROOT=$WORKSPACE_ROOT
 ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+ENV GIT_SHA=$GIT_SHA
+RUN echo "Building commit: $GIT_SHA"
 RUN rm -rf .next node_modules/.cache
-RUN npm run build
+RUN npm run check:root
 
 # ---- run (standalone)
 FROM node:22.12-alpine AS run
