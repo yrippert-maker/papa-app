@@ -17,6 +17,9 @@
 /build
 /dist
 
+# electron build artifact (created by electron:prep)
+/electron/bundle/
+
 # misc
 .DS_Store
 *.pem
