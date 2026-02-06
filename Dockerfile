@@ -24,9 +24,10 @@ ENV WORKSPACE_ROOT=$WORKSPACE_ROOT
 ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
 ENV GIT_SHA=$RAILWAY_GIT_COMMIT_SHA
 RUN echo "Building commit: ${GIT_SHA:-unknown}"
-# Debug: show RAILWAY_* vars (remove after confirming GIT_SHA works)
-RUN env | sort | grep -E '^RAILWAY_|^GIT_SHA' || true
 RUN rm -rf .next node_modules/.cache
+# Debug: show available scripts (remove after fixing check:root)
+RUN node -e "const p=require('./package.json'); console.log('Scripts:', Object.keys(p.scripts||{}).sort().join(', '));"
+ENV npm_config_loglevel=info
 RUN npm run check:root
 
 # ---- run (standalone)
