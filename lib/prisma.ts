@@ -9,12 +9,12 @@ function createPrisma() {
   if (!url) {
     throw new Error("DATABASE_URL is required when using Prisma");
   }
-  // Railway (public) / Supabase: self-signed certs → pg требует rejectUnauthorized: false
-  // railway.internal — приватная сеть, SSL обычно не нужен
+  // Railway / Supabase: self-signed certs → pg требует rejectUnauthorized: false
   const needsInsecureSsl =
     url.includes("pooler.supabase.com") ||
     url.includes("railway.app") ||
-    url.includes("rlwy.net");
+    url.includes("rlwy.net") ||
+    url.includes("railway.internal");
   const pool = new Pool({
     connectionString: url,
     ...(needsInsecureSsl && { ssl: { rejectUnauthorized: false } }),
