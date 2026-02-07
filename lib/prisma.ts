@@ -9,10 +9,15 @@ function createPrisma() {
   if (!url) {
     throw new Error("DATABASE_URL is required when using Prisma");
   }
+  // Railway (public) / Supabase: self-signed certs → pg требует rejectUnauthorized: false
+  // railway.internal — приватная сеть, SSL обычно не нужен
+  const needsInsecureSsl =
+    url.includes("pooler.supabase.com") ||
+    url.includes("railway.app") ||
+    url.includes("rlwy.net");
   const pool = new Pool({
     connectionString: url,
-    ...(process.env.NODE_ENV !== "production" &&
-      url.includes("pooler.supabase.com") && { ssl: { rejectUnauthorized: false } }),
+    ...(needsInsecureSsl && { ssl: { rejectUnauthorized: false } }),
   });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({
