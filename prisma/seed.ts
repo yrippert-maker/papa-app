@@ -37,10 +37,14 @@ if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0" && process.env.SEED_TLS_INS
 }
 
 // TLS: insecure включается только при явном SEED_TLS_INSECURE=1 (sslmode=require не триггер — он лишь "включи TLS").
-// Предпочтительно: NODE_EXTRA_CA_CERTS=/path/to/ca.pem. Fallback: npm run db:seed:supabase.
-const needsInsecureTLS = process.env.SEED_TLS_INSECURE === "1";
+// Railway: self-signed certs — всегда нужен rejectUnauthorized: false (как в lib/prisma.ts).
+const needsInsecureTLS =
+  process.env.SEED_TLS_INSECURE === "1" ||
+  url.includes("railway.app") ||
+  url.includes("rlwy.net") ||
+  url.includes("railway.internal");
 
-if (process.env.NODE_ENV === "production" && needsInsecureTLS) {
+if (process.env.NODE_ENV === "production" && process.env.SEED_TLS_INSECURE === "1") {
   throw new Error(
     "Insecure TLS (rejectUnauthorized: false) запрещён в production. Используйте NODE_EXTRA_CA_CERTS. См. docs/ops/DB_SEED_TLS.md"
   );
