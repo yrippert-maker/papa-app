@@ -7,7 +7,7 @@ const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is required for seed");
 
 // Этот seed только для Postgres (PrismaPg). SQLite — используйте npm run seed:admin.
-const scheme = url.split(":")[0]?.toLowerCase();
+const scheme = url.split(":")[0]?.toLowerCase().replace(/\s.*$/, "");
 if (scheme !== "postgres" && scheme !== "postgresql") {
   throw new Error(
     `Этот seed предназначен для Postgres (postgres:// или postgresql://). Схема: ${scheme}. Для SQLite: npm run seed:admin`
@@ -64,18 +64,26 @@ async function main() {
 
   const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
 
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
+  const passwordHash = await hash(adminPassword, 12);
+
   // Защита: если admin уже существует — ничего не делать (seed запускать один раз)
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
     include: { roles: { include: { role: true } } },
   });
   if (existingAdmin && existingAdmin.roles.some((ur) => ur.role.name === "admin")) {
+    if (process.env.SEED_ADMIN_FORCE_RESET === "1") {
+      await prisma.user.update({
+        where: { email: adminEmail },
+        data: { passwordHash, status: "ACTIVE" },
+      });
+      console.log("Admin password reset:", adminEmail);
+      return;
+    }
     console.log("Admin already exists:", adminEmail, "— skipping seed.");
     return;
   }
-
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
-  const passwordHash = await hash(adminPassword, 12);
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
