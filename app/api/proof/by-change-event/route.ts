@@ -10,13 +10,10 @@ import { checkRateLimit, getClientKey } from '@/lib/rate-limit';
 import { getDb, dbGet } from '@/lib/db';
 import { getEventProof } from '@/lib/ledger-anchoring-service';
 import { internalError } from '@/lib/api/error-response';
+import { escapeLike } from '@/lib/sql-utils';
 
-const CHANGE_EVENT_ID_REGEX = /^ce-[a-zA-Z0-9-]+$/;
-
-/** Экранирует спецсимволы LIKE: % и _ */
-function escapeLikeValue(val: string): string {
-  return val.replace(/%/g, '\\%').replace(/_/g, '\\_');
-}
+/** Validate changeEventId format (alphanumeric, _, -) */
+const CHANGE_EVENT_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 
 export const dynamic = 'force-dynamic';
 
@@ -40,14 +37,14 @@ export async function GET(req: NextRequest) {
     if (!changeEventId) {
       return NextResponse.json({ error: 'changeEventId required' }, { status: 400 });
     }
-    if (!CHANGE_EVENT_ID_REGEX.test(changeEventId)) {
-      return NextResponse.json({ error: 'changeEventId format invalid (expected ce-xxx)' }, { status: 400 });
+    if (!CHANGE_EVENT_ID_RE.test(changeEventId)) {
+      return NextResponse.json({ error: 'Invalid changeEventId format' }, { status: 400 });
     }
 
     const db = await getDb();
-    const safeValue = escapeLikeValue(changeEventId);
-    const pattern = `%"change_event_id":"${safeValue}"%`;
-    const row = (await dbGet(db, `SELECT id FROM ledger_events WHERE payload_json LIKE ? ORDER BY id DESC LIMIT 1`, pattern)) as { id: number } | undefined;
+    const escaped = escapeLike(changeEventId);
+    const pattern = `%"change_event_id":"${escaped}"%`;
+    const row = (await dbGet(db, `SELECT id FROM ledger_events WHERE payload_json LIKE ? ESCAPE '\\' ORDER BY id DESC LIMIT 1`, pattern)) as { id: number } | undefined;
 
     if (!row) {
       return NextResponse.json({ found: false, message: 'No ledger event for this change' }, { status: 404 });
