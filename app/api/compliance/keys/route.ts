@@ -15,7 +15,7 @@ export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   // Allow COMPLIANCE.VIEW or ADMIN.MANAGE_USERS
-  const hasComplianceView = hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
+  const hasComplianceView = await hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
   const hasAdminAccess = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasComplianceView && !hasAdminAccess) {

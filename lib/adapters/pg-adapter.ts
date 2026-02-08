@@ -47,28 +47,6 @@ function toPgPlaceholders(sql: string): string {
   return out;
 }
 
-/**
- * Экранирует значение для подстановки в raw SQL (Postgres).
- * Prisma $queryRawUnsafe / $executeRawUnsafe принимают только одну строку — параметры
- * подставляем вручную с экранированием.
- */
-function escapePgValue(val: unknown): string {
-  if (val === null || val === undefined) return 'NULL';
-  if (typeof val === 'number' && Number.isFinite(val)) return String(val);
-  if (typeof val === 'boolean') return val ? 'true' : 'false';
-  if (val instanceof Date) return "'" + val.toISOString().replace(/'/g, "''") + "'";
-  if (typeof val === 'string') return "'" + val.replace(/'/g, "''") + "'";
-  if (Buffer.isBuffer(val)) return "'\\\\x" + val.toString('hex') + "'";
-  return "'" + String(JSON.stringify(val)).replace(/'/g, "''") + "'";
-}
-
-/** Подставляет params в SQL с плейсхолдерами $1, $2, ... — одна строка для Prisma. */
-function substituteParams(pgSql: string, params: unknown[]): string {
-  if (params.length === 0) return pgSql;
-  let i = 0;
-  return pgSql.replace(/\$(\d+)/g, () => escapePgValue(params[i++]));
-}
-
 const CAPABILITIES: DbCapabilities = {
   returning: true,
   onConflict: true,
@@ -79,8 +57,7 @@ function createStatement(client: PrismaClient, sql: string): DbPreparedStatement
   const pgSql = toPgPlaceholders(sql);
   return {
     async run(...params: unknown[]): Promise<DbRunResult> {
-      const singleSql = substituteParams(pgSql, params);
-      const result = await client.$executeRawUnsafe(singleSql);
+      const result = await client.$executeRawUnsafe(pgSql, ...params);
       const count = typeof result === 'number' ? result : (result as { count?: number })?.count ?? 0;
       let lastInsertRowid = 0;
       if (/^\s*INSERT/i.test(sql.trim())) {
@@ -90,13 +67,11 @@ function createStatement(client: PrismaClient, sql: string): DbPreparedStatement
       return { changes: count, lastInsertRowid };
     },
     async get<T = unknown>(...params: unknown[]): Promise<T | undefined> {
-      const singleSql = substituteParams(pgSql, params);
-      const rows = await client.$queryRawUnsafe<unknown[]>(singleSql);
+      const rows = await client.$queryRawUnsafe<unknown[]>(pgSql, ...params);
       return (rows?.[0] as T) ?? undefined;
     },
     async all<T = unknown>(...params: unknown[]): Promise<T[]> {
-      const singleSql = substituteParams(pgSql, params);
-      const rows = await client.$queryRawUnsafe<unknown[]>(singleSql);
+      const rows = await client.$queryRawUnsafe<unknown[]>(pgSql, ...params);
       return (rows ?? []) as T[];
     },
   };

@@ -8,6 +8,7 @@ import { recordOperatorDecision } from '@/lib/mail-inbox-service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import type { OperatorDecisionType, ApplyMode } from '@/types/mail-mvp';
+import { internalError } from '@/lib/api/error-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,6 @@ export async function POST(
     });
     return NextResponse.json({ ok: true });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return internalError('[mail/:mailId/decision]', e, req?.headers);
   }
 }

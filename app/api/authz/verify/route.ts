@@ -42,7 +42,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     console.error('[authz/verify]', e);
     const timingMs = Math.round(performance.now() - t0);
     return NextResponse.json(
-      { ok: false, error: e instanceof Error ? e.message : 'AuthZ verification failed', timing_ms: { total: timingMs } },
+      { ok: false, error: 'AuthZ verification failed', timing_ms: { total: timingMs } },
       { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
   }

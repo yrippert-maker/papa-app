@@ -47,7 +47,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     );
   } catch (e) {
     console.error('[ledger/verify]', e);
-    const msg = e instanceof Error ? e.message : 'Ledger verification failed';
+    console.error('[ledger/verify] Error:', e);
+    const msg = 'Ledger verification failed';
     const isIntegrity = /chain break|hash mismatch/i.test(msg);
     const timingMs = Math.round(performance.now() - t0);
     return NextResponse.json(

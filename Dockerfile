@@ -18,10 +18,12 @@ COPY . .
 RUN test -f lib/system/health/s3-health.ts && test -f lib/db.ts && test -f lib/docs-agent-db.ts || (echo "Build context: critical files missing"; exit 1)
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG WORKSPACE_ROOT=/tmp/build
-ARG NEXTAUTH_SECRET=build-placeholder
+# NEXTAUTH_SECRET: pass via --build-arg in CI (no default to avoid layer cache exposure)
+ARG NEXTAUTH_SECRET
 ARG RAILWAY_GIT_COMMIT_SHA
 ENV WORKSPACE_ROOT=$WORKSPACE_ROOT
-ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+# Fallback для build; runtime берет из Railway Variables
+ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-build-placeholder}
 ENV GIT_SHA=$RAILWAY_GIT_COMMIT_SHA
 RUN echo "Building commit: ${GIT_SHA:-unknown}"
 RUN rm -rf .next node_modules/.cache

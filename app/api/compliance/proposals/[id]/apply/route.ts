@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { applyProposal } from '@/lib/compliance-inbox-service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
+import { internalError } from '@/lib/api/error-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,6 @@ export async function POST(
     const result = await applyProposal(id, { applied_by: session?.user?.email ?? undefined });
     return NextResponse.json(result);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return internalError('[compliance/proposals/:id/apply]', e, req?.headers);
   }
 }

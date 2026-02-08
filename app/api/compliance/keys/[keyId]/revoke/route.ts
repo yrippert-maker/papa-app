@@ -30,7 +30,7 @@ export async function POST(
   const session = await getServerSession(authOptions);
   
   // Allow COMPLIANCE.MANAGE or ADMIN.MANAGE_USERS
-  const hasComplianceManage = hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
+  const hasComplianceManage = await hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
   const hasAdminAccess = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasComplianceManage && !hasAdminAccess) {

@@ -154,7 +154,7 @@ export async function PATCH(
     }
     console.error('[admin/users PATCH]', e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Update failed' },
+      { error: 'Update failed' },
       { status: 500 }
     );
   }

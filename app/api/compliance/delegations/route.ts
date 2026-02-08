@@ -23,7 +23,7 @@ export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   const hasView = await hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasView && !hasAdmin) {
     const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, request);
@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
   const hasManage = await hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasManage && !hasAdmin) {
     const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_MANAGE, request);

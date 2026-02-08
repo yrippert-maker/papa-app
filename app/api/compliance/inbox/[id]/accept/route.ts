@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { acceptChangeEvent, type PatchTarget } from '@/lib/compliance-inbox-service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
+import { internalError } from '@/lib/api/error-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,6 @@ export async function POST(
     });
     return NextResponse.json({ ok: true, proposal_id });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return internalError('[compliance/inbox/:id/accept]', e, req?.headers);
   }
 }

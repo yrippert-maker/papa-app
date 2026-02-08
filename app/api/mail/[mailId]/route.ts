@@ -2,15 +2,23 @@
  * GET /api/mail/:mailId
  * Детали письма: event, triage, decision history.
  */
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+import { requirePermission, PERMISSIONS } from '@/lib/authz';
 import { getMailDetail } from '@/lib/mail-inbox-service';
+import { internalError } from '@/lib/api/error-response';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ mailId: string }> }
 ) {
+  const session = await getServerSession(authOptions);
+  const err = await requirePermission(session, PERMISSIONS.AI_INBOX_VIEW, req);
+  if (err) return err;
+
   try {
     const { mailId } = await params;
     const detail = getMailDetail(mailId);
@@ -19,7 +27,6 @@ export async function GET(
     }
     return NextResponse.json(detail);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return internalError('[mail/:mailId]', e, req?.headers);
   }
 }

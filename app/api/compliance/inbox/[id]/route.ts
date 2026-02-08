@@ -2,12 +2,20 @@
  * GET /api/compliance/inbox/:id
  * Детали изменения + proposal (если есть).
  */
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+import { requirePermission, PERMISSIONS } from '@/lib/authz';
 import { getInboxItem, getProposalByEventId } from '@/lib/compliance-inbox-service';
+import { internalError } from '@/lib/api/error-response';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  const err = await requirePermission(session, PERMISSIONS.COMPLIANCE_VIEW, req);
+  if (err) return err;
+
   try {
     const { id } = await params;
     const item = await getInboxItem(id);
@@ -25,7 +33,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         : null,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return internalError('[compliance/inbox/:id]', e, req?.headers);
   }
 }

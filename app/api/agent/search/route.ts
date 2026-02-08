@@ -121,7 +121,7 @@ export async function POST(request: Request): Promise<Response> {
     // Пилот: лучше пустой результат + warning, чем HTML error page
     return NextResponse.json({
       results: [],
-      warning: e instanceof Error ? e.message : 'Search failed',
+      warning: 'Search temporarily unavailable',
     });
   }
 }

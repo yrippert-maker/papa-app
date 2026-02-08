@@ -64,7 +64,8 @@ export async function POST(
       try {
         validateTransition(card.status, targetStatus);
       } catch (e) {
-        return { invalidTransition: true, error: e instanceof Error ? e.message : 'Invalid transition' } as const;
+        console.error('[inspection/transition] Invalid transition:', e);
+        return { invalidTransition: true, error: 'Invalid transition' } as const;
       }
 
       // Update card

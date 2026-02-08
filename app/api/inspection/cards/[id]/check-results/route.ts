@@ -77,7 +77,8 @@ export async function POST(
     try {
       results = validateResults(body);
     } catch (e) {
-      return badRequest(e instanceof Error ? e.message : 'Invalid payload', req.headers);
+      console.error('[inspection/check-results] Validation error:', e);
+      return badRequest('Invalid payload', req.headers);
     }
 
     const actorId = (session?.user?.id as string) ?? '';

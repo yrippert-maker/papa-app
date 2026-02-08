@@ -57,3 +57,27 @@ export function rateLimitError(
   }
   return res;
 }
+
+/**
+ * Safe 500 response: logs full error server-side, returns generic message to client.
+ * Use this instead of: NextResponse.json({ error: e.message }, { status: 500 })
+ *
+ * @param tag - route identifier for log correlation, e.g. '[proof/artifact]'
+ * @param error - the caught error (any type)
+ * @param headers - request headers for x-request-id extraction
+ * @param clientMessage - optional custom message (default: 'Internal server error')
+ */
+export function internalError(
+  tag: string,
+  error: unknown,
+  headers?: Headers | null,
+  clientMessage?: string
+): NextResponse {
+  console.error(`${tag} Error:`, error);
+  return jsonError(
+    500,
+    VerifyErrorCodes.INTERNAL_ERROR,
+    clientMessage ?? 'Internal server error',
+    headers
+  );
+}

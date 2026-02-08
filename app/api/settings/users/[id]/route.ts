@@ -91,7 +91,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       });
     }
     console.error('[settings/users PATCH]', e);
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Update failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Update failed' }, { status: 500 });
   }
 }
 
@@ -122,6 +122,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       });
     }
     console.error('[settings/users DELETE]', e);
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Delete failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
   }
 }

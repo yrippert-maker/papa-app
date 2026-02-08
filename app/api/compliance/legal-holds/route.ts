@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   const hasView = await hasPermission(session, PERMISSIONS.COMPLIANCE_VIEW);
   
   if (!hasAdmin && !hasView) {
@@ -56,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasAdmin = hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
+  const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   if (!hasAdmin) {
     const err = await requirePermission(session, PERMISSIONS.ADMIN_MANAGE_USERS, request);
     if (err) return err;

@@ -127,7 +127,7 @@ export async function GET(
     return jsonError(
       500,
       VerifyErrorCodes.INTERNAL_ERROR,
-      e instanceof Error ? e.message : 'Failed',
+      'Upload failed',
       request.headers
     );
   }

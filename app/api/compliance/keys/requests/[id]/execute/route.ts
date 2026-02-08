@@ -18,7 +18,7 @@ export async function POST(
 ): Promise<Response> {
   const session = await getServerSession(authOptions);
   
-  const hasManage = hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
+  const hasManage = await hasPermission(session, PERMISSIONS.COMPLIANCE_MANAGE);
   const hasAdmin = await hasPermission(session, PERMISSIONS.ADMIN_MANAGE_USERS);
   
   if (!hasManage && !hasAdmin) {

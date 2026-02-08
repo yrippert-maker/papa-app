@@ -49,6 +49,7 @@ async function runInspectionVerification(): Promise<InspectionResult> {
     const cardCount = row?.c ?? 0;
     return { ok: true, message: 'Inspection subsystem ok', scope: { card_count: cardCount } };
   } catch (e) {
+    console.error('[system/verify] Error:', e);
     const raw = e instanceof Error ? e.message : String(e);
     const normalized =
       /no such table|table.*not found/i.test(raw) ? 'inspection schema missing' : 'Inspection verification failed';
@@ -129,7 +130,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   try {
     authzResult = runAuthzVerification();
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'AuthZ verification failed';
+    console.error('[system/verify/authz] Error:', e);
+    const msg = 'AuthZ verification failed';
     logVerify({ request_id: rid, event: 'verify_end', actor, http_status: 503, error: VerifyErrorCodes.UPSTREAM_AUTHZ_ERROR });
     recordVerifyRequest({ httpStatus: 503, timingMs: Math.round(performance.now() - t0), ledgerIncluded: false, sourceError: 'authz' });
     return errorResponse(rid, VerifyErrorCodes.UPSTREAM_AUTHZ_ERROR, msg, 503);
@@ -153,7 +155,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     try {
       ledgerResult = await runLedgerVerification();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Ledger verification failed';
+      console.error('[system/verify/ledger] Error:', e);
+      const msg = 'Ledger verification failed';
       logVerify({ request_id: rid, event: 'verify_end', actor, http_status: 503, error: VerifyErrorCodes.UPSTREAM_LEDGER_ERROR });
       recordVerifyRequest({ httpStatus: 503, timingMs: Math.round(performance.now() - t0), ledgerIncluded: false, sourceError: 'ledger' });
       return errorResponse(rid, VerifyErrorCodes.UPSTREAM_LEDGER_ERROR, msg, 503);

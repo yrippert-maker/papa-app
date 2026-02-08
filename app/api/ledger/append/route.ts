@@ -77,7 +77,7 @@ export async function POST(req: Request): Promise<Response> {
           event_type: et,
           payload_json: typeof pj === 'string' ? pj : JSON.stringify(pj ?? {}),
           actor_id: actorId || null,
-          error: e instanceof Error ? e.message : 'Append failed',
+          error: 'Append failed',
           ts_utc: tsUtc,
         });
       } catch {

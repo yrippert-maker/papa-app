@@ -5,6 +5,22 @@
  */
 const store = new Map<string, { count: number; resetAt: number }>();
 
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 min
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function startCleanup(): void {
+  if (cleanupTimer) return;
+  cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of store.entries()) {
+      if (now >= entry.resetAt) store.delete(key);
+    }
+  }, CLEANUP_INTERVAL_MS);
+  if (cleanupTimer.unref) cleanupTimer.unref();
+}
+
+startCleanup();
+
 export function checkRateLimit(
   key: string,
   opts: { windowMs?: number; max?: number } = {}

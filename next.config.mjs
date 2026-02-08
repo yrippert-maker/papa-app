@@ -3,12 +3,24 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const isProd = process.env.NODE_ENV === "production";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
   productionBrowserSourceMaps: false,
 
   async headers() {
+    // Production: strict CSP. Dev: relaxed for hot-reload.
+    const connectSrc = isProd
+      ? "connect-src 'self'"
+      : "connect-src 'self' http://127.0.0.1:3001 http://localhost:3001 ws://127.0.0.1:3001 ws://localhost:3001";
+
+    // Production: no unsafe-eval. Dev: needed for Next.js hot-reload / source maps.
+    const scriptSrc = isProd
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
+
     const securityHeaders = [
       { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
       { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -25,11 +37,11 @@ const nextConfig = {
           "base-uri 'self'",
           "frame-ancestors 'self'",
           "object-src 'none'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          scriptSrc,
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: blob:",
           "font-src 'self' data:",
-          "connect-src 'self' http://127.0.0.1:3001 http://localhost:3001",
+          connectSrc,
           "form-action 'self'",
         ].join("; "),
       },
