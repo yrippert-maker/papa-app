@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { usePermissions } from '@/hooks';
-import { PERMISSIONS } from '@/lib/authz';
+import { Permissions as PERMISSIONS } from '@/lib/authz/permissions';
 
 const SwaggerUI = dynamic(() => import('swagger-ui-react').then((mod) => mod.default), {
   ssr: false,

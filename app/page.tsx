@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KpiTiles, type KpiTile } from '@/components/dashboard/KpiTiles';

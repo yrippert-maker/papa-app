@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * Бинарный тест 500: рендер без auth.
  * GET /dev-home → если OK, проблема в auth/middleware.

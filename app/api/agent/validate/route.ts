@@ -10,7 +10,7 @@ import { validateDocument } from '@/lib/document-validation';
 
 const Body = z.object({
   intent: z.enum(['act', 'techcard', 'mura-menasa-firm-blank', 'letter', 'report', 'memo']),
-  draftFields: z.record(z.unknown()),
+  draftFields: z.record(z.string(), z.unknown()),
   documentRules: z.array(z.string()).optional(),
 });
 

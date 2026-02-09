@@ -92,7 +92,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (body.format === 'xlsx') {
       const buf = buildExcel(sorted);
       const filename = `payments_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      return new NextResponse(buf, {
+      return new NextResponse(new Uint8Array(buf), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'Content-Disposition': `attachment; filename="${filename}"`,
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (body.format === 'pdf') {
       const buf = buildPdf(sorted);
       const filename = `payments_${new Date().toISOString().slice(0, 10)}.pdf`;
-      return new NextResponse(buf, {
+      return new NextResponse(new Uint8Array(buf), {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="${filename}"`,

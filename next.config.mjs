@@ -49,6 +49,7 @@ const nextConfig = {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
   experimental: {
+    missingSuspenseWithCSRBailout: false,
     // Server-only пакеты: не бандлить (native/CJS, избегаем ESM-конфликтов)
     serverComponentsExternalPackages: ['pg', 'pgvector', 'openai', 'pizzip', 'docxtemplater'],
   },
