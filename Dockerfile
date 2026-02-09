@@ -27,6 +27,7 @@ ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-build-placeholder}
 ENV GIT_SHA=$RAILWAY_GIT_COMMIT_SHA
 RUN echo "Building commit: ${GIT_SHA:-unknown}"
 RUN rm -rf .next node_modules/.cache
+RUN npm run build:shared-types 2>/dev/null || true
 RUN npm run check:root
 
 # ---- run (standalone)
@@ -41,6 +42,7 @@ ENV PORT=3000
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
+COPY --from=build "/app/Новая папка" "./Новая папка"
 
 # non-root user (container hardening)
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
