@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
   const err = await requirePermission(session, PERMISSIONS.DOC_VIEW, req);
   if (err) return err;
 
-  if (!PORTAL_API_URL) return NextResponse.json({ ok: false, doc_ids: [], error: 'PORTAL_API_URL not configured' });
+  const apiBase = PORTAL_API_URL || (process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT || 3001}`).replace(/\/$/, '') + '/api';
   try {
-    const url = `${PORTAL_API_URL.replace(/\/+$/, '')}/v1/docs/list`;
+    const url = `${apiBase.replace(/\/+$/, '')}/v1/docs/list`;
     const res = await fetch(url, {
       headers: PORTAL_API_KEY ? { 'x-api-key': PORTAL_API_KEY } : {},
     });

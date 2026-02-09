@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const tabs = [
+  { href: '/documents/library', label: 'Библиотека' },
   { href: '/documents/regulators', label: 'Регуляторы' },
   { href: '/documents/finance', label: 'Финансы' },
   { href: '/documents/mura', label: 'Mura Menasa' },

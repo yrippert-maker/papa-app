@@ -48,7 +48,9 @@ next-env.d.ts
 .tmp/
 
 # user data (не часть приложения)
-Новая папка/
+Новая папка/*
+# Portal API v1: индекс документов Mura Menasa (MM-01..MM-04)
+!Новая папка/DOCUMENT_INDEX.json
 Новая папка с объектами/
 ~$*
 tailwind base.docx

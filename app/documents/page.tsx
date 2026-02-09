@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const tabs = [
+  { href: '/documents/library', label: 'Библиотека' },
   { href: '/documents/regulators', label: 'Регуляторы' },
   { href: '/documents/mura', label: 'Mura Menasa' },
   { href: '/documents/archive', label: 'Архив' },
@@ -32,6 +33,10 @@ export default function DocumentsPage() {
           ))}
         </div>
         <p className="text-slate-500 dark:text-slate-400">
+          <Link href="/documents/library" className="text-blue-600 dark:text-blue-400 hover:underline">
+            Библиотека
+          </Link>
+          {' — каталог регуляторных документов МРО. '}
           <Link href="/documents/regulators" className="text-blue-600 dark:text-blue-400 hover:underline">
             Регуляторы
           </Link>
