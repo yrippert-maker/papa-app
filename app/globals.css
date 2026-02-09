@@ -2,43 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mura Menasa / ПАПА brandbook: primary #EF1C23, text #1a1a1a, font Inter */
 :root {
-  --background: #F8FAFC;
-  --foreground: #0F172A;
-  --primary: #2563EB;
-  --primary-hover: #1d4ed8;
-  --secondary: #64748B;
-  --border: #e2e8f0;
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --primary: #EF1C23;
+  --primary-hover: #d1181f;
+  --secondary: #4a4a4a;
+  --border: #e5e5e5;
   --card-bg: #ffffff;
-  --card-border: #e2e8f0;
-  --text-primary: #0F172A;
-  --text-secondary: #64748B;
-  --text-muted: #94a3b8;
+  --card-border: #e5e5e5;
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4a4a;
+  --text-muted: #737373;
   --success: #22C55E;
   --warning: #F59E0B;
   --error: #EF4444;
-  --info: #3b82f6;
+  --info: #EF1C23;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a;
-    --foreground: #f1f5f9;
-    --primary: #3b82f6;
-    --primary-hover: #2563eb;
-    --secondary: #94a3b8;
-    --border: #334155;
-    --card-bg: #1e293b;
-    --card-border: #334155;
-    --text-primary: #f1f5f9;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
+    --background: #0f0f0f;
+    --foreground: #fafafa;
+    --primary: #EF1C23;
+    --primary-hover: #ff2a31;
+    --secondary: #a3a3a3;
+    --border: #262626;
+    --card-bg: #171717;
+    --card-border: #262626;
+    --text-primary: #fafafa;
+    --text-secondary: #d4d4d4;
+    --text-muted: #a3a3a3;
   }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
+  font-family: var(--font-sans), Inter, system-ui, -apple-system, sans-serif;
   font-family: 'Inter', system-ui, 'Roboto', 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, var(--font-geist-sans), 'Segoe UI', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -54,12 +56,21 @@ body {
   }
   
   .btn-primary {
-    @apply bg-[#2563EB] text-white hover:bg-[#1d4ed8] focus:ring-blue-500;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+    @apply text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+    background-color: var(--primary);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--primary-hover);
+  }
+  .btn-primary:focus {
+    @apply outline-none ring-2 ring-offset-2;
+    --tw-ring-color: var(--primary);
   }
   
   .btn-secondary {
-    @apply bg-white border border-slate-300 text-[#64748B] hover:bg-slate-50 focus:ring-slate-500;
+    @apply bg-white border hover:bg-slate-50;
+    border-color: var(--border);
+    color: var(--text-secondary);
     @apply dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700;
   }
   
@@ -102,15 +113,25 @@ body {
 
   /* Формы - REFLY Style */
   .input {
-    @apply w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600;
-    @apply bg-white dark:bg-slate-800 text-[#0F172A] dark:text-slate-100;
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
-    @apply placeholder:text-[#64748B] dark:placeholder:text-slate-500;
-    @apply transition-all duration-200;
+    @apply w-full px-4 py-2.5 rounded-lg border transition-all duration-200;
+    border-color: var(--border);
+    @apply bg-white dark:bg-slate-800;
+    color: var(--text-primary);
+    @apply dark:text-slate-100;
+  }
+  .input:focus {
+    @apply outline-none ring-2 border-transparent;
+    --tw-ring-color: var(--primary);
+  }
+  .input::placeholder {
+    color: var(--text-muted);
+    @apply dark:placeholder:text-slate-500;
   }
   
   .label {
-    @apply block text-sm font-medium text-[#0F172A] dark:text-slate-300 mb-2;
+    @apply block text-sm font-medium mb-2;
+    color: var(--text-primary);
+    @apply dark:text-slate-300;
   }
 
   /* Таблицы - REFLY Style */
@@ -142,7 +163,9 @@ body {
   }
   
   .badge-primary {
-    @apply bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300;
+    background-color: rgba(239, 28, 35, 0.15);
+    color: #b91c1c;
+    @apply dark:bg-red-900/30 dark:text-red-300;
   }
   
   .badge-success {
@@ -173,7 +196,13 @@ body {
   }
   
   .nav-link-active {
-    @apply bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300;
+    --nav-active-bg: rgba(239, 28, 35, 0.12);
+    --nav-active-text: #EF1C23;
+    background-color: var(--nav-active-bg);
+    color: var(--nav-active-text);
+  }
+  .dark .nav-link-active {
+    --nav-active-bg: rgba(239, 28, 35, 0.2);
   }
 }
 

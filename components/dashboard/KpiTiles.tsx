@@ -21,15 +21,15 @@ export function KpiTiles({ tiles }: { tiles: KpiTile[] }) {
           <Link
             key={t.label}
             href={href}
-            className={`card hover:shadow-md transition-all duration-200 hover:border-blue-400 dark:hover:border-blue-500 ${
+            className={`card hover:shadow-md transition-all duration-200 hover:border-[#EF1C23]/40 dark:hover:border-[#EF1C23]/60 ${
               t.variant === 'warning' ? 'border-amber-300 dark:border-amber-600' : ''
             }`}
           >
             <div className="card-body py-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{t.label}</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                  <p className="text-sm text-[#4a4a4a] dark:text-slate-400 mb-1">{t.label}</p>
+                  <p className="text-2xl font-bold text-[#1a1a1a] dark:text-white tabular-nums">
                     {t.value}
                   </p>
                 </div>
@@ -37,14 +37,14 @@ export function KpiTiles({ tiles }: { tiles: KpiTile[] }) {
                   className={`w-12 h-12 rounded-lg flex items-center justify-center ${
                     t.variant === 'warning'
                       ? 'bg-amber-100 dark:bg-amber-900/40'
-                      : 'bg-blue-100 dark:bg-blue-900/40'
+                      : 'bg-red-50 dark:bg-red-900/20'
                   }`}
                 >
                   <span
                     className={
                       t.variant === 'warning'
                         ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-blue-600 dark:text-blue-400'
+                        : 'text-[#EF1C23] dark:text-red-400'
                     }
                   >
                     {t.icon}

@@ -1,7 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useSidebar } from '@/components/context/SidebarContext';
 import { usePathname } from 'next/navigation';
+
+const BRANDBOOK_LOGO = '/mura-menasa-logo.png';
 import { signOut, useSession } from 'next-auth/react';
 import { useWorkspaceStatus } from '@/hooks/useWorkspaceStatus';
 
@@ -325,7 +328,7 @@ function BadgeLink({
   return (
     <a
       href={href}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 cursor-pointer ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF1C23] focus-visible:ring-offset-1 cursor-pointer ${className}`}
       title={title}
       aria-label={ariaLabel}
     >
@@ -398,21 +401,47 @@ export function Sidebar() {
 
   return (
     <aside className={`fixed left-0 top-0 h-full overflow-hidden bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all duration-300 z-40 ${collapsed ? 'w-20' : 'w-64'}`}>
-      {/* Logo - ПАПА */}
+      {/* Logo — брендбук Mura Menasa / ПАПА */}
       <div className="h-20 flex items-center px-6 border-b border-slate-200 dark:border-slate-700">
         {!collapsed ? (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-700 dark:bg-slate-600 flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-lg">П</span>
+            <div className="relative w-10 h-10 flex-shrink-0">
+              <Image
+                src={BRANDBOOK_LOGO}
+                alt="MURA MENASA FZCO"
+                fill
+                className="object-contain"
+                sizes="40px"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  (e.currentTarget as HTMLImageElement).parentElement?.querySelector('.logo-fallback')?.classList.remove('hidden');
+                }}
+              />
+              <div className="logo-fallback hidden absolute inset-0 rounded-lg bg-[#EF1C23] flex items-center justify-center">
+                <span className="text-white font-bold text-lg">П</span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg text-slate-900 dark:text-white">ПАПА</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 leading-tight">Программа автоматизации<br />производственной аналитики</span>
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-lg text-[#1a1a1a] dark:text-white">ПАПА</span>
+              <span className="text-xs text-[#4a4a4a] dark:text-slate-400 leading-tight">Программа автоматизации<br />производственной аналитики</span>
             </div>
           </div>
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-slate-700 dark:bg-slate-600 flex items-center justify-center mx-auto shadow-sm">
-            <span className="text-white font-bold text-lg">П</span>
+          <div className="relative w-10 h-10 flex-shrink-0 mx-auto">
+            <Image
+              src={BRANDBOOK_LOGO}
+              alt="MURA MENASA"
+              fill
+              className="object-contain"
+              sizes="40px"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = 'none';
+                (e.currentTarget as HTMLImageElement).parentElement?.querySelector('.logo-fallback')?.classList.remove('hidden');
+              }}
+            />
+            <div className="logo-fallback hidden absolute inset-0 rounded-lg bg-[#EF1C23] flex items-center justify-center">
+              <span className="text-white font-bold text-lg">П</span>
+            </div>
           </div>
         )}
       </div>
@@ -441,9 +470,9 @@ export function Sidebar() {
                         aria-label={item.tooltip}
                         aria-current={isActive ? 'page' : undefined}
                         className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer
-                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF1C23] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800
                           ${isActive
-                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500'
+                            ? 'bg-[#EF1C23] text-white shadow-sm hover:bg-[#d1181f] dark:bg-[#EF1C23] dark:hover:bg-[#ff2a31]'
                             : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
                           }`}
                       >
@@ -465,7 +494,7 @@ export function Sidebar() {
       <div className="h-auto py-4 flex flex-col gap-1 px-6 border-t border-slate-200 dark:border-slate-700">
         <button
           onClick={toggle}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF1C23] focus-visible:ring-offset-2"
           title={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
           aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
         >
@@ -476,7 +505,7 @@ export function Sidebar() {
         </button>
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF1C23] focus-visible:ring-offset-2"
           title="Выйти из системы"
           aria-label="Выйти из системы"
         >

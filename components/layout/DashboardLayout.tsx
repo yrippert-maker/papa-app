@@ -7,7 +7,7 @@ import { useSidebar } from '@/components/context/SidebarContext';
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-slate-950 flex">
       <Sidebar />
       <div
         className={`flex-1 flex flex-col transition-[margin] duration-300 ${
