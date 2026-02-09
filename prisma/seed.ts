@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
@@ -122,7 +124,68 @@ async function main() {
   console.log("Seeded admin:", adminEmail);
 }
 
+async function seedRegulatoryDocuments(prisma: PrismaClient) {
+  // Библиотека регуляторных документов МРО (ТЗ: Mura Menasa)
+  if (process.env.SEED_REGULATORY_DOCS === "1" || (await prisma.regulatoryDocument.count()) === 0) {
+    const fixturePath = join(process.cwd(), "__fixtures__", "regulatory-documents.json");
+    const raw = readFileSync(fixturePath, "utf-8");
+    const items = JSON.parse(raw) as Array<{
+      regulator: string;
+      category: string;
+      titleEn: string;
+      titleRu?: string;
+      annotationRu?: string;
+      edition?: string;
+      effectiveDate?: string;
+      languages?: string[];
+      hasRussianOfficial?: boolean;
+      sourceUrl: string;
+      pdfPath?: string;
+      pdfPathRu?: string;
+      fileSizeMb?: number;
+      sha256?: string;
+      tags?: string[];
+      relevance?: string;
+      status?: string;
+    }>;
+    let created = 0;
+    for (const item of items) {
+      const existing = await prisma.regulatoryDocument.findFirst({
+        where: {
+          regulator: item.regulator,
+          titleEn: item.titleEn,
+        },
+      });
+      if (existing) continue;
+      await prisma.regulatoryDocument.create({
+        data: {
+          regulator: item.regulator,
+          category: item.category,
+          titleEn: item.titleEn,
+          titleRu: item.titleRu ?? null,
+          annotationRu: item.annotationRu ?? "",
+          edition: item.edition ?? "current",
+          effectiveDate: item.effectiveDate ? new Date(item.effectiveDate) : null,
+          languages: item.languages ?? ["EN"],
+          hasRussianOfficial: item.hasRussianOfficial ?? false,
+          sourceUrl: item.sourceUrl,
+          pdfPath: item.pdfPath ?? null,
+          pdfPathRu: item.pdfPathRu ?? null,
+          fileSizeMb: item.fileSizeMb ?? null,
+          sha256: item.sha256 ?? null,
+          tags: item.tags ?? [],
+          relevance: item.relevance ?? "important",
+          status: item.status ?? "active",
+        },
+      });
+      created++;
+    }
+    console.log("Seeded regulatory documents:", created, "of", items.length);
+  }
+}
+
 main()
+  .then(() => seedRegulatoryDocuments(prisma))
   .catch((e) => {
     console.error(e);
     process.exit(1);

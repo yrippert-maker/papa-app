@@ -98,3 +98,32 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model RegulatoryDocument {
+  id                 String    @id @default(uuid())
+  regulator          String    // ICAO | EASA | FAA | ARMAK | GCAA
+  category           String    // annex | part | cfr | ac | car | caap | manual | guide | concept | rules
+  titleEn            String
+  titleRu            String?
+  annotationRu       String    @db.Text
+  edition            String
+  effectiveDate      DateTime?
+  languages          String[]  // ['EN','RU','AR','HY']
+  hasRussianOfficial Boolean   @default(false)
+  sourceUrl          String
+  pdfPath            String?
+  pdfPathRu          String?
+  fileSizeMb         Float?
+  sha256             String?
+  tags               String[]  // ['mro','camo','airworthiness',...]
+  relevance          String    @default("important") // critical | important | reference
+  status             String    @default("active")    // active | superseded | draft
+  lastChecked        DateTime  @default(now())
+  notes              String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([regulator])
+  @@index([status])
+  @@index([tags])
+}

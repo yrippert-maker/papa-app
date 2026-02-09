@@ -11,6 +11,14 @@ const config: Config = {
   modulePathIgnorePatterns: ['<rootDir>/Новая папка/', '<rootDir>/Новая папка с объектами/'],
   watchPathIgnorePatterns: ['/Новая папка/', '/Новая папка с объектами/'],
   collectCoverageFrom: ['lib/**/*.ts', 'app/api/**/*.ts', '!**/*.d.ts'],
+  coverageThreshold: {
+    global: {
+      branches: 1,
+      functions: 1,
+      lines: 1,
+      statements: 1,
+    },
+  },
 };
 
 export default createJestConfig(config);
