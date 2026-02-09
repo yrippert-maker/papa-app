@@ -328,7 +328,7 @@ function BadgeLink({
   return (
     <a
       href={href}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF1C23] focus-visible:ring-offset-1 cursor-pointer ${className}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 cursor-pointer ${className}`}
       title={title}
       aria-label={ariaLabel}
     >
@@ -417,7 +417,7 @@ export function Sidebar() {
                   (e.currentTarget as HTMLImageElement).parentElement?.querySelector('.logo-fallback')?.classList.remove('hidden');
                 }}
               />
-              <div className="logo-fallback hidden absolute inset-0 rounded-lg bg-[#EF1C23] flex items-center justify-center">
+              <div className="logo-fallback hidden absolute inset-0 rounded-lg bg-primary flex items-center justify-center">
                 <span className="text-white font-bold text-lg">П</span>
               </div>
             </div>
@@ -439,7 +439,7 @@ export function Sidebar() {
                 (e.currentTarget as HTMLImageElement).parentElement?.querySelector('.logo-fallback')?.classList.remove('hidden');
               }}
             />
-            <div className="logo-fallback hidden absolute inset-0 rounded-lg bg-[#EF1C23] flex items-center justify-center">
+            <div className="logo-fallback hidden absolute inset-0 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-white font-bold text-lg">П</span>
             </div>
           </div>
@@ -470,9 +470,9 @@ export function Sidebar() {
                         aria-label={item.tooltip}
                         aria-current={isActive ? 'page' : undefined}
                         className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer
-                          focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF1C23] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800
                           ${isActive
-                            ? 'bg-[#EF1C23] text-white shadow-sm hover:bg-[#d1181f] dark:bg-[#EF1C23] dark:hover:bg-[#ff2a31]'
+                            ? 'bg-primary text-white shadow-sm hover:bg-primary-hover'
                             : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
                           }`}
                       >
@@ -494,7 +494,7 @@ export function Sidebar() {
       <div className="h-auto py-4 flex flex-col gap-1 px-6 border-t border-slate-200 dark:border-slate-700">
         <button
           onClick={toggle}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF1C23] focus-visible:ring-offset-2"
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           title={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
           aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
         >
@@ -505,7 +505,7 @@ export function Sidebar() {
         </button>
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF1C23] focus-visible:ring-offset-2"
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           title="Выйти из системы"
           aria-label="Выйти из системы"
         >

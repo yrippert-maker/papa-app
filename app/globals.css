@@ -56,15 +56,13 @@ body {
   }
   
   .btn-primary {
-    @apply text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
-    background-color: var(--primary);
+    @apply bg-primary text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--primary-hover);
+    @apply bg-primary-hover;
   }
   .btn-primary:focus {
-    @apply outline-none ring-2 ring-offset-2;
-    --tw-ring-color: var(--primary);
+    @apply outline-none ring-2 ring-offset-2 ring-primary;
   }
   
   .btn-secondary {
@@ -120,8 +118,7 @@ body {
     @apply dark:text-slate-100;
   }
   .input:focus {
-    @apply outline-none ring-2 border-transparent;
-    --tw-ring-color: var(--primary);
+    @apply outline-none ring-2 border-transparent ring-primary;
   }
   .input::placeholder {
     color: var(--text-muted);

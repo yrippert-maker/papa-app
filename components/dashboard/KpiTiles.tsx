@@ -21,7 +21,7 @@ export function KpiTiles({ tiles }: { tiles: KpiTile[] }) {
           <Link
             key={t.label}
             href={href}
-            className={`card hover:shadow-md transition-all duration-200 hover:border-[#EF1C23]/40 dark:hover:border-[#EF1C23]/60 ${
+            className={`card hover:shadow-md transition-all duration-200 hover:border-primary/40 dark:hover:border-primary/60 ${
               t.variant === 'warning' ? 'border-amber-300 dark:border-amber-600' : ''
             }`}
           >
@@ -44,7 +44,7 @@ export function KpiTiles({ tiles }: { tiles: KpiTile[] }) {
                     className={
                       t.variant === 'warning'
                         ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-[#EF1C23] dark:text-red-400'
+                        : 'text-primary dark:text-red-400'
                     }
                   >
                     {t.icon}

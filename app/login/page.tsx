@@ -46,7 +46,7 @@ function LoginForm() {
                 (e.currentTarget as HTMLImageElement).parentElement?.querySelector('.logo-fallback')?.classList.remove('hidden');
               }}
             />
-            <div className="logo-fallback hidden absolute inset-0 rounded-xl bg-[#EF1C23] flex items-center justify-center">
+            <div className="logo-fallback hidden absolute inset-0 rounded-xl bg-primary flex items-center justify-center">
               <span className="text-white font-bold text-xl">П</span>
             </div>
           </div>

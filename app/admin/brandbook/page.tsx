@@ -74,7 +74,7 @@ export default function BrandbookAdminPage() {
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
             Конфигурация брендбука (FR-1.5)
           </h2>
-          <Link href="/admin/users" className="text-sm text-[#EF1C23] dark:text-red-400 hover:underline">
+          <Link href="/admin/users" className="text-sm text-primary dark:text-red-400 hover:underline">
             ← Пользователи
           </Link>
         </div>

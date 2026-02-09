@@ -134,7 +134,7 @@ export default function WorkspacePage() {
                             onClick={() =>
                               setCurrentDir(e.relativePath ? e.relativePath : currentDir)
                             }
-                            className="text-left font-medium text-[#EF1C23] hover:underline flex items-center gap-2"
+                            className="text-left font-medium text-primary hover:underline flex items-center gap-2"
                           >
                             <svg
                               className="w-4 h-4"
