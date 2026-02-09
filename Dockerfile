@@ -11,6 +11,7 @@ RUN npm ci --include=dev && npx prisma generate --schema=prisma/schema.prisma
 
 # ---- build
 FROM node:22.12-alpine AS build
+ARG CACHE_BUST=2
 WORKDIR /app
 RUN node -v && npm -v
 COPY --from=deps /app/node_modules ./node_modules
