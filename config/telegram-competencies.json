@@ -1,0 +1,11 @@
+{
+  "roleChatIds": {
+    "ADMIN": "",
+    "MANAGER": "",
+    "ENGINEER": "",
+    "AUDITOR": "",
+    "STOREKEEPER": ""
+  },
+  "alertChatId": "",
+  "_comment": "Укажите chat_id для каждой роли. chat_id = число (Start бота → @userinfobot). alertChatId — общий канал для срочных."
+}

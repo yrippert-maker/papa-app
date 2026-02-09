@@ -33,6 +33,12 @@ export const INSPECTION_VIEW_ALIASES: readonly string[] = [
 /** Permissions that satisfy INSPECTION.MANAGE. */
 export const INSPECTION_MANAGE_ALIASES: readonly string[] = ['INSPECTION.MANAGE'];
 
+/** NFR-5.2: Permissions that satisfy HR.VIEW (read). COMPLIANCE.VIEW for backward compatibility. */
+export const HR_VIEW_ALIASES: readonly string[] = ['HR.VIEW', 'HR.MANAGE', 'COMPLIANCE.VIEW'];
+
+/** NFR-5.2: Permissions that satisfy HR.MANAGE (write). */
+export const HR_MANAGE_ALIASES: readonly string[] = ['HR.MANAGE', 'ADMIN.MANAGE_USERS'];
+
 /** Map: required permission → set of satisfying permissions (including aliases). */
 const ALIAS_MAP: Record<string, readonly string[]> = {
   'TMC.REQUEST.VIEW': TMC_REQUEST_VIEW_ALIASES,
@@ -40,6 +46,8 @@ const ALIAS_MAP: Record<string, readonly string[]> = {
   'TMC.VIEW': TMC_VIEW_ALIASES,
   'INSPECTION.VIEW': INSPECTION_VIEW_ALIASES,
   'INSPECTION.MANAGE': INSPECTION_MANAGE_ALIASES,
+  'HR.VIEW': HR_VIEW_ALIASES,
+  'HR.MANAGE': HR_MANAGE_ALIASES,
 };
 
 /**

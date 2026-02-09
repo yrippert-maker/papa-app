@@ -16,12 +16,11 @@ export default function DocumentsFinancePage() {
           См. <Link href="/mail/inbox" className="text-blue-600 dark:text-blue-400 hover:underline">Очередь почты</Link> и{' '}
           <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">docs/plans/MAIL_MVP_SPEC.md</code> (A3, M2).
         </p>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Текущая версия реестра и история версий (Portal storage):{' '}
-          <Link href="/documents/finance/payments" className="text-blue-600 dark:text-blue-400 hover:underline">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+          <Link href="/documents/finance/payments" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
             Реестр платежей (finance/payments)
           </Link>
-          . Changes pending (drafts) будут отображаться здесь.
+          — сводная таблица с назначением платежа и ежеквартальная сводка для аудитора.
         </p>
       </main>
     </DashboardLayout>

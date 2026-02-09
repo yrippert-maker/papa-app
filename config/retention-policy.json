@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "description": "Политика хранения данных ПАПА (NFR-3.1, NFR-4.2)",
+  "techcards": {
+    "retention_years": 10,
+    "versioning": true,
+    "audit_required": true
+  },
+  "acts": {
+    "retention_years": 10,
+    "versioning": true,
+    "audit_required": true
+  },
+  "ledger": {
+    "retention_years": null,
+    "note": "Ledger хранится бессрочно"
+  },
+  "hr_documents": {
+    "retention_years": 7,
+    "note": "NFR-5.1"
+  },
+  "financial": {
+    "retention_years": 7,
+    "note": "Требования аудита"
+  },
+  "ai_logs": {
+    "retention_years": 3,
+    "note": "NFR-2.3"
+  },
+  "backup": {
+    "daily": true,
+    "retention_days": 90,
+    "note": "NFR-4.2 — настроить cron"
+  }
+}

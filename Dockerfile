@@ -42,7 +42,7 @@ ENV PORT=3000
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
-COPY --from=build "/app/Новая папка" "./Новая папка"
+COPY --from=build "/app/data/mura-menasa" "./data/mura-menasa"
 
 # Prisma: schema + migrations for runtime migrate deploy
 COPY --from=build /app/prisma ./prisma

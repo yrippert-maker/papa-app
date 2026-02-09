@@ -85,3 +85,38 @@ export async function GET(req: Request): Promise<Response> {
     );
   }
 }
+
+/** POST — client-side audit log (action, target, metadata). Requires session. */
+export async function POST(req: Request): Promise<Response> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const action = typeof body?.action === "string" ? body.action : null;
+    const target = typeof body?.target === "string" ? body.target : null;
+    const metadata = body?.metadata && typeof body.metadata === "object" ? body.metadata : undefined;
+
+    if (!action || action.length > 128) {
+      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    }
+
+    await prisma.auditEvent.create({
+      data: {
+        actorUserId: session.user.id,
+        action,
+        target,
+        metadata: metadata ?? undefined,
+      },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[audit/events POST]", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Failed" },
+      { status: 500 }
+    );
+  }
+}

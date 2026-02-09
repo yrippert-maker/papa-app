@@ -1,0 +1,1 @@
+{"enabled": false, "provider": "webauthn", "allowedRoles": ["ADMIN", "MANAGER", "ENGINEER"], "requireUserVerification": true, "rpId": "localhost", "timeout": 60000, "_comment": "provider: webauthn|idemia. idemia: распознавание лиц (IDEMIA), см. docs/ops/IDEMIA_INTEGRATION.md", "idemia": {"enabled": false}}

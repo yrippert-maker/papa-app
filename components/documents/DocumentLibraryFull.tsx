@@ -219,16 +219,8 @@ export function DocumentLibraryFull() {
         className="flex items-center gap-3 px-5 py-3 bg-slate-900 border-b-2"
         style={{ borderColor: '#EF1C23' }}
       >
-        <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
-          <svg viewBox="0 0 200 200" className="w-5 h-5">
-            <circle cx="100" cy="100" r="90" fill="#444" />
-            <g transform="translate(100,100)">
-              <path d="M0,-10 C-25,-45 -15,-80 0,-75 C15,-80 25,-45 0,-10Z" fill="#EF1C23" />
-              <path d="M0,-10 C-25,-45 -15,-80 0,-75 C15,-80 25,-45 0,-10Z" fill="#EF1C23" transform="rotate(120)" />
-              <path d="M0,-10 C-25,-45 -15,-80 0,-75 C15,-80 25,-45 0,-10Z" fill="#EF1C23" transform="rotate(240)" />
-              <circle r="10" fill="#EF1C23" />
-            </g>
-          </svg>
+        <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <img src="/mura-menasa-logo.png" alt="MURA MENASA FZCO" className="w-6 h-6 object-contain" />
         </div>
         <span className="text-sm font-semibold tracking-widest text-slate-400">MURA MENASA FZCO</span>
         <span className="text-red-500 text-lg font-light">|</span>

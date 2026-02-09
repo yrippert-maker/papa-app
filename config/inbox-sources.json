@@ -1,0 +1,29 @@
+{
+  "$schema": "Inbox allowlist for info@2rh.org",
+  "sources": [
+    {
+      "domain": "mak.ru",
+      "label": "ARMAK",
+      "enabled": true,
+      "require_dmarc_pass": true,
+      "auto_analyze": true,
+      "require_approval": true
+    },
+    {
+      "domain": "klimov.ru",
+      "label": "UDK_Klimov",
+      "enabled": true,
+      "require_dmarc_pass": true,
+      "auto_analyze": true,
+      "require_approval": true
+    },
+    {
+      "domain": "ao-star.ru",
+      "label": "UDK_Star",
+      "enabled": true,
+      "require_dmarc_pass": true,
+      "auto_analyze": true,
+      "require_approval": true
+    }
+  ]
+}

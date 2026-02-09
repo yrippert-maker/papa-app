@@ -1,0 +1,57 @@
+# Demo Compliance Package: генерирует demo ZIP из fixture pack и публикует как artifact.
+# Результат — всегда актуальная демонстрация для регуляторов/партнёров.
+name: demo-package
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Build demo compliance package
+        run: |
+          npm run compliance:demo:from-pack -- \
+            --pack ./__fixtures__/auditor-pack-minimal \
+            --policy ./docs/verify-policy.default.json \
+            --controls ./config/control-definitions.example.json \
+            --name Papa-App-Demo-Compliance-Package \
+            --output-name demo-pack \
+            --out ./dist/demo
+
+      - name: No-secrets sanitizer
+        run: |
+          mkdir -p .tmp/demo-check
+          unzip -q dist/demo/demo-pack.zip -d .tmp/demo-check
+          if grep -rE --include='*.json' --include='*.md' --include='*.txt' \
+            -e 'PRIVATE_KEY|-----BEGIN.*PRIVATE KEY-----|token\s*=\s*["\047][^"\047]{12,}|password\s*=\s*["\047][^"\047]{8,}' \
+            .tmp/demo-check 2>/dev/null; then
+            echo "::error::Potential secrets detected in demo package"
+            exit 1
+          fi
+          if find .tmp/demo-check \( -name '.env*' -o -name '*.env' \) 2>/dev/null | grep -q .; then
+            echo "::error::.env files found in demo package"
+            exit 1
+          fi
+          echo "No secrets patterns found."
+
+      - name: Upload demo package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-compliance-package
+          path: dist/demo/

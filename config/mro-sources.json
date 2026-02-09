@@ -1,0 +1,69 @@
+{
+  "$schema": "MRO monitoring sources",
+  "sources": [
+    {
+      "id": "easa-1321-2014",
+      "authority": "EASA",
+      "kind": "regulation",
+      "title": "Commission Regulation (EU) No 1321/2014",
+      "url": "https://www.easa.europa.eu/en/document-library/regulations/commission-regulation-eu-no-13212014",
+      "notes": "Continuing airworthiness, Part-145"
+    },
+    {
+      "id": "easa-amc-gm-145",
+      "authority": "EASA",
+      "kind": "amc_gm",
+      "title": "AMC & GM to Part-145",
+      "url": "https://www.easa.europa.eu/en/document-library/acceptable-means-of-compliance-and-guidance-materials/amc-gm-part-145-issue-2-7",
+      "notes": "Issue 2, Amendment 8"
+    },
+    {
+      "id": "easa-easy-access",
+      "authority": "EASA",
+      "kind": "easy_access",
+      "title": "Easy Access Rules for Continuing Airworthiness",
+      "url": "https://www.easa.europa.eu/en/document-library/easy-access-rules/easy-access-rules-continuing-airworthiness",
+      "notes": "Machine-readable variants available"
+    },
+    {
+      "id": "faa-14cfr-145",
+      "authority": "FAA",
+      "kind": "regulation",
+      "title": "14 CFR Part 145 - Repair Stations",
+      "url": "https://www.ecfr.gov/current/title-14/chapter-I/subchapter-H/part-145",
+      "notes": "eCFR; monitor version/amendments"
+    },
+    {
+      "id": "faa-part145-guidance",
+      "authority": "FAA",
+      "kind": "guidance",
+      "title": "Part 145 Certification Guidance",
+      "url": "https://www.faa.gov/licenses_certificates/airline_certification/part145_certification/guidance",
+      "notes": "FAA guidance during certification"
+    },
+    {
+      "id": "icao-maintenance",
+      "authority": "ICAO",
+      "kind": "guidance",
+      "title": "Maintenance on aircraft",
+      "url": "https://www.icao.int/sites/default/files/safety/OPS/Maintenance-on-aircraft.pdf",
+      "notes": "Public document; Annexes may be restricted"
+    },
+    {
+      "id": "armak-ap-145",
+      "authority": "ARMAK",
+      "kind": "regulation",
+      "title": "АП-145 Ремонтные организации",
+      "url": "https://armak-iac.org/cert_methodological_support_infoparts/",
+      "notes": "Авиационные правила; храним метаданные/ссылки/конспект"
+    },
+    {
+      "id": "armak-guidance-145-1b",
+      "authority": "ARMAK",
+      "kind": "guidance",
+      "title": "Руководство 145.1В Процедуры сертификации ремонтных организаций",
+      "url": "https://armak-iac.org/cert_methodological_support_infoparts/",
+      "notes": "Методические документы; PDF если доступен, иначе MD конспект"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
 
-const DOCUMENTS_FOLDER = 'Новая папка';
+const DOCUMENTS_FOLDER = 'data/mura-menasa';
 const INDEX_FILE = 'DOCUMENT_INDEX.json';
 
 interface DocEntry {

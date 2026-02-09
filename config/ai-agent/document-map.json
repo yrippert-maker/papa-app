@@ -1,5 +1,5 @@
 {
-  "root_path": "Новая папка",
+  "root_path": "data/mura-menasa",
   "apply_policy": { "mode": "manual_apply_only" },
   "documents": [
     {

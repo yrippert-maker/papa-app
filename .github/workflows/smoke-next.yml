@@ -1,0 +1,64 @@
+name: smoke-next
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Start Next (dev)
+        env:
+          PORT: "3001"
+          NEXTAUTH_SECRET: smoke-secret
+          WORKSPACE_ROOT: /tmp/papa-smoke
+        run: |
+          npm run dev:quick 2>&1 | tee /tmp/smoke-next.log &
+          echo $! > /tmp/smoke-next.pid
+
+      - name: Wait for server
+        run: npx wait-on http://127.0.0.1:3001/api/health --timeout 60000
+
+      - name: Smoke check /api/health
+        run: curl -fsS http://127.0.0.1:3001/api/health
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          mkdir -p /tmp/smoke-next-artifacts
+          echo "=== last 300 lines of next log ===" > /tmp/smoke-next-artifacts/summary.txt
+          tail -n 300 /tmp/smoke-next.log >> /tmp/smoke-next-artifacts/summary.txt 2>/dev/null || true
+          echo -e "\n=== listeners (3001) ===" >> /tmp/smoke-next-artifacts/summary.txt
+          lsof -nP -iTCP:3001 -sTCP:LISTEN >> /tmp/smoke-next-artifacts/summary.txt 2>&1 || true
+          echo -e "\n=== curl -v /api/health ===" >> /tmp/smoke-next-artifacts/summary.txt
+          curl -v http://127.0.0.1:3001/api/health >> /tmp/smoke-next-artifacts/summary.txt 2>&1 || true
+          echo -e "\n=== env (filtered) ===" >> /tmp/smoke-next-artifacts/summary.txt
+          (printenv | grep -E '^(PORT|NEXTAUTH|WORKSPACE|PAPA|AGENT)=' || true) >> /tmp/smoke-next-artifacts/summary.txt
+          cp /tmp/smoke-next.log /tmp/smoke-next-artifacts/smoke-next.log 2>/dev/null || true
+
+      - name: Upload smoke-next artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-next-artifacts
+          path: /tmp/smoke-next-artifacts
+          if-no-files-found: ignore
+
+      - name: Stop server
+        if: always()
+        run: kill $(cat /tmp/smoke-next.pid) 2>/dev/null || true

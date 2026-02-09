@@ -1,0 +1,40 @@
+# Desktop PG build: build → prep → policy asserts → size report.
+# Гарантирует, что PG desktop bundle не содержит better-sqlite3, @aws-sdk, @google-cloud.
+name: desktop-pg-build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Build + Prep (PG desktop)
+        env:
+          # Любой непустой DATABASE_URL (реальный DB не нужен для build/prep; нужен для prune/assert).
+          DATABASE_URL: "postgresql://localhost:5432/ci"
+          S3_HEALTH_ENABLED: "0"
+          GCS_HEALTH_ENABLED: "0"
+        run: |
+          rm -rf electron/bundle
+          npm run build
+          npm run electron:prep
+          npm run next-cache-check
+          node scripts/next-size-report.mjs > next-size-report.txt
+
+      - name: Upload size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-size-report
+          path: next-size-report.txt

@@ -1,0 +1,331 @@
+name: Security AI Weekly
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  security-events: write
+  id-token: write
+
+concurrency:
+  group: security-ai-weekly
+  cancel-in-progress: false
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    outputs:
+      audit_summary: ${{ steps.summarize.outputs.audit_summary }}
+      has_findings: ${{ steps.summarize.outputs.has_findings }}
+      critical: ${{ steps.summarize.outputs.critical }}
+      high: ${{ steps.summarize.outputs.high }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: npm audit (json)
+        id: audit
+        run: |
+          npm audit --json > audit.json 2>/dev/null || true
+          echo "audit_json<<EOF" >> $GITHUB_OUTPUT
+          cat audit.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Summarize audit
+        id: summarize
+        run: |
+          node -e "
+            const fs=require('fs');
+            let a={metadata:{vulnerabilities:{}}};
+            try { a=JSON.parse(fs.readFileSync('audit.json','utf8')); } catch(e){}
+            const vulns=a.metadata?.vulnerabilities||{};
+            const crit=Number(vulns.critical)||0;
+            const high=Number(vulns.high)||0;
+            const hasFindings=crit>0||high>0;
+            const summary=[
+              'npm audit summary:',
+              '  critical: '+(vulns.critical??'n/a'),
+              '  high: '+(vulns.high??'n/a'),
+              '  moderate: '+(vulns.moderate??'n/a'),
+              '  low: '+(vulns.low??'n/a')
+            ].join('\n');
+            console.log(summary);
+            fs.writeFileSync('audit-summary.txt', summary);
+            fs.writeFileSync('audit-has-findings.txt', hasFindings?'true':'false');
+            fs.writeFileSync('audit-critical.txt', String(crit));
+            fs.writeFileSync('audit-high.txt', String(high));
+          "
+          echo "audit_summary<<EOF" >> $GITHUB_OUTPUT
+          cat audit-summary.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "has_findings<<EOF" >> $GITHUB_OUTPUT
+          cat audit-has-findings.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "critical<<EOF" >> $GITHUB_OUTPUT
+          cat audit-critical.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "high<<EOF" >> $GITHUB_OUTPUT
+          cat audit-high.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit
+          path: audit.json
+
+  trivy-image-scan:
+    runs-on: ubuntu-latest
+    needs: [npm-audit]
+    outputs:
+      trivy_summary: ${{ steps.sum.outputs.trivy_summary }}
+      has_findings: ${{ steps.sum.outputs.has_findings }}
+      critical: ${{ steps.sum.outputs.critical }}
+      high: ${{ steps.sum.outputs.high }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build docker image
+        run: |
+          docker build -t papa-app:security-scan \
+            --build-arg WORKSPACE_ROOT=/tmp/papa-security-build \
+            --build-arg NEXTAUTH_SECRET=security-scan-placeholder .
+
+      - name: Trivy scan (JSON for reliable parsing)
+        id: trivy
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: papa-app:security-scan
+          format: json
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          output: trivy.json
+          exit-code: "0"
+
+      - name: Summarize Trivy (parse JSON for HIGH/CRITICAL)
+        id: sum
+        run: |
+          node -e "
+            const fs=require('fs');
+            let hasFindings=false, crit=0, high=0;
+            const lines=['Trivy CRITICAL/HIGH (ignore-unfixed=true):'];
+            try {
+              const raw=fs.readFileSync('trivy.json','utf8');
+              if (!raw || raw.trim()==='') { lines.push('  (empty output)'); }
+              else {
+                const j=JSON.parse(raw);
+                const results=j.Results||[];
+                const rootVulns=j.Vulnerabilities||[];
+                let crit=0,high=0;
+                function count(v){
+                  const sev=(v.Severity||'').toUpperCase();
+                  if (sev==='CRITICAL'){ crit++; lines.push('  CRITICAL: '+(v.VulnerabilityID||'')+' - '+(v.PkgName||'')+' - '+(v.Title||'')); }
+                  if (sev==='HIGH'){ high++; lines.push('  HIGH: '+(v.VulnerabilityID||'')+' - '+(v.PkgName||'')+' - '+(v.Title||'')); }
+                }
+                for (const r of results) { (r.Vulnerabilities||[]).forEach(count); }
+                rootVulns.forEach(count);
+                hasFindings=crit>0||high>0;
+                lines.splice(1,0,'  Count: CRITICAL='+crit+', HIGH='+high);
+              }
+            } catch(e){ lines.push('  (parse error: '+e.message+')'); }
+            fs.writeFileSync('trivy-summary.txt', lines.join('\n'));
+            fs.writeFileSync('trivy-has-findings.txt', hasFindings?'true':'false');
+            fs.writeFileSync('trivy-critical.txt', String(crit));
+            fs.writeFileSync('trivy-high.txt', String(high));
+          "
+          echo "trivy_summary<<EOF" >> $GITHUB_OUTPUT
+          cat trivy-summary.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "has_findings<<EOF" >> $GITHUB_OUTPUT
+          cat trivy-has-findings.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "critical<<EOF" >> $GITHUB_OUTPUT
+          cat trivy-critical.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "high<<EOF" >> $GITHUB_OUTPUT
+          cat trivy-high.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy
+          path: trivy.json
+
+  snyk-scan:
+    runs-on: ubuntu-latest
+    needs: [npm-audit]
+    outputs:
+      snyk_summary: ${{ steps.out.outputs.snyk_summary }}
+      has_findings: ${{ steps.out.outputs.has_findings }}
+      critical: ${{ steps.out.outputs.critical }}
+      high: ${{ steps.out.outputs.high }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Snyk test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -n "$SNYK_TOKEN" ]; then
+            npx snyk test --json > snyk.json 2>/dev/null || echo '{"vulnerabilities":[]}' > snyk.json
+          else
+            echo '{"vulnerabilities":[]}' > snyk.json
+          fi
+
+      - name: Summarize Snyk
+        id: out
+        run: |
+          node -e "
+            const fs=require('fs');
+            let s={vulnerabilities:[]};
+            try { s=JSON.parse(fs.readFileSync('snyk.json','utf8')); } catch(e){}
+            const issues=s.vulnerabilities||[];
+            const by=issues.reduce((m,v)=>{m[v.severity]=(m[v.severity]||0)+1; return m;},{});
+            const crit=by.critical||0;
+            const high=by.high||0;
+            const hasFindings=crit>0||high>0;
+            const summary=[
+              'Snyk summary:',
+              '  critical: '+crit,
+              '  high: '+high,
+              '  medium: '+(by.medium||0),
+              '  low: '+(by.low||0)
+            ].join('\n');
+            console.log(summary);
+            fs.writeFileSync('snyk-summary.txt', summary);
+            fs.writeFileSync('snyk-has-findings.txt', hasFindings?'true':'false');
+            fs.writeFileSync('snyk-critical.txt', String(crit));
+            fs.writeFileSync('snyk-high.txt', String(high));
+          "
+          echo "snyk_summary<<EOF" >> $GITHUB_OUTPUT
+          cat snyk-summary.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "has_findings<<EOF" >> $GITHUB_OUTPUT
+          cat snyk-has-findings.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "critical<<EOF" >> $GITHUB_OUTPUT
+          cat snyk-critical.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "high<<EOF" >> $GITHUB_OUTPUT
+          cat snyk-high.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snyk
+          path: snyk.json
+
+  create-issue:
+    runs-on: ubuntu-latest
+    needs: [npm-audit, trivy-image-scan, snyk-scan]
+    outputs:
+      issue_url: ${{ steps.create.outputs.issue_url }}
+    if: |
+      always() && !cancelled() &&
+      (needs.npm-audit.result == 'success' || needs.trivy-image-scan.result == 'success') &&
+      (needs.npm-audit.outputs.has_findings == 'true' ||
+       needs.trivy-image-scan.outputs.has_findings == 'true' ||
+       needs.snyk-scan.outputs.has_findings == 'true')
+    steps:
+      - name: Create weekly security issue
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUDIT_SUMMARY: ${{ needs.npm-audit.outputs.audit_summary }}
+          TRIVY_SUMMARY: ${{ needs.trivy-image-scan.outputs.trivy_summary }}
+          SNYK_SUMMARY: ${{ needs.snyk-scan.outputs.snyk_summary || 'Snyk skipped (no SNYK_TOKEN)' }}
+        run: |
+          BODY="## Automated weekly security report
+
+          ### npm audit
+          \`\`\`text
+          ${AUDIT_SUMMARY:-n/a}
+          \`\`\`
+
+          ### Trivy (Docker image)
+          \`\`\`text
+          ${TRIVY_SUMMARY:-n/a}
+          \`\`\`
+
+          ### Snyk
+          \`\`\`text
+          ${SNYK_SUMMARY:-Snyk skipped}
+          \`\`\`
+
+          **Next actions (human approval required):**
+          - Review HIGH/CRITICAL findings
+          - Approve dependency bumps / base image updates via PR
+          - If WAF rate-limits need tuning: adjust thresholds based on metrics
+          "
+          ISSUE_URL=$(gh issue create --title "Security weekly report ($(date -u +%Y-%m-%d))" --body "$BODY" --label "security" 2>/dev/null || \
+            gh issue create --title "Security weekly report ($(date -u +%Y-%m-%d))" --body "$BODY")
+          echo "issue_url=$ISSUE_URL" >> $GITHUB_OUTPUT
+
+  notify-sns:
+    runs-on: ubuntu-latest
+    needs: [npm-audit, trivy-image-scan, snyk-scan, create-issue]
+    if: |
+      always() && !cancelled() &&
+      (needs.npm-audit.result == 'success' || needs.trivy-image-scan.result == 'success') &&
+      (needs.npm-audit.outputs.has_findings == 'true' ||
+       needs.trivy-image-scan.outputs.has_findings == 'true' ||
+       needs.snyk-scan.outputs.has_findings == 'true') &&
+      (needs.create-issue.result == 'success' || needs.create-issue.result == 'failure')
+    steps:
+      - name: Decide severity
+        id: sev
+        run: |
+          NA_CRIT=${NEEDS_NPM_CRIT:-0}
+          TR_CRIT=${NEEDS_TRIVY_CRIT:-0}
+          SN_CRIT=${NEEDS_SNYK_CRIT:-0}
+          CRIT=$((NA_CRIT + TR_CRIT + SN_CRIT))
+          if [ "$CRIT" -gt 0 ]; then
+            echo "severity=CRITICAL" >> $GITHUB_OUTPUT
+          else
+            echo "severity=HIGH" >> $GITHUB_OUTPUT
+          fi
+        env:
+          NEEDS_NPM_CRIT: ${{ needs.npm-audit.outputs.critical || '0' }}
+          NEEDS_TRIVY_CRIT: ${{ needs.trivy-image-scan.outputs.critical || '0' }}
+          NEEDS_SNYK_CRIT: ${{ needs.snyk-scan.outputs.critical || '0' }}
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_SNS_PUBLISH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_SNS_REGION || vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Publish to SNS (JSON for Lambda formatter)
+        env:
+          SEV: ${{ steps.sev.outputs.severity }}
+          TOPIC_HIGH: ${{ secrets.AWS_SNS_TOPIC_HIGH_ARN }}
+          TOPIC_CRIT: ${{ secrets.AWS_SNS_TOPIC_CRITICAL_ARN }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_URL: ${{ needs.create-issue.outputs.issue_url || '' }}
+        run: |
+          set -e
+          if [ "$SEV" = "CRITICAL" ]; then TOPIC="$TOPIC_CRIT"; else TOPIC="$TOPIC_HIGH"; fi
+
+          PAYLOAD=$(jq -n --arg r "$REPO" --arg u "$RUN_URL" --arg i "$ISSUE_URL" --arg s "$SEV" '{repo:$r,run_url:$u,issue_url:$i,severity:$s}')
+          SUBJECT="[${SEV}] papa-app security findings (${REPO})"
+
+          aws sns publish --topic-arn "$TOPIC" --subject "$SUBJECT" --message "$PAYLOAD"

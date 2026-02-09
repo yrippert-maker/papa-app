@@ -1,0 +1,31 @@
+{
+  "description": "FR-5.3: HR-шаблоны в стиле брендбука Mura Menasa",
+  "brandbookSource": "config/mura-menasa-brandbook.json",
+  "templates": {
+    "trainingCert": {
+      "id": "training-cert",
+      "name": "Удостоверение об обучении",
+      "path": "templates/hr/training-cert.docx",
+      "params": ["employee", "program", "date", "certNo", "validUntil"],
+      "format": "docx"
+    },
+    "vacationForm": {
+      "id": "vacation-form",
+      "name": "Заявка на отпуск",
+      "path": "templates/hr/vacation-form.docx",
+      "params": ["employee", "start", "end", "status", "approvedBy"],
+      "format": "docx"
+    },
+    "timesheetForm": {
+      "id": "timesheet-form",
+      "name": "Табель учёта рабочего времени",
+      "path": "templates/hr/timesheet-form.docx",
+      "params": ["employee", "month", "year", "entries"],
+      "format": "docx"
+    }
+  },
+  "defaultBrandbook": {
+    "colors": { "primary": "#EF1C23", "text": "#1a1a1a" },
+    "typography": { "fontFamily": "Inter, system-ui, sans-serif" }
+  }
+}

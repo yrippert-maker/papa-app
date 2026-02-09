@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation';
 
 const tabs = [
   { href: '/documents/library', label: 'Библиотека' },
+  { href: '/documents/techcards', label: 'Техкарты' },
   { href: '/documents/regulators', label: 'Регуляторы' },
   { href: '/documents/finance', label: 'Финансы' },
+  { href: '/documents/hr', label: 'HR' },
   { href: '/documents/mura', label: 'Mura Menasa' },
   { href: '/documents/archive', label: 'Архив' },
 ];

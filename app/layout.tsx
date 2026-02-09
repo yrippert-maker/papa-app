@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { SidebarProvider } from "@/components/context/SidebarContext";
+import { UpdateBanner } from "@/components/electron/UpdateBanner";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,7 +33,10 @@ export default function RootLayout({
     <html lang="ru">
       <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
         <SessionProvider>
-        <SidebarProvider>{children}</SidebarProvider>
+        <ToastProvider>
+          <UpdateBanner />
+          <SidebarProvider>{children}</SidebarProvider>
+        </ToastProvider>
       </SessionProvider>
       </body>
     </html>

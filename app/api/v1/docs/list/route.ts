@@ -1,6 +1,6 @@
 /**
  * GET /api/v1/docs/list — список doc_id из Document Store.
- * Читает DOCUMENT_INDEX.json (Новая папка/) и возвращает массив doc_ids.
+ * Читает DOCUMENT_INDEX.json (data/mura-menasa/) и возвращает массив doc_ids.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync, existsSync } from 'fs';
@@ -8,7 +8,7 @@ import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
 
-const DOCUMENTS_FOLDER = 'Новая папка';
+const DOCUMENTS_FOLDER = 'data/mura-menasa';
 const INDEX_FILE = 'DOCUMENT_INDEX.json';
 
 function loadIndex(): { docs: DocEntry[] } | null {

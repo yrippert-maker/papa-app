@@ -5,6 +5,7 @@ import { KpiTiles, type KpiTile } from '@/components/dashboard/KpiTiles';
 import { AlertsList } from '@/components/dashboard/AlertsList';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { AnchoringHealthCard } from '@/components/dashboard/AnchoringHealthCard';
+import { AgentAssistant } from '@/components/dashboard/AgentAssistant';
 import { useEffect, useState } from 'react';
 import type { Alert } from '@/lib/alerts-service';
 
@@ -86,7 +87,11 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="card">
+        <div className="mt-8">
+          <AgentAssistant />
+        </div>
+
+        <div className="card mt-8">
           <div className="card-header py-4">
             <h3 className="text-base font-semibold text-slate-900 dark:text-white">Последние события</h3>
           </div>

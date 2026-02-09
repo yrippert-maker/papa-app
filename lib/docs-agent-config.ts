@@ -22,7 +22,7 @@ export function getDocsRoot(): string {
   if (papa) return resolve(ROOT, papa);
   const legacy = process.env.DOCS_ROOT_DIR?.trim();
   if (legacy) return resolve(ROOT, legacy);
-  return join(ROOT, 'Новая папка');
+  return join(ROOT, 'data/mura-menasa');
 }
 
 /** Legacy: для обратной совместимости. */

@@ -3,6 +3,7 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DocumentsTabs } from '@/components/documents/DocumentsTabs';
+import { PaymentsTable, type PaymentsItem } from '@/components/documents/PaymentsTable';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -102,6 +103,12 @@ export default function DocumentStorePage() {
           <>
             <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Текущая версия (latest)</h3>
+              {format === 'json' && docId === 'finance/payments' && content != null && typeof content === 'object' && 'items' in content && Array.isArray((content as { items: unknown[] }).items) && (
+                <PaymentsTable
+                  items={(content as { items: PaymentsItem[] }).items}
+                  showQuarterly
+                />
+              )}
               {format === 'json' && content != null && typeof content === 'object' && 'docs' in content && Array.isArray((content as { docs: unknown[] }).docs) && (
                 <div className="space-y-3">
                   <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -124,7 +131,7 @@ export default function DocumentStorePage() {
                   </ul>
                 </div>
               )}
-              {format === 'json' && content != null && !(typeof content === 'object' && 'docs' in content && Array.isArray((content as { docs?: unknown[] }).docs)) && (
+              {format === 'json' && content != null && !(typeof content === 'object' && 'docs' in content && Array.isArray((content as { docs?: unknown[] }).docs)) && !(docId === 'finance/payments' && typeof content === 'object' && 'items' in content && Array.isArray((content as { items?: unknown[] }).items)) && (
                 <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-100 p-3 text-sm dark:bg-slate-900">
                   {JSON.stringify(content, null, 2)}
                 </pre>

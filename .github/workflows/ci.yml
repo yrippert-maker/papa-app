@@ -45,8 +45,8 @@ jobs:
           WORKSPACE_ROOT: /tmp/papa-build-data
           NEXTAUTH_SECRET: ci-secret-for-build
 
-      - name: Test
-        run: npm test
+      - name: Test (with coverage threshold)
+        run: npm run test:coverage
         env:
           WORKSPACE_ROOT: /tmp/papa-test-data
 

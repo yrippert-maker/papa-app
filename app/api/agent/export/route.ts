@@ -23,10 +23,24 @@ import {
 import { rejectPathPayloads, requireJsonContentType, PathPayloadForbiddenError } from '@/lib/api/reject-path-payloads';
 import { appendLedgerEvent } from '@/lib/ledger-hash';
 
+const BRANDBOOK_TEMPLATES: Record<string, string> = {
+  'mura-menasa-firm-blank': '01_Фирменный_бланк_MM.docx',
+  act: '02_АВК_шаблон_MM.docx',
+  'act-output': '03_АВыхК_шаблон_MM.docx',
+  techcard: '04_Техкарта_шаблон_MM.docx',
+};
+
+function getBrandbookTemplatePath(templateKey: string): string | null {
+  const key = templateKey === 'letter' ? 'mura-menasa-firm-blank' : templateKey;
+  const filename = BRANDBOOK_TEMPLATES[key];
+  if (!filename) return null;
+  return path.join(process.cwd(), 'templates', 'docx', 'brandbook', filename);
+}
+
 const Body = z.object({
   draftId: z.string().min(1),
   format: z.literal('docx'),
-  templateKey: z.enum(['letter', 'act', 'report', 'memo', 'techcard']).optional(),
+  templateKey: z.enum(['letter', 'act', 'act-output', 'report', 'memo', 'techcard', 'mura-menasa-firm-blank']).optional(),
   draftFields: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -34,6 +48,21 @@ export const dynamic = 'force-dynamic';
 
 function defaultFields(templateKey: string): Record<string, unknown> {
   const base = { org_name: 'ООО ПАПА', date: new Date().toISOString().slice(0, 10) };
+  if (templateKey === 'mura-menasa-firm-blank') {
+    return {
+      org_name: 'MURA MENASA FZCO',
+      date: new Date().toISOString().slice(0, 10),
+      recipient: '',
+      subject: '',
+      items: [],
+      act_type: 'входного контроля',
+      product: 'ТВ3-117',
+      act_number: '',
+      act_date: new Date().toISOString().slice(0, 10),
+      work_order: '',
+      requirement_ref: 'REQ:EASA-145.A.50; AП-145',
+    };
+  }
   if (templateKey === 'techcard') {
     return {
       ...base,
@@ -48,10 +77,10 @@ function defaultFields(templateKey: string): Record<string, unknown> {
       requirement_ref: 'REQ:MM-QM-§4.2',
     };
   }
-  if (templateKey === 'act') {
+  if (templateKey === 'act' || templateKey === 'act-output') {
     return {
       ...base,
-      act_type: 'входного контроля',
+      act_type: templateKey === 'act-output' ? 'выходного контроля' : 'входного контроля',
       product: 'ТВ3-117',
       act_number: '',
       act_date: base.date,
@@ -128,15 +157,18 @@ export async function POST(request: Request): Promise<Response> {
       draftFields = { ...defaultFields(templateKey), ...body.draftFields };
     }
 
-    const templateFile =
-      templateKey === 'act' ? 'act.docx' : templateKey === 'techcard' ? 'techcard.docx' : 'letter.docx';
-    const templatePath = path.join(process.cwd(), 'templates/docx', templateFile);
+    const brandbookPath = getBrandbookTemplatePath(templateKey);
+    const fallbackFile =
+      templateKey === 'act' || templateKey === 'act-output' ? 'act.docx'
+      : templateKey === 'techcard' ? 'techcard.docx'
+      : 'letter.docx';
+    const templatePath = brandbookPath ?? path.join(process.cwd(), 'templates', 'docx', fallbackFile);
     let content: Buffer;
     try {
       content = await fs.readFile(templatePath);
     } catch {
       return NextResponse.json(
-        { error: `Template not found: templates/docx/${templateFile}` },
+        { error: `Template not found: ${templatePath}` },
         { status: 404 }
       );
     }

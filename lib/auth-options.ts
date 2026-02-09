@@ -32,9 +32,13 @@ export const authOptions: NextAuthOptions = {
           const email = credentials.username.trim().toLowerCase();
           const password = credentials.password;
 
-          // Dev admin: только при NODE_ENV !== production И явном DEV_ADMIN=true
+          // Dev admin: только при NODE_ENV !== production, DEV_ADMIN=true и ENABLE_DEV_AUTH !== false
+          // ENABLE_DEV_AUTH=false обязательно в production (аудит SEC-002)
+          const enableDevAuth = process.env.ENABLE_DEV_AUTH !== "false";
           const devAdminAllowed =
-            process.env.NODE_ENV !== "production" && process.env.DEV_ADMIN === "true";
+            enableDevAuth &&
+            process.env.NODE_ENV !== "production" &&
+            process.env.DEV_ADMIN === "true";
           const devEmail = process.env.AUTH_ADMIN_EMAIL;
           const devPassword = process.env.AUTH_ADMIN_PASSWORD;
           if (devAdminAllowed && devEmail && devPassword && email === devEmail.trim() && password === devPassword) {
@@ -52,8 +56,21 @@ export const authOptions: NextAuthOptions = {
               where: { email },
               include: { roles: { include: { role: true } } },
             });
-            if (!user || user.status !== "ACTIVE" || !user.passwordHash) return null;
+            if (!user || user.status !== "ACTIVE" || !user.passwordHash) {
+              if (process.env.NODE_ENV === "production") {
+                console.log("[auth]", { email, userFound: !!user, reason: !user ? "no_user" : user.status !== "ACTIVE" ? "inactive" : "no_hash" });
+              }
+              return null;
+            }
             const ok = await bcryptCompare(password, user.passwordHash);
+            if (!ok && process.env.NODE_ENV === "production") {
+              console.log("[auth]", {
+                email,
+                userFound: true,
+                hashPrefix: user.passwordHash?.slice(0, 10),
+                compareResult: false,
+              });
+            }
             if (!ok) return null;
             const roleNames = user.roles.map((ur) => ur.role.name);
             const roleName = roleNames[0] ?? "user";

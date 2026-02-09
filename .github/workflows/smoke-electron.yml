@@ -43,11 +43,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install
         run: npm ci
+
+      - name: Electron structure test (main.js)
+        env:
+          WORKSPACE_ROOT: /tmp/papa-electron-smoke
+        run: npm test -- __tests__/electron/main-structure.test.ts --testTimeout=10000
 
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
@@ -60,9 +65,6 @@ jobs:
           PORT: "3001"
           NEXTAUTH_SECRET: smoke-secret
           WORKSPACE_ROOT: /tmp/papa-electron-smoke
-          ELECTRON_SMOKE: "1"
-          ELECTRON_ENABLE_LOGGING: "1"
-          ELECTRON_ENABLE_STACK_DUMPING: "1"
           SMOKE_ARTIFACTS_DIR: /tmp/electron-smoke
         run: xvfb-run -a npm run electron:smoke 2>&1 | tee /tmp/smoke-electron.log
 

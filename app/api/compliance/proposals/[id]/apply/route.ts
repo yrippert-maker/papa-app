@@ -20,6 +20,6 @@ export async function POST(
     const result = await applyProposal(id, { applied_by: session?.user?.email ?? undefined });
     return NextResponse.json(result);
   } catch (e) {
-    return internalError('[compliance/proposals/:id/apply]', e, req?.headers);
+    return internalError('[compliance/proposals/:id/apply]', e, _req?.headers);
   }
 }

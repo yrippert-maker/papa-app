@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "description": "FR-9.3/9.4: Видеоинструкции и версионирование",
+  "videos": [
+    {
+      "id": "intro",
+      "title": "Введение в ПАПА",
+      "role": "all",
+      "url": "",
+      "duration_min": null,
+      "version": "1.0",
+      "updated_at": "2026-02-09"
+    },
+    {
+      "id": "act-by-photo",
+      "title": "Акт по фото (АВК/АВыхК)",
+      "role": "ENGINEER",
+      "url": "",
+      "duration_min": null,
+      "version": "1.0",
+      "updated_at": "2026-02-09"
+    },
+    {
+      "id": "techcard",
+      "title": "Создание техкарты",
+      "role": "ENGINEER",
+      "url": "",
+      "duration_min": null,
+      "version": "1.0",
+      "updated_at": "2026-02-09"
+    },
+    {
+      "id": "payments",
+      "title": "Реестр платежей и экспорт",
+      "role": "AUDITOR",
+      "url": "",
+      "duration_min": null,
+      "version": "1.0",
+      "updated_at": "2026-02-09"
+    }
+  ]
+}

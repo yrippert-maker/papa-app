@@ -21,6 +21,10 @@ export const Permissions = {
   SETTINGS_VIEW: 'SETTINGS.VIEW',
   DOC_VIEW: 'DOC.VIEW',
   DOC_EDIT: 'DOC.EDIT',
+  /** NFR-5.2: HR RBAC — просмотр реестров обучения, экзаменов, отпусков, табеля */
+  HR_VIEW: 'HR.VIEW',
+  /** NFR-5.2: HR RBAC — создание и редактирование HR-документов */
+  HR_MANAGE: 'HR.MANAGE',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];

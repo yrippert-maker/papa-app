@@ -1,0 +1,10 @@
+{
+  "enabled": false,
+  "baseUrl": "https://api.idemia.example.com",
+  "apiKey": "",
+  "timeout": 30000,
+  "minLoa": "LOA2",
+  "minPortraitStrength": "LEVEL3",
+  "documentTypes": ["PASSPORT", "IDENTITY_CARD", "DRIVING_LICENSE"],
+  "_comment": "Получить API key и baseUrl в IDEMIA Experience Portal. baseUrl — без trailing slash, например https://api.idemia.com/gips"
+}

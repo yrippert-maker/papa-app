@@ -45,6 +45,9 @@ export const navGroups: NavGroup[] = [
   {
     label: 'Система',
     items: [
+      { href: '/help', label: 'Инструкции', permission: undefined },
+      { href: '/settings/biometric', label: 'Passkey (биометрия)', permission: 'LEDGER.APPEND' },
+      { href: '/settings/telegram', label: 'Привязать Telegram', permission: undefined },
       { href: '/system/verify', label: 'Verify', permission: 'WORKSPACE.READ' },
       { href: '/system/health', label: 'Health', permission: 'WORKSPACE.READ' },
       { href: '/workspace', label: 'Workspace', permission: 'FILES.LIST' },
@@ -52,6 +55,8 @@ export const navGroups: NavGroup[] = [
       { href: '/mail/inbox', label: 'Очередь почты', permission: 'COMPLIANCE.VIEW' },
       { href: '/governance/anchoring', label: 'Anchoring', permission: 'WORKSPACE.READ' },
       { href: '/admin/users', label: 'Пользователи', permission: 'ADMIN.MANAGE_USERS' },
+      { href: '/admin/brandbook', label: 'Брендбук', permission: 'ADMIN.MANAGE_USERS' },
+      { href: '/api-docs', label: 'API Docs', permission: 'COMPLIANCE.VIEW' },
     ],
   },
 ];

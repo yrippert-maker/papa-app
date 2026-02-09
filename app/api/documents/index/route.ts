@@ -1,7 +1,7 @@
 /**
  * GET /api/documents/index
  * Возвращает индекс документов Mura Menasa, АРМАК, ПАПА с внутренними связями.
- * Источник: Новая папка/DOCUMENT_INDEX.json
+ * Источник: data/mura-menasa/DOCUMENT_INDEX.json
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -11,7 +11,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { internalError } from '@/lib/api/error-response';
 
-const DOCUMENTS_FOLDER = 'Новая папка';
+const DOCUMENTS_FOLDER = 'data/mura-menasa';
 const INDEX_FILE = 'DOCUMENT_INDEX.json';
 
 export const dynamic = 'force-dynamic';
