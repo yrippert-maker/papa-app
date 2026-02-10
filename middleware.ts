@@ -46,7 +46,9 @@ export default function middleware(req: NextRequest, event: { next: (r: NextRequ
     );
   }
   // Debug 500: bypass auth for / → /dev-home (same dashboard, no auth)
-  if (process.env.SKIP_AUTH_FOR_ROOT === '1' && req.nextUrl.pathname === '/') {
+  // SEC-002: ENABLE_DEV_AUTH=false отключает bypass в production
+  const enableDevAuth = process.env.ENABLE_DEV_AUTH !== 'false';
+  if (enableDevAuth && process.env.SKIP_AUTH_FOR_ROOT === '1' && req.nextUrl.pathname === '/') {
     return NextResponse.redirect(new URL('/dev-home', req.url));
   }
   // requestId для корреляции audit ↔ app logs (прокидывается в API routes)
@@ -68,6 +70,6 @@ export const config = {
   // - dev-home (бинарный тест 500: рендер без auth)
   // - _next/static, _next/image, favicon.ico (static assets)
   matcher: [
-    '/((?!api/auth|api/health|api/metrics|api/anchoring/health|api/workspace/status|login|dev-home|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|api/health|api/metrics|api/anchoring/health|api/workspace/status|api/v1|login|dev-home|_next/static|_next/image|favicon.ico).*)',
   ],
 };
