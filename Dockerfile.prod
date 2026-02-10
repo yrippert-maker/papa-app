@@ -30,7 +30,7 @@ RUN echo "Building commit: ${GIT_SHA:-unknown}"
 RUN rm -rf .next node_modules/.cache
 RUN npm run build:shared-types 2>/dev/null || true
 RUN echo "FORCE_REBUILD_1770728467"
-RUN npm run check:root
+RUN npm run build
 
 # ---- run (standalone)
 FROM node:22.12-alpine AS run
