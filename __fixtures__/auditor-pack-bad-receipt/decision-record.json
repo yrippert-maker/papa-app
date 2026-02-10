@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "decision_id": "796c9103-cca7-48bb-a2fd-9127f7bb4ed5",
+  "decision_fingerprint_sha256": "5ceab249996c3970f069017b56027a927501bea0a486c518f5b8c878df1507cb",
+  "ledger_entry_id": "967374699a26f94b7529e36c9d1af3fb27b5d7e03210d08c4b0e07a0d3c1aa74",
+  "generated_at": "2026-02-04T08:17:33.344Z",
+  "pack_ref": {
+    "dir": "/Users/yrippertgmail.com/Desktop/papa-app/__fixtures__/auditor-pack-bad-receipt",
+    "pack_id": "fixture-bad-receipt",
+    "pack_sha256": null
+  },
+  "input_policies": [
+    {
+      "path": "/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json",
+      "version": 1,
+      "fail_severity": [
+        "critical"
+      ],
+      "fail_types": [
+        "RECEIPT_INTEGRITY_MISMATCH"
+      ],
+      "require_pack_signature": false,
+      "require_anchoring_issues": true
+    }
+  ],
+  "checks": [
+    {
+      "id": "manifest",
+      "name": "Pack manifest",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "hash_chain",
+      "name": "Hash chain",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "evidence_index",
+      "name": "Evidence index",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "anchoring_status",
+      "name": "Anchoring status (STRICT)",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "anchoring_issues",
+      "name": "Anchoring issues (policy)",
+      "outcome": "fail",
+      "reason": "Disallowed issues: RECEIPT_INTEGRITY_MISMATCH",
+      "rule_fired": "fail_type_or_severity"
+    },
+    {
+      "id": "pack_signature",
+      "name": "Pack signature",
+      "outcome": "skip",
+      "reason": null,
+      "rule_fired": null
+    }
+  ],
+  "rules_fired": [
+    {
+      "rule_type": "fail_type_or_severity",
+      "severity": "critical",
+      "issue_type": "RECEIPT_INTEGRITY_MISMATCH",
+      "condition_met": true,
+      "message": "RECEIPT_INTEGRITY_MISMATCH: 1 issue(s)",
+      "runbook": "docs/runbook/anchoring-issues.md#receipt_integrity_mismatch"
+    }
+  ],
+  "outcome": {
+    "overall": "fail",
+    "severity_effective": "fail",
+    "why": "RECEIPT_INTEGRITY_MISMATCH: 1 issue(s)"
+  },
+  "approval": {
+    "mode": "auto",
+    "policy_ref": "/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json",
+    "approved_by": null,
+    "approved_at": "2026-02-04T08:17:33.344Z",
+    "owner": null,
+    "reviewer": null,
+    "approver": "policy:/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json"
+  },
+  "references": {
+    "verify_summary": "/Users/yrippertgmail.com/Desktop/papa-app/__fixtures__/auditor-pack-bad-receipt/verify-summary.json",
+    "ledger_entry": "/Users/yrippertgmail.com/Desktop/papa-app/__fixtures__/auditor-pack-bad-receipt/ledger-entry.json"
+  }
+}

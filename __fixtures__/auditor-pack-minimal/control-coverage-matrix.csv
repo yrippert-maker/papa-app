@@ -1,0 +1,3 @@
+"Control ID","Name","Objective","Covered by policies","Covered by checks","Evidence present","Evidence missing","Rules fired","Status"
+"AML-LEDGER-01","Ledger immutability","Ensure ledger entries are tamper-evident and anchored.","fail_types: RECEIPT_INTEGRITY_MISMATCH, RECEIPT_MISSING_FOR_CONFIRMED, ANCHOR_FAILED; fail_severity: critical; require_pack_signature","Hash chain, Anchoring status (STRICT), Pack signature","ledger_hash, anchor_receipt, pack_signature","-","-","PASS"
+"AML-LEDGER-02","Anchoring status","Require anchoring assessment status OK (no FAIL).","strict_anchoring","Anchoring status (STRICT)","anchoring_status","-","-","PASS"

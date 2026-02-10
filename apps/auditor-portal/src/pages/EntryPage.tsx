@@ -12,6 +12,12 @@ function kv(label: string, value: React.ReactNode) {
 
 type TopGroup = { severity?: string; type?: string; count?: number; runbook?: string; examples?: Array<{ fingerprint?: string; fingerprint_sha256?: string; period?: string; message?: string }> };
 
+type IssueExamples = { examples?: Array<{ fingerprint?: string }> };
+type SeverityToType = Record<string, IssueExamples>;
+type AnchoringGrouped = {
+  issues_grouped?: Record<string, SeverityToType>;
+};
+
 function pickFingerprintFromTop(e: Record<string, unknown> | null | undefined): string | null {
   const top = (e?.anchoring as { top?: TopGroup[] } | undefined)?.top ?? [];
   for (const g of top) {
@@ -23,7 +29,7 @@ function pickFingerprintFromTop(e: Record<string, unknown> | null | undefined): 
 }
 
 function pickFingerprintFromGrouped(e: Record<string, unknown> | null | undefined): string | null {
-  const grouped = (e?.anchoring as { issues_grouped?: Record<string, Record<string, { examples?: Array<{ fingerprint?: string }> }> } | undefined)?.issues_grouped;
+  const grouped = (e?.anchoring as AnchoringGrouped | undefined)?.issues_grouped;
   if (!grouped) return null;
   for (const sev of Object.keys(grouped)) {
     for (const typ of Object.keys(grouped[sev] ?? {})) {

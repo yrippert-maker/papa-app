@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-02-04T08:02:55.479Z",
+  "from": {
+    "decision_id": "a15a2a0b-45cb-4db2-8b35-f288cdd12219",
+    "fingerprint": "c5516979b481b0ffe116c6f2aa6b36ab97243d52e0cc32326f83fd98945d23d2"
+  },
+  "to": {
+    "decision_id": "2f259f23-61d9-4f6a-bd9d-bc1eebdca86d",
+    "fingerprint": "058ce11b097ccbf79856d0b6cc2b8c4fffda05e92e59f661dd3c9f4e31cc7f33"
+  },
+  "context_diff": {
+    "pack_ref": {
+      "from": {
+        "dir": "./__fixtures__/auditor-pack-minimal",
+        "pack_id": "fixture-minimal",
+        "pack_sha256": null
+      },
+      "to": {
+        "dir": "./__fixtures__/auditor-pack-bad-receipt",
+        "pack_id": "fixture-bad-receipt",
+        "pack_sha256": null
+      }
+    }
+  },
+  "evidence_diff": {
+    "ledger_entry_id": {
+      "from": "4f695e71d298ade806b016082799305308a9665cc0995c0fcd6277a0c5be2576",
+      "to": "8345dd6be74bdbb0458ce273db533a5c0b82ff2ef77e6360029e38366ba7c2ee"
+    }
+  },
+  "checks_diff": {
+    "added": [],
+    "removed": [],
+    "outcome_changed": [
+      {
+        "id": "anchoring_issues",
+        "name": "Anchoring issues (policy)",
+        "from": "pass",
+        "to": "fail",
+        "reason": "Disallowed issues: RECEIPT_INTEGRITY_MISMATCH"
+      }
+    ]
+  },
+  "rules_diff": {
+    "added": [
+      {
+        "rule_type": "fail_type_or_severity",
+        "message": "RECEIPT_INTEGRITY_MISMATCH: 1 issue(s)"
+      }
+    ],
+    "removed": []
+  },
+  "outcome_diff": {},
+  "why_diff": {
+    "from": "missing pack_hash.json or pack_signature.json",
+    "to": "RECEIPT_INTEGRITY_MISMATCH: 1 issue(s); missing pack_hash.json or pack_signature.json"
+  },
+  "summary": "Outcome: fail → fail. RECEIPT_INTEGRITY_MISMATCH: 1 issue(s); missing pack_hash.json or pack_signature.json"
+}

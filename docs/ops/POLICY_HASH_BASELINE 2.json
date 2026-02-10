@@ -1,0 +1,6 @@
+{
+  "policy_version": "1.0.0",
+  "policy_hash": "25c2707addd49c29",
+  "generated_at": "2026-02-02T00:00:00Z",
+  "algorithm": "sha256(canonical json), truncated 16 hex"
+}

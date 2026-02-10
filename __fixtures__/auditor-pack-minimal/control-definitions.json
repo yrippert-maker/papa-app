@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "domain": "anchoring",
+  "generated_at": "2026-02-03T00:00:00Z",
+  "controls": [
+    {
+      "id": "AML-LEDGER-01",
+      "name": "Ledger immutability",
+      "objective": "Ensure ledger entries are tamper-evident and anchored.",
+      "evidence": ["ledger_hash", "anchor_receipt", "pack_signature"],
+      "assertion": ["pack_signature_valid", "no_disallowed_anchoring_issues"],
+      "severity": "critical",
+      "policy_ref": {
+        "fail_types": ["RECEIPT_INTEGRITY_MISMATCH", "RECEIPT_MISSING_FOR_CONFIRMED", "ANCHOR_FAILED"],
+        "fail_severity": ["critical"],
+        "require_pack_signature": true
+      }
+    },
+    {
+      "id": "AML-LEDGER-02",
+      "name": "Anchoring status",
+      "objective": "Require anchoring assessment status OK (no FAIL).",
+      "evidence": ["anchoring_status"],
+      "assertion": ["anchoring_status_ok"],
+      "severity": "critical",
+      "policy_ref": {
+        "strict_anchoring": true
+      }
+    }
+  ]
+}

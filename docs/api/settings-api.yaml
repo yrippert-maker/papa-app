@@ -1,0 +1,606 @@
+openapi: 3.0.3
+info:
+  title: Mura Menasa Settings API
+  version: "0.1.0"
+  description: >
+    Settings API for access control (users/roles), source allowlists (email/regulatory),
+    update policies, inbox review workflow, and desktop notifications.
+servers:
+  - url: /api/settings
+tags:
+  - name: Users
+  - name: SourcesEmail
+  - name: SourcesRegulatory
+  - name: UpdatePolicies
+  - name: Inbox
+  - name: Notifications
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required: [error]
+
+    Role:
+      type: string
+      enum: [Owner, Admin, Operator, Reviewer, Viewer]
+
+    User:
+      type: object
+      properties:
+        id: { type: string, example: "u_1" }
+        email: { type: string, format: email, example: "admin@local" }
+        role: { $ref: "#/components/schemas/Role" }
+        active: { type: boolean, example: true }
+        lastLoginAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+      required: [id, email, role, active]
+
+    CreateUserRequest:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/Role" }
+      required: [email, role]
+
+    PatchUserRequest:
+      type: object
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        active: { type: boolean }
+
+    EmailSourceType:
+      type: string
+      enum: [domain, email]
+
+    EmailSource:
+      type: object
+      properties:
+        id: { type: string, example: "es_1" }
+        type: { $ref: "#/components/schemas/EmailSourceType" }
+        value: { type: string, example: "mak.ru" }
+        label: { type: string, example: "ARMAK" }
+        enabled: { type: boolean, example: true }
+        requireDmarcPass: { type: boolean, example: true }
+        autoCollect: { type: boolean, example: true }
+        autoAnalyze: { type: boolean, example: true }
+        requireApproval: { type: boolean, example: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+      required: [id, type, value, label, enabled, requireDmarcPass, autoCollect, autoAnalyze, requireApproval]
+
+    CreateEmailSourceRequest:
+      type: object
+      properties:
+        type: { $ref: "#/components/schemas/EmailSourceType" }
+        value: { type: string }
+        label: { type: string }
+        enabled: { type: boolean, default: true }
+        requireDmarcPass: { type: boolean, default: true }
+        autoCollect: { type: boolean, default: true }
+        autoAnalyze: { type: boolean, default: true }
+        requireApproval: { type: boolean, default: true }
+      required: [type, value, label]
+
+    PatchEmailSourceRequest:
+      type: object
+      properties:
+        label: { type: string }
+        enabled: { type: boolean }
+        requireDmarcPass: { type: boolean }
+        autoCollect: { type: boolean }
+        autoAnalyze: { type: boolean }
+        requireApproval: { type: boolean }
+
+    Authority:
+      type: string
+      enum: [ICAO, EASA, FAA, ARMAK]
+
+    RegulatoryDownloadMode:
+      type: string
+      enum: [fulltext, metadata]
+
+    RegulatoryMonitoring:
+      type: string
+      enum: [monthly, weekly, manual]
+
+    RegulatorySource:
+      type: object
+      properties:
+        id: { type: string, example: "rs_1" }
+        authority: { $ref: "#/components/schemas/Authority" }
+        docId: { type: string, example: "AP-145" }
+        url: { type: string, format: uri }
+        enabled: { type: boolean, example: true }
+        downloadMode: { $ref: "#/components/schemas/RegulatoryDownloadMode" }
+        monitoring: { $ref: "#/components/schemas/RegulatoryMonitoring" }
+        createdAt: { type: string, format: date-time, nullable: true }
+      required: [id, authority, docId, url, enabled, downloadMode, monitoring]
+
+    CreateRegulatorySourceRequest:
+      type: object
+      properties:
+        authority: { $ref: "#/components/schemas/Authority" }
+        docId: { type: string }
+        url: { type: string, format: uri }
+        enabled: { type: boolean, default: true }
+        downloadMode: { $ref: "#/components/schemas/RegulatoryDownloadMode" }
+        monitoring: { $ref: "#/components/schemas/RegulatoryMonitoring" }
+      required: [authority, docId, url, downloadMode, monitoring]
+
+    PatchRegulatorySourceRequest:
+      type: object
+      properties:
+        docId: { type: string }
+        url: { type: string, format: uri }
+        enabled: { type: boolean }
+        downloadMode: { $ref: "#/components/schemas/RegulatoryDownloadMode" }
+        monitoring: { $ref: "#/components/schemas/RegulatoryMonitoring" }
+
+    UpdatePolicies:
+      type: object
+      properties:
+        email:
+          type: object
+          properties:
+            mode: { type: string, enum: [scheduled, manual] }
+            intervalMin: { type: integer, minimum: 5, maximum: 1440 }
+            requireDmarcPass: { type: boolean }
+          required: [mode, requireDmarcPass]
+        regulatory:
+          type: object
+          properties:
+            mode: { type: string, enum: [scheduled, manual] }
+            schedule:
+              type: object
+              properties:
+                type: { type: string, enum: [monthly, weekly] }
+                day: { type: integer, minimum: 1, maximum: 31 }
+                hour: { type: integer, minimum: 0, maximum: 23 }
+              required: [type, hour]
+          required: [mode]
+        processing:
+          type: object
+          properties:
+            autoCollect: { type: boolean }
+            autoAnalyze: { type: boolean }
+            requireApproval: { type: boolean, description: "In pilot mode this must remain true." }
+            autoApplyAfterApproval: { type: boolean }
+          required: [autoCollect, autoAnalyze, requireApproval, autoApplyAfterApproval]
+        audit:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            retainRawDays: { type: integer, minimum: 30, maximum: 3650 }
+          required: [enabled, retainRawDays]
+      required: [email, regulatory, processing, audit]
+
+    PatchUpdatePoliciesRequest:
+      type: object
+      description: Partial update of policies; server enforces requireApproval=true in pilot.
+      properties:
+        email:
+          type: object
+          properties:
+            mode: { type: string, enum: [scheduled, manual] }
+            intervalMin: { type: integer, minimum: 5, maximum: 1440 }
+            requireDmarcPass: { type: boolean }
+        regulatory:
+          type: object
+          properties:
+            mode: { type: string, enum: [scheduled, manual] }
+            schedule:
+              type: object
+              properties:
+                type: { type: string, enum: [monthly, weekly] }
+                day: { type: integer, minimum: 1, maximum: 31 }
+                hour: { type: integer, minimum: 0, maximum: 23 }
+        processing:
+          type: object
+          properties:
+            autoCollect: { type: boolean }
+            autoAnalyze: { type: boolean }
+            requireApproval: { type: boolean }
+            autoApplyAfterApproval: { type: boolean }
+        audit:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            retainRawDays: { type: integer, minimum: 30, maximum: 3650 }
+
+    InboxStatus:
+      type: string
+      enum: [NEW, ANALYZED, APPROVED, REJECTED, APPLIED]
+
+    TrustStatus:
+      type: string
+      enum: [TRUSTED, UNTRUSTED]
+
+    InboxItem:
+      type: object
+      properties:
+        id: { type: string, example: "in_1" }
+        messageId: { type: string, example: "<abc123@mak.ru>" }
+        sourceLabel: { type: string, example: "ARMAK" }
+        from: { type: string, example: "noreply@mak.ru" }
+        subject: { type: string }
+        receivedAt: { type: string, format: date-time }
+        status: { $ref: "#/components/schemas/InboxStatus" }
+        trust: { $ref: "#/components/schemas/TrustStatus" }
+        hasAttachments: { type: boolean }
+      required: [id, messageId, from, subject, receivedAt, status, trust, sourceLabel, hasAttachments]
+
+    InboxActionResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        status: { $ref: "#/components/schemas/InboxStatus" }
+        outputPath:
+          type: string
+          description: "Path within AGENT_OUTPUT_ROOT where the packet/patch was written."
+      required: [ok, status]
+
+    DesktopNotificationRequest:
+      type: object
+      properties:
+        title: { type: string }
+        body: { type: string }
+      required: [title, body]
+
+    DesktopNotificationResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+      required: [ok]
+
+security:
+  - cookieAuth: []
+
+paths:
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/User" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    post:
+      tags: [Users]
+      summary: Create/invite user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateUserRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /users/{id}:
+    patch:
+      tags: [Users]
+      summary: Update user (role/active)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatchUserRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      tags: [Users]
+      summary: Disable/delete user (server decides)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted/disabled
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /sources/email:
+    get:
+      tags: [SourcesEmail]
+      summary: List allowed email senders
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EmailSource" }
+    post:
+      tags: [SourcesEmail]
+      summary: Add allowed sender
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateEmailSourceRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailSource" }
+
+  /sources/email/{id}:
+    patch:
+      tags: [SourcesEmail]
+      summary: Update allowed sender rule
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatchEmailSourceRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailSource" }
+    delete:
+      tags: [SourcesEmail]
+      summary: Delete allowed sender rule
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+
+  /sources/regulatory:
+    get:
+      tags: [SourcesRegulatory]
+      summary: List regulatory monitoring sources
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RegulatorySource" }
+    post:
+      tags: [SourcesRegulatory]
+      summary: Add regulatory source
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateRegulatorySourceRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegulatorySource" }
+
+  /sources/regulatory/{id}:
+    patch:
+      tags: [SourcesRegulatory]
+      summary: Update regulatory source
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatchRegulatorySourceRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegulatorySource" }
+    delete:
+      tags: [SourcesRegulatory]
+      summary: Delete regulatory source
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+
+  /update-policies:
+    get:
+      tags: [UpdatePolicies]
+      summary: Get update policies (singleton)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdatePolicies" }
+    patch:
+      tags: [UpdatePolicies]
+      summary: Patch update policies (server enforces requireApproval=true in pilot)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatchUpdatePoliciesRequest" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdatePolicies" }
+        "400":
+          description: Bad request / policy violation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /inbox:
+    get:
+      tags: [Inbox]
+      summary: List inbox items
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: "#/components/schemas/InboxStatus" }
+        - in: query
+          name: sourceLabel
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InboxItem" }
+
+  /inbox/{id}/analyze:
+    post:
+      tags: [Inbox]
+      summary: Analyze inbox item and create review packet
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InboxActionResult" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /inbox/{id}/approve:
+    post:
+      tags: [Inbox]
+      summary: Approve inbox item (moves status to APPROVED)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InboxActionResult" }
+
+  /inbox/{id}/reject:
+    post:
+      tags: [Inbox]
+      summary: Reject inbox item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InboxActionResult" }
+
+  /inbox/{id}/apply:
+    post:
+      tags: [Inbox]
+      summary: Apply approved change set (creates new doc versions, stamps date, writes sha256/EvidenceMap)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InboxActionResult" }
+
+  /notifications/desktop:
+    post:
+      tags: [Notifications]
+      summary: Trigger desktop notification (server-side; typically macOS osascript)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DesktopNotificationRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DesktopNotificationResponse" }

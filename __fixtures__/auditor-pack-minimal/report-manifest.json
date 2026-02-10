@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "report_id": "bf4fe555-2a3f-4524-8f37-f67b031b9913",
+  "generated_at": "2026-02-04T08:17:08.860Z",
+  "report_type": "executive_compliance_report",
+  "report_md_hash_sha256": "5d96972d29db2fc7f2ec76ddfed43109968bb925168b201d4e0e53d2581734ed",
+  "report_pdf_hash_sha256": null,
+  "pack_ref": {
+    "dir": "./__fixtures__/auditor-pack-minimal",
+    "pack_id": "fixture-minimal",
+    "pack_sha256": null
+  },
+  "ledger_entry_id": "fe225ad17b6b349321f5062687ee5d23b755a7339dbd72d20703592b952a4938",
+  "decision_record_ref": {
+    "path": "__fixtures__/auditor-pack-minimal/decision-record.json",
+    "sha256": "00d1f02bac59ec153a0b6062202d314e684869f803c4729a3f8182de004be934"
+  },
+  "verify_summary_ref": {
+    "path": "__fixtures__/auditor-pack-minimal/verify-summary.json",
+    "sha256": "a4a019830ab451316040308e3ba0819d594746422511f3fef204eb2029aa8e23"
+  },
+  "policy_ref": {
+    "path": "/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json",
+    "sha256": "7270d3ba3c92f135d2aaec97153476900e5cadbd7292820321e2815729eeab88"
+  },
+  "control_definitions_ref": {
+    "path": "/Users/yrippertgmail.com/Desktop/papa-app/config/control-definitions.example.json",
+    "sha256": "29c99d9c4d3ec9d8bb558370c59cc325e1e36e1f092c13f18e168494123992fe"
+  },
+  "ledger_entry_ref": {
+    "path": "__fixtures__/auditor-pack-minimal/ledger-entry.json",
+    "sha256": "5bcbf91591b5a859e3aba5a82e89f5ac1561cc9c15a49fd0b642a0a676a49421"
+  },
+  "decision_diff_ref": null
+}

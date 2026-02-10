@@ -93,6 +93,20 @@ Variables:
 
 ---
 
+## 3.4 Первый admin (seed) — один раз
+
+**Seed запускать один раз** (не при каждом деплое). При повторном запуске seed проверяет: если admin уже существует — ничего не делает.
+
+```bash
+railway run npm run db:seed
+```
+
+Или с явными переменными: `SEED_ADMIN_EMAIL=... SEED_ADMIN_PASSWORD=... npx prisma db seed`. Railway Run Command или локально с `DATABASE_URL` из Variables. Audit: событие `seed.admin_created` в AuditEvent.
+
+Подробнее: [RAILWAY_SEED_LOGIN.md](./RAILWAY_SEED_LOGIN.md) — seed в Railway, проверка, диагностика 401 при логине.
+
+---
+
 ## 4) Post-deploy проверки (после redeploy)
 
 ### 4.1 Health

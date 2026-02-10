@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, crashReporter, Menu, Tray } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
@@ -7,8 +7,12 @@ const dotenv = require("dotenv");
 
 let mainWindow;
 let serverProcess;
+let tray;
 
 const PORT = 3001;
+
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit();
 const URL = `http://127.0.0.1:${PORT}`;
 
 /** Загрузить env из userData/config.env; при первом запуске создать из шаблона. */
@@ -68,12 +72,48 @@ function startProdServerStandalone(resourcesRoot) {
   // if (serverProcess.stderr) serverProcess.stderr.on("data", (c) => process.stderr.write(c));
 }
 
+function loadWindowState() {
+  try {
+    const statePath = path.join(app.getPath("userData"), "window-state.json");
+    if (fs.existsSync(statePath)) {
+      const data = JSON.parse(fs.readFileSync(statePath, "utf8"));
+      return {
+        width: Math.min(data.width || 1200, 4096),
+        height: Math.min(data.height || 800, 2160),
+        x: data.x,
+        y: data.y,
+      };
+    }
+  } catch (e) {
+    console.warn("[electron] window-state load failed:", e?.message);
+  }
+  return { width: 1200, height: 800 };
+}
+
+function saveWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const bounds = mainWindow.getBounds();
+    const statePath = path.join(app.getPath("userData"), "window-state.json");
+    fs.writeFileSync(
+      statePath,
+      JSON.stringify({ width: bounds.width, height: bounds.height, x: bounds.x, y: bounds.y }),
+      "utf8"
+    );
+  } catch (e) {
+    console.warn("[electron] window-state save failed:", e?.message);
+  }
+}
+
 async function createWindowWhenReady() {
   console.log("[electron] waiting for URL…", URL);
   await waitOn({ resources: [URL], timeout: 180_000 });
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+  const state = loadWindowState();
+  const winOpts = {
+    width: state.width,
+    height: state.height,
+    x: state.x,
+    y: state.y,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -82,7 +122,9 @@ async function createWindowWhenReady() {
       webSecurity: true,
       allowRunningInsecureContent: false,
     },
-  });
+  };
+  mainWindow = new BrowserWindow(winOpts);
+  mainWindow.on("close", saveWindowState);
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 
   mainWindow.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
@@ -121,8 +163,64 @@ function stopServer() {
   }
 }
 
+function initCrashReporter() {
+  if (process.env.ELECTRON_SMOKE === "1") return;
+  try {
+    crashReporter.start({
+      productName: "papa-app",
+      submitURL: process.env.CRASH_REPORT_URL || "",
+      uploadToServer: Boolean(process.env.CRASH_REPORT_URL),
+    });
+  } catch (e) {
+    console.warn("[electron] crashReporter.start failed:", e?.message);
+  }
+}
+
+function handleDeepLink(url) {
+  if (!url || typeof url !== "string") return;
+  const m = url.match(/^papa:\/\/(\/*)(.*)$/);
+  if (!m) return;
+  const path = "/" + (m[2] || "").replace(/\/+/g, "/");
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.focus();
+    mainWindow.loadURL(URL + path);
+  }
+}
+
+function createTray() {
+  if (process.env.ELECTRON_SMOKE === "1") return;
+  try {
+    const { nativeImage } = require("electron");
+    const icon = nativeImage.createFromDataURL(
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAhElEQVQ4T2NkYGD4z0ABYBzVwDiaYQygGxhHMzCOZhgDaAbG0QxjAM3AOJphDKAZGEczjAE0A+NohjGAZmAcwzAG0AyMYxjGAJqBcQzDGEAzMI5hGANoBsYxDGMYzQAAmhkGBgYGhv///zMwMDAwMjJCMYxhDGMYwwAAGhkJBiUjAcUAAAAASUVORK5CYII="
+    );
+    tray = new Tray(icon.resize({ width: 16, height: 16 }));
+    tray.setToolTip("ПАПА");
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: "Открыть", click: () => mainWindow?.show() },
+        { label: "Проверить обновления", click: () => {
+          try {
+            require("electron-updater").autoUpdater.checkForUpdates();
+          } catch (e) {}
+        }},
+        { type: "separator" },
+        { label: "Выход", role: "quit" },
+      ])
+    );
+    tray.on("click", () => mainWindow?.show());
+  } catch (e) {
+    console.warn("[electron] Tray failed:", e?.message);
+  }
+}
+
 app.whenReady().then(async () => {
   loadUserEnv();
+  initCrashReporter();
+
+  if (app.isPackaged) {
+    app.setAsDefaultProtocolClient("papa");
+  }
 
   const isSmoke = process.env.ELECTRON_SMOKE === "1";
 
@@ -172,15 +270,81 @@ app.whenReady().then(async () => {
         autoUpdater.channel = "alpha";
         autoUpdater.allowPrerelease = true;
       }
+      autoUpdater.on("update-available", (info) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("update-available", info);
+        }
+      });
       autoUpdater.on("update-downloaded", () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("update-downloaded");
+        }
         console.log("[electron] update-downloaded (update success)");
       });
       autoUpdater.on("error", (err) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("update-error", err?.message || "Unknown error");
+        }
         console.warn("[electron] autoUpdater error:", err?.message);
       });
       autoUpdater.checkForUpdatesAndNotify();
     } catch (e) {
       console.warn("[electron] autoUpdater not available:", e?.message);
+    }
+  }
+
+  if (!isSmoke) createTray();
+
+  app.on("open-url", (e, url) => {
+    e.preventDefault();
+    handleDeepLink(url);
+  });
+
+  app.on("second-instance", (_e, argv) => {
+    const url = argv.find((a) => a.startsWith("papa://"));
+    if (url) handleDeepLink(url);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
+  });
+
+  if (!isSmoke) {
+    try {
+      const template = [
+        {
+          label: process.platform === "darwin" ? app.name : "Файл",
+          submenu: [
+            { label: "Настройки", role: "preferences" },
+            { type: "separator" },
+            { label: "Выход", role: "quit" },
+          ],
+        },
+        {
+          label: "Правка",
+          submenu: [
+            { label: "Отменить", role: "undo" },
+            { label: "Повторить", role: "redo" },
+            { type: "separator" },
+            { label: "Вырезать", role: "cut" },
+            { label: "Копировать", role: "copy" },
+            { label: "Вставить", role: "paste" },
+          ],
+        },
+        {
+          label: "Вид",
+          submenu: [
+            { label: "Обновить", role: "reload" },
+            { label: " DevTools", role: "toggleDevTools" },
+          ],
+        },
+        {
+          label: "Помощь",
+          submenu: [
+            { label: "О программе", role: "about" },
+          ],
+        },
+      ];
+      Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+    } catch (e) {
+      console.warn("[electron] Menu failed:", e?.message);
     }
   }
 });
@@ -204,6 +368,15 @@ ipcMain.handle("config:write", async (_e, text) => {
 ipcMain.handle("app:restart", async () => {
   app.relaunch();
   app.exit(0);
+});
+
+ipcMain.on("install-update", () => {
+  try {
+    const { autoUpdater } = require("electron-updater");
+    autoUpdater.quitAndInstall();
+  } catch (e) {
+    console.warn("[electron] quitAndInstall failed:", e?.message);
+  }
 });
 
 app.on("before-quit", stopServer);

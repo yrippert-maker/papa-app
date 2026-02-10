@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "decision_id": "dc2ab6b0-c8c6-487e-97e2-b2b880cf93b4",
+  "decision_fingerprint_sha256": "845e3c98f91bb7d60de8aa9e61318db531faf4d95dd010090045c627cfcf25c3",
+  "ledger_entry_id": "93b791418243a54860045197d853d6fd0476ae8b0930d4e47657dcb2ffd9c7ab",
+  "generated_at": "2026-02-04T07:59:38.324Z",
+  "pack_ref": {
+    "dir": "./__fixtures__/auditor-pack-minimal",
+    "pack_id": "fixture-minimal",
+    "pack_sha256": null
+  },
+  "temporal": {
+    "as_of": "2024-06-01T00:00:00.000Z",
+    "ledger_snapshot": "93b791418243a54860045197d853d6fd0476ae8b0930d4e47657dcb2ffd9c7ab",
+    "policy_version": "v1",
+    "policy_hash": "7270d3ba3c92f135d2aaec97153476900e5cadbd7292820321e2815729eeab88"
+  },
+  "input_policies": [
+    {
+      "path": "/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json",
+      "version": 1,
+      "fail_severity": [],
+      "fail_types": [],
+      "require_pack_signature": false,
+      "require_anchoring_issues": false
+    }
+  ],
+  "checks": [
+    {
+      "id": "manifest",
+      "name": "Pack manifest",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "hash_chain",
+      "name": "Hash chain",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "evidence_index",
+      "name": "Evidence index",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "anchoring_status",
+      "name": "Anchoring status (STRICT)",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "anchoring_issues",
+      "name": "Anchoring issues (policy)",
+      "outcome": "pass",
+      "reason": null,
+      "rule_fired": null
+    },
+    {
+      "id": "pack_signature",
+      "name": "Pack signature",
+      "outcome": "skip",
+      "reason": null,
+      "rule_fired": null
+    }
+  ],
+  "rules_fired": [
+    {
+      "rule_type": "require_pack_signature",
+      "severity": null,
+      "issue_type": null,
+      "condition_met": true,
+      "message": "missing pack_hash.json or pack_signature.json",
+      "runbook": null
+    }
+  ],
+  "outcome": {
+    "overall": "fail",
+    "severity_effective": "fail",
+    "why": "missing pack_hash.json or pack_signature.json"
+  },
+  "approval": {
+    "mode": "auto",
+    "policy_ref": "/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json",
+    "approved_by": null,
+    "approved_at": "2026-02-04T07:59:38.324Z",
+    "owner": null,
+    "reviewer": null,
+    "approver": "policy:/Users/yrippertgmail.com/Desktop/papa-app/docs/verify-policy.default.json"
+  },
+  "references": {
+    "verify_summary": "__fixtures__/auditor-pack-minimal/verify-summary.json",
+    "ledger_entry": "__fixtures__/auditor-pack-minimal/ledger-entry.json"
+  }
+}

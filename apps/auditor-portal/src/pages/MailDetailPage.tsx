@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getJson } from '../lib/api';
+import type { DocId } from '@papa/shared-types';
 
 const BASE = (import.meta as unknown as { env?: { VITE_PORTAL_API_URL?: string } }).env?.VITE_PORTAL_API_URL || 'http://localhost:8790';
 
@@ -54,7 +55,7 @@ export function MailDetailPage() {
       version: 1,
       proposal_id: proposalId,
       mail_id: mail.mail_id,
-      doc_id: 'finance/payments',
+      doc_id: 'finance/payments' as DocId,
       mode: 'append_json',
       patch: {
         append_items: [

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-02-04T07:59:28.340Z",
+  "from": {
+    "decision_id": "565d385a-a421-43d5-b761-9e27bd5a8d77",
+    "fingerprint": "f00030d367f47328ac7f119f22156a7a1218b423ac19d8cf37a32de3601fc5b6"
+  },
+  "to": {
+    "decision_id": "2f259f23-61d9-4f6a-bd9d-bc1eebdca86d",
+    "fingerprint": "058ce11b097ccbf79856d0b6cc2b8c4fffda05e92e59f661dd3c9f4e31cc7f33"
+  },
+  "context_diff": {
+    "as_of": {
+      "from": "2024-06-01T00:00:00.000Z",
+      "to": null
+    },
+    "policy_version": {
+      "from": "v1",
+      "to": null
+    },
+    "policy_hash": {
+      "from": "7270d3ba3c92f135d2aaec97153476900e5cadbd7292820321e2815729eeab88",
+      "to": null
+    },
+    "pack_ref": {
+      "from": {
+        "dir": "./__fixtures__/auditor-pack-minimal",
+        "pack_id": "fixture-minimal",
+        "pack_sha256": null
+      },
+      "to": {
+        "dir": "./__fixtures__/auditor-pack-bad-receipt",
+        "pack_id": "fixture-bad-receipt",
+        "pack_sha256": null
+      }
+    }
+  },
+  "evidence_diff": {
+    "ledger_entry_id": {
+      "from": "5b1eb419f03169587a4ce5744da8974634c87d9c62ec26c06098fd365c9336a1",
+      "to": "8345dd6be74bdbb0458ce273db533a5c0b82ff2ef77e6360029e38366ba7c2ee"
+    }
+  },
+  "checks_diff": {
+    "added": [],
+    "removed": [],
+    "outcome_changed": [
+      {
+        "id": "anchoring_issues",
+        "name": "Anchoring issues (policy)",
+        "from": "pass",
+        "to": "fail",
+        "reason": "Disallowed issues: RECEIPT_INTEGRITY_MISMATCH"
+      }
+    ]
+  },
+  "rules_diff": {
+    "added": [
+      {
+        "rule_type": "fail_type_or_severity",
+        "message": "RECEIPT_INTEGRITY_MISMATCH: 1 issue(s)"
+      }
+    ],
+    "removed": []
+  },
+  "outcome_diff": {},
+  "why_diff": {
+    "from": "missing pack_hash.json or pack_signature.json",
+    "to": "RECEIPT_INTEGRITY_MISMATCH: 1 issue(s); missing pack_hash.json or pack_signature.json"
+  },
+  "summary": "Outcome: fail → fail. RECEIPT_INTEGRITY_MISMATCH: 1 issue(s); missing pack_hash.json or pack_signature.json"
+}

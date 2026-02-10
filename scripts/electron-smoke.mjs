@@ -6,6 +6,7 @@
  *
  * ELECTRON_ARGS — опционально, например "path/to/main" для нестандартного entrypoint.
  * SMOKE_ARTIFACTS_DIR — директория артефактов (по умолчанию /tmp/electron-smoke).
+ * ELECTRON_SMOKE_HEADED=1 — headed (окно видно), для debug локально; `npm run electron:smoke:local`.
  */
 import { _electron as electron } from "playwright";
 import { writeFileSync, mkdirSync } from "fs";
@@ -19,6 +20,18 @@ const PROJECT_ROOT = path.resolve(__dirname, "..");
 const EXPECT_PREFIXES = ["http://127.0.0.1:3001", "http://localhost:3001"];
 const TIMEOUT_MS = 60_000;
 const ART_DIR = process.env.SMOKE_ARTIFACTS_DIR || "/tmp/electron-smoke";
+
+/** Electron-specific env для smoke (GPU, debug). Используется в CI и локально. */
+function getElectronSmokeEnv() {
+  return {
+    ...process.env,
+    ELECTRON_SKIP_SERVER: process.env.ELECTRON_SKIP_SERVER || "1",
+    ELECTRON_SMOKE: "1",
+    ELECTRON_ENABLE_LOGGING: "1",
+    ELECTRON_ENABLE_STACK_DUMPING: "1",
+    ELECTRON_DISABLE_GPU: "1",
+  };
+}
 
 function ensureDir(p) {
   mkdirSync(p, { recursive: true });
@@ -47,17 +60,13 @@ async function main() {
   let page;
 
   try {
+    const headed = process.env.ELECTRON_SMOKE_HEADED === "1";
+
     app = await electron.launch({
       args: getElectronArgs(),
       cwd: PROJECT_ROOT,
-      env: {
-        ...process.env,
-        ELECTRON_SKIP_SERVER: process.env.ELECTRON_SKIP_SERVER || "1",
-        ELECTRON_SMOKE: "1",
-        ELECTRON_ENABLE_LOGGING: "1",
-        ELECTRON_ENABLE_STACK_DUMPING: "1",
-        ELECTRON_DISABLE_GPU: "1",
-      },
+      env: getElectronSmokeEnv(),
+      headless: !headed,
       timeout: TIMEOUT_MS,
     });
 
