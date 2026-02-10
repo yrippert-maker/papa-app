@@ -34,7 +34,7 @@ export async function GET(req: Request): Promise<Response> {
     const offset = Math.max(0, parseInt(url.searchParams.get('offset') ?? '0', 10) || 0);
 
     const db = await getDbReadOnly();
-    const tableExists = await dbGet(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'");
+    const tableExists = await dbGet(db, "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='ledger_anchors'");
     if (!tableExists) {
       return NextResponse.json({
         network: 'polygon',

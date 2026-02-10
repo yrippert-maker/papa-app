@@ -35,7 +35,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const checkGaps = url.searchParams.get('checkGaps') === 'true';
 
     const db = await getDbReadOnly();
-    const tableExists = await dbGet(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'");
+    const tableExists = await dbGet(db, "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='ledger_anchors'");
     if (!tableExists) {
       return NextResponse.json({
         windowDays,

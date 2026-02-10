@@ -20,7 +20,7 @@ const RECEIPTS_DIR = join(WORKSPACE_ROOT, '00_SYSTEM', 'anchor-receipts');
 export async function getAnchoringHealth(): Promise<AnchoringHealth> {
   const db = await getDbReadOnly();
 
-  const tableExists = await dbGet(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='ledger_anchors'");
+  const tableExists = await dbGet(db, "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='ledger_anchors'");
   if (!tableExists) {
     return {
       network: 'polygon',
