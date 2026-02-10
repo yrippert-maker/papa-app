@@ -4,10 +4,5 @@
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile",
     "noCache": true
-  },
-  "deploy": {
-    "startCommand": "node server.js",
-    "healthcheckPath": "/api/health",
-    "preDeployCommand": ["sh", "-c", "npm run db:migrate:prod && npm run db:seed:railway"]
   }
 }
