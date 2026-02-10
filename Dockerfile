@@ -29,6 +29,7 @@ ENV GIT_SHA=$RAILWAY_GIT_COMMIT_SHA
 RUN echo "Building commit: ${GIT_SHA:-unknown}"
 RUN rm -rf .next node_modules/.cache
 RUN npm run build:shared-types 2>/dev/null || true
+RUN echo "FORCE_REBUILD_1770713638"
 RUN npm run check:root
 
 # ---- run (standalone)
