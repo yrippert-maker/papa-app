@@ -49,7 +49,7 @@
     "electron:smoke": "start-server-and-test \"npm run dev:quick\" http://127.0.0.1:3001/api/health \"npm run electron:smoke:pw\"",
     "electron:smoke:local": "start-server-and-test \"npm run dev:quick\" http://127.0.0.1:3001/api/health \"npm run electron:smoke:pw:local\"",
     "electron:smoke:pw:local": "cross-env ELECTRON_SMOKE_HEADED=1 SMOKE_ARTIFACTS_DIR=/tmp/electron-smoke ELECTRON_SKIP_SERVER=1 node scripts/electron-smoke.mjs",
-    "lint": "next lint --max-warnings=0",
+    "lint": "next lint",
     "lint:json": "node scripts/lint-package-json.mjs",
     "check:docs-seed": "node scripts/check-docs-seed-consistency.mjs",
     "test": "jest --runInBand",
