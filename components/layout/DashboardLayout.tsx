@@ -6,12 +6,13 @@ import { useSidebar } from '@/components/context/SidebarContext';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
+
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-slate-950 flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0A0A0F] flex">
       <Sidebar />
       <div
-        className={`flex-1 flex flex-col transition-[margin] duration-300 ${
-          collapsed ? 'ml-20' : 'ml-64'
+        className={`flex-1 flex flex-col transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          collapsed ? 'ml-[72px]' : 'ml-[260px]'
         }`}
       >
         <Topbar />

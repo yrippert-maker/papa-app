@@ -2,88 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Mura Menasa / ПАПА brandbook: primary #EF1C23, text #1a1a1a, font Inter */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* Mura Menasa / ПАПА brandbook: primary #EF1C23, DM Sans + JetBrains Mono */
 :root {
   --background: #ffffff;
-  --foreground: #1a1a1a;
+  --foreground: #0F172A;
   --primary: #EF1C23;
-  --primary-hover: #d1181f;
-  --secondary: #4a4a4a;
-  --border: #e5e5e5;
+  --primary-hover: #D91920;
+  --secondary: #475569;
+  --border: #E2E8F0;
   --card-bg: #ffffff;
-  --card-border: #e5e5e5;
-  --text-primary: #1a1a1a;
-  --text-secondary: #4a4a4a;
-  --text-muted: #737373;
-  --success: #22C55E;
+  --card-border: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --success: #10B981;
   --warning: #F59E0B;
   --error: #EF4444;
-  --info: #EF1C23;
+  --info: #3B82F6;
+  --sidebar-bg: #0F0F12;
+  --sidebar-card: #18181F;
+  --sidebar-border: #2A2A35;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f0f0f;
-    --foreground: #fafafa;
+    --background: #0A0A0F;
+    --foreground: #F8FAFC;
     --primary: #EF1C23;
-    --primary-hover: #ff2a31;
-    --secondary: #a3a3a3;
-    --border: #262626;
-    --card-bg: #171717;
-    --card-border: #262626;
-    --text-primary: #fafafa;
-    --text-secondary: #d4d4d4;
-    --text-muted: #a3a3a3;
+    --primary-hover: #FF2A31;
+    --secondary: #94A3B8;
+    --border: #1E293B;
+    --card-bg: #0F172A;
+    --card-border: #1E293B;
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --text-muted: #64748B;
   }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-sans), Inter, system-ui, -apple-system, sans-serif;
-  font-family: 'Inter', system-ui, 'Roboto', 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, var(--font-geist-sans), 'Segoe UI', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 14px;
   line-height: 1.5;
 }
 
+/* Monospace utility */
+.font-mono {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
 @layer components {
-  /* Кнопки - REFLY Style */
+  /* Кнопки — Mura Menasa Style */
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    @apply px-4 py-2 rounded-xl font-medium transition-all duration-200;
     @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    font-family: 'DM Sans', sans-serif;
   }
-  
+
   .btn-primary {
-    @apply bg-primary text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+    @apply bg-primary text-white disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow: 0 2px 8px rgba(239, 28, 35, 0.25);
   }
+
   .btn-primary:hover:not(:disabled) {
-    @apply bg-primary-hover;
+    background-color: var(--primary-hover);
+    box-shadow: 0 4px 12px rgba(239, 28, 35, 0.35);
   }
+
   .btn-primary:focus {
     @apply outline-none ring-2 ring-offset-2 ring-primary;
   }
-  
+
   .btn-secondary {
-    @apply bg-white border hover:bg-slate-50;
-    border-color: var(--border);
-    color: var(--text-secondary);
-    @apply dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700;
+    @apply bg-white border border-slate-200 hover:bg-slate-50 text-slate-700;
+    @apply dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700;
   }
-  
+
   .btn-danger {
-    @apply bg-[#EF4444] text-white hover:bg-[#dc2626] focus:ring-red-500;
+    @apply bg-red-500 text-white hover:bg-red-600 focus:ring-red-500;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
   }
-  
+
   .btn-outline {
-    @apply border-2 border-slate-300 bg-transparent text-[#64748B] hover:bg-slate-50 focus:ring-slate-500;
-    @apply dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800;
+    @apply border border-slate-200 bg-transparent text-slate-600 hover:bg-slate-50 focus:ring-slate-400;
+    @apply dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800;
   }
-  
+
   .btn-ghost {
-    @apply bg-transparent text-[#64748B] hover:bg-slate-100 focus:ring-slate-500;
+    @apply bg-transparent text-slate-600 hover:bg-slate-100 focus:ring-slate-400;
     @apply dark:text-slate-400 dark:hover:bg-slate-800;
   }
 
@@ -91,115 +103,106 @@ body {
     @apply px-3 py-1.5 text-sm;
   }
 
-  /* Карточки - REFLY Style */
+  /* Карточки — Mura Menasa Style */
   .card {
-    @apply bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700;
-    @apply shadow-sm hover:shadow-sm transition-shadow duration-200;
-  }
-  
-  .card-header {
-    @apply px-6 py-6 border-b border-slate-200 dark:border-slate-700;
-  }
-  
-  .card-body {
-    @apply px-6 py-6;
-  }
-  
-  .card-footer {
-    @apply px-6 py-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50;
+    @apply bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800;
+    @apply transition-shadow duration-200;
   }
 
-  /* Формы - REFLY Style */
+  .card-header {
+    @apply px-6 py-5 border-b border-slate-100 dark:border-slate-800;
+  }
+
+  .card-body {
+    @apply px-6 py-5;
+  }
+
+  .card-footer {
+    @apply px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50;
+  }
+
+  /* Формы — Mura Menasa Style */
   .input {
-    @apply w-full px-4 py-2.5 rounded-lg border transition-all duration-200;
-    border-color: var(--border);
-    @apply bg-white dark:bg-slate-800;
+    @apply w-full px-4 py-2.5 rounded-xl border border-slate-200 transition-all duration-200;
+    @apply bg-white dark:bg-slate-800 dark:border-slate-700;
     color: var(--text-primary);
     @apply dark:text-slate-100;
   }
+
   .input:focus {
     @apply outline-none ring-2 border-transparent ring-primary;
   }
+
   .input::placeholder {
     color: var(--text-muted);
     @apply dark:placeholder:text-slate-500;
   }
-  
+
   .label {
     @apply block text-sm font-medium mb-2;
     color: var(--text-primary);
     @apply dark:text-slate-300;
   }
 
-  /* Таблицы - REFLY Style */
+  /* Таблицы — Mura Menasa Style */
   .table {
     @apply w-full border-collapse;
   }
-  
+
   .table thead {
     @apply bg-slate-50 dark:bg-slate-900/50;
   }
-  
+
   .table th {
-    @apply px-4 py-3 text-left text-xs font-semibold text-[#64748B] dark:text-slate-400 uppercase tracking-wider;
-    @apply border-b border-slate-200 dark:border-slate-700;
-  }
-  
-  .table td {
-    @apply px-4 py-3 text-sm text-[#0F172A] dark:text-slate-100;
-    @apply border-b border-slate-100 dark:border-slate-800;
-  }
-  
-  .table tbody tr {
-    @apply hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors;
+    @apply px-4 py-3 text-left text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-[0.05em];
+    @apply border-b border-slate-200 dark:border-slate-800;
   }
 
-  /* Badge - REFLY Style */
+  .table td {
+    @apply px-4 py-3 text-sm text-slate-900 dark:text-slate-100;
+    @apply border-b border-slate-100 dark:border-slate-800;
+  }
+
+  .table tbody tr {
+    @apply hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer;
+  }
+
+  /* Badge — Mura Menasa Style */
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
-  
+
   .badge-primary {
-    background-color: rgba(239, 28, 35, 0.15);
-    color: #b91c1c;
+    background-color: rgba(239, 28, 35, 0.1);
+    color: #DC2626;
     @apply dark:bg-red-900/30 dark:text-red-300;
   }
-  
+
   .badge-success {
-    @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300;
-    background-color: #dcfce7;
-    color: #166534;
-  }
-  
-  .badge-warning {
-    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300;
-  }
-  
-  .badge-error {
-    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300;
-    background-color: #fee2e2;
-    color: #991b1b;
-  }
-  
-  .badge-secondary {
-    @apply bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300;
+    @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300;
   }
 
-  /* Навигация - REFLY Style */
+  .badge-warning {
+    @apply bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300;
+  }
+
+  .badge-error {
+    @apply bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300;
+  }
+
+  .badge-secondary {
+    @apply bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300;
+  }
+
+  /* Навигация — Mura Menasa Style */
   .nav-link {
-    @apply block px-4 py-2 rounded-lg text-[#64748B] dark:text-slate-300;
-    @apply hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors;
-    @apply font-medium;
+    @apply block px-4 py-2 rounded-lg text-slate-500 font-medium;
+    @apply hover:bg-white/5 hover:text-slate-300 transition-colors;
   }
-  
+
   .nav-link-active {
-    --nav-active-bg: rgba(239, 28, 35, 0.12);
-    --nav-active-text: #EF1C23;
-    background-color: var(--nav-active-bg);
-    color: var(--nav-active-text);
-  }
-  .dark .nav-link-active {
-    --nav-active-bg: rgba(239, 28, 35, 0.2);
+    background-color: rgba(239, 28, 35, 0.1);
+    color: #EF1C23;
   }
 }
 
