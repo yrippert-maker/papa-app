@@ -25,6 +25,16 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Отменена',
 };
 
+const STATUS_BADGE: Record<string, string> = {
+  DRAFT: 'badge-secondary',
+  SUBMITTED: 'badge-warning',
+  APPROVED: 'badge-success',
+  REJECTED: 'badge-error',
+  IN_PROGRESS: 'badge-primary',
+  COMPLETED: 'badge-success',
+  CANCELLED: 'badge-secondary',
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
   TECH_CARD: 'По техкарте',
   PURCHASE: 'Закупка',
@@ -49,22 +59,32 @@ export default function IncomingRequestsPage() {
       <PageHeader
         title="Входящие заявки"
         subtitle="Поступление ТМЦ на склад"
+        breadcrumbs={['Заявки']}
         actions={
           <Link href="/tmc-requests/incoming/new" className="btn btn-primary">
             + Новая заявка
           </Link>
         }
       />
-      <main className="flex-1 p-6 lg:p-8">
+
+      <main className="flex-1 p-6 lg:p-7">
         <div className="card">
-          <div className="card-header">
-            <h3 className="text-lg font-semibold text-[#0F172A]">Список заявок</h3>
+          <div className="card-header flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Список заявок</h3>
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-mono font-medium text-slate-500">
+                {requests.length}
+              </span>
+            </div>
           </div>
-          <div className="card-body overflow-x-auto">
+
+          <div className="card-body overflow-x-auto !p-0">
             {loading ? (
-              <p className="text-[#64748B]">Загрузка...</p>
+              <div className="p-6">
+                <p className="text-slate-500 dark:text-slate-400">Загрузка...</p>
+              </div>
             ) : requests.length === 0 ? (
-              <div className="text-center py-12 text-[#64748B]">
+              <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                 <p>Нет входящих заявок.</p>
                 <Link href="/tmc-requests/incoming/new" className="btn btn-primary mt-4 inline-block">
                   Создать заявку
@@ -78,23 +98,29 @@ export default function IncomingRequestsPage() {
                     <th>Название</th>
                     <th>Категория</th>
                     <th>Статус</th>
-                    <th>Позиций</th>
+                    <th className="text-right">Позиций</th>
                     <th>Создана</th>
                   </tr>
                 </thead>
                 <tbody>
                   {requests.map((r) => (
                     <tr key={r.tmc_request_id}>
-                      <td className="font-mono">{r.request_no ?? r.tmc_request_id.slice(0, 8)}</td>
-                      <td className="font-medium">{r.title ?? '—'}</td>
-                      <td>{CATEGORY_LABELS[r.request_category] ?? r.request_category}</td>
+                      <td className="font-mono text-xs font-medium text-primary">
+                        {r.request_no ?? r.tmc_request_id.slice(0, 8)}
+                      </td>
+                      <td className="font-medium text-slate-900 dark:text-white">{r.title ?? '—'}</td>
+                      <td className="text-slate-600 dark:text-slate-300">
+                        {CATEGORY_LABELS[r.request_category] ?? r.request_category}
+                      </td>
                       <td>
-                        <span className="badge badge-secondary">
+                        <span className={`badge ${STATUS_BADGE[r.status] ?? 'badge-secondary'}`}>
                           {STATUS_LABELS[r.status] ?? r.status}
                         </span>
                       </td>
-                      <td>{r.line_count}</td>
-                      <td>{new Date(r.created_at).toLocaleDateString('ru-RU')}</td>
+                      <td className="text-right font-mono text-slate-500">{r.line_count}</td>
+                      <td className="font-mono text-xs text-slate-500">
+                        {new Date(r.created_at).toLocaleDateString('ru-RU')}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

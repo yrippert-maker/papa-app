@@ -26,6 +26,13 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Отменена',
 };
 
+const STATUS_BADGE: Record<string, string> = {
+  DRAFT: 'badge-secondary',
+  IN_PROGRESS: 'badge-primary',
+  COMPLETED: 'badge-success',
+  CANCELLED: 'badge-secondary',
+};
+
 const KIND_LABELS: Record<string, string> = {
   INPUT: 'Входной контроль',
   OUTPUT: 'Выходной контроль',
@@ -46,7 +53,8 @@ export default function InspectionListPage() {
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
 
-  const permissions = (session?.user as { permissions?: string[] } | undefined)?.permissions ?? [];
+  const permissions =
+    (session?.user as { permissions?: string[] } | undefined)?.permissions ?? [];
   const hasInspectionView = INSPECTION_VIEW_PERMS.some((p) => permissions.includes(p));
 
   useEffect(() => {
@@ -56,12 +64,10 @@ export default function InspectionListPage() {
       setLoading(false);
       return;
     }
+
     Promise.all([
       fetch('/api/inspection/cards').then((r) => {
-        if (r.status === 403) {
-          setForbidden(true);
-          return { cards: [] };
-        }
+        if (r.status === 403) { setForbidden(true); return { cards: [] }; }
         return r.json();
       }),
       fetch('/api/inspection/report').then((r) => {
@@ -80,8 +86,8 @@ export default function InspectionListPage() {
   if (status === 'loading' || (hasInspectionView && loading && !forbidden)) {
     return (
       <DashboardLayout>
-        <PageHeader title="Техкарты контроля" subtitle="Входной и выходной контроль ТМЦ" />
-        <main className="flex-1 p-6 lg:p-8">
+        <PageHeader title="Техкарты контроля" subtitle="Входной и выходной контроль ТМЦ" breadcrumbs={['Контроль']} />
+        <main className="flex-1 p-6 lg:p-7">
           <StatePanel variant="loading" title="Загрузка..." />
         </main>
       </DashboardLayout>
@@ -94,8 +100,8 @@ export default function InspectionListPage() {
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="card max-w-md w-full text-center">
             <div className="card-body">
-              <h2 className="text-xl font-semibold text-[#0F172A] dark:text-slate-100 mb-2">Доступ запрещён</h2>
-              <p className="text-[#64748B] dark:text-slate-400 mb-4">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Доступ запрещён</h2>
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
                 У вас нет прав для просмотра техкарт контроля (требуется INSPECTION.VIEW).
               </p>
               <Link href="/" className="btn btn-primary">
@@ -117,42 +123,53 @@ export default function InspectionListPage() {
       <PageHeader
         title="Техкарты контроля"
         subtitle="Входной и выходной контроль ТМЦ"
+        breadcrumbs={['Контроль']}
         actions={
           <Link href="/inspection/verify" className="btn btn-outline btn-sm">
             🔍 Проверить Evidence
           </Link>
         }
       />
-      <main className="flex-1 p-6 lg:p-8 space-y-6">
+
+      <main className="flex-1 p-6 lg:p-7 space-y-6">
         {report && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="card p-4">
-              <p className="text-sm text-[#64748B] dark:text-slate-400">Всего карт</p>
-              <p className="text-2xl font-bold text-[#0F172A] dark:text-slate-100">{report.total_cards}</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Всего карт</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{report.total_cards}</p>
             </div>
             <div className="card p-4">
-              <p className="text-sm text-[#64748B] dark:text-slate-400">Завершено</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Завершено</p>
               <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{report.completion_rate_pct}%</p>
             </div>
             <div className="card p-4">
-              <p className="text-sm text-[#64748B] dark:text-slate-400">Не пройдено (FAIL)</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Не пройдено (FAIL)</p>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">{report.fail_rate_pct}%</p>
             </div>
             <div className="card p-4">
-              <p className="text-sm text-[#64748B] dark:text-slate-400">Результатов FAIL</p>
-              <p className="text-2xl font-bold text-[#0F172A] dark:text-slate-100">{failTotal}</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Результатов FAIL</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{failTotal}</p>
             </div>
           </div>
         )}
+
         <div className="card">
-          <div className="card-header">
-            <h3 className="text-lg font-semibold text-[#0F172A] dark:text-slate-100">Список техкарт</h3>
+          <div className="card-header flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Список техкарт</h3>
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-mono font-medium text-slate-500">
+                {cards.length}
+              </span>
+            </div>
           </div>
-          <div className="card-body overflow-x-auto">
+
+          <div className="card-body overflow-x-auto !p-0">
             {loading ? (
-              <p className="text-[#64748B] dark:text-slate-400">Загрузка...</p>
+              <div className="p-6">
+                <p className="text-slate-500 dark:text-slate-400">Загрузка...</p>
+              </div>
             ) : cards.length === 0 ? (
-              <div className="text-center py-12 text-[#64748B] dark:text-slate-400">
+              <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                 <p>Нет техкарт контроля.</p>
               </div>
             ) : (
@@ -170,25 +187,17 @@ export default function InspectionListPage() {
                 <tbody>
                   {cards.map((c) => (
                     <tr key={c.inspection_card_id}>
-                      <td className="font-mono font-medium">{c.card_no}</td>
-                      <td>{KIND_LABELS[c.card_kind] ?? c.card_kind}</td>
-                      <td>{c.request_no ?? c.request_title ?? '—'}</td>
+                      <td className="font-mono text-xs font-medium text-primary">{c.card_no}</td>
+                      <td className="text-slate-600 dark:text-slate-300">{KIND_LABELS[c.card_kind] ?? c.card_kind}</td>
+                      <td className="text-slate-600 dark:text-slate-300">{c.request_no ?? c.request_title ?? '—'}</td>
                       <td>
-                        <span
-                          className={`badge ${
-                            c.status === 'COMPLETED'
-                              ? 'badge-success'
-                              : c.status === 'CANCELLED'
-                                ? 'badge-secondary'
-                                : c.status === 'IN_PROGRESS'
-                                  ? 'badge-primary'
-                                  : 'badge-secondary'
-                          }`}
-                        >
+                        <span className={`badge ${STATUS_BADGE[c.status] ?? 'badge-secondary'}`}>
                           {STATUS_LABELS[c.status] ?? c.status}
                         </span>
                       </td>
-                      <td>{new Date(c.created_at).toLocaleDateString('ru-RU')}</td>
+                      <td className="font-mono text-xs text-slate-500">
+                        {new Date(c.created_at).toLocaleDateString('ru-RU')}
+                      </td>
                       <td>
                         <Link
                           href={`/inspection/${c.inspection_card_id}`}

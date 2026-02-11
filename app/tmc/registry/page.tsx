@@ -32,17 +32,58 @@ export default function TmcRegistryPage() {
 
   return (
     <DashboardLayout>
-      <PageHeader title="ТМЦ — Остатки" subtitle="Реестр номенклатуры и остатков на складе" />
-      <main className="flex-1 p-6 lg:p-8">
+      <PageHeader
+        title="ТМЦ — Остатки"
+        subtitle="Реестр номенклатуры и остатков на складе"
+        breadcrumbs={['ТМЦ']}
+      />
+
+      <main className="flex-1 p-6 lg:p-7">
+        {/* Stats row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="card p-4">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Всего позиций</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{items.length}</p>
+          </div>
+          <div className="card p-4">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Активных лотов</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
+              {items.reduce((s, i) => s + i.lot_count, 0)}
+            </p>
+          </div>
+          <div className="card p-4">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Категорий</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
+              {new Set(items.map((i) => i.category).filter(Boolean)).size}
+            </p>
+          </div>
+          <div className="card p-4">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Производителей</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">
+              {new Set(items.map((i) => i.manufacturer).filter(Boolean)).size}
+            </p>
+          </div>
+        </div>
+
         <div className="card">
           <div className="card-header flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-[#0F172A]">Номенклатура</h3>
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Номенклатура</h3>
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-mono font-medium text-slate-500">
+                {items.length}
+              </span>
+            </div>
           </div>
-          <div className="card-body overflow-x-auto">
+
+          <div className="card-body overflow-x-auto !p-0">
             {loading ? (
-              <p className="text-[#64748B]">Загрузка...</p>
+              <div className="p-6">
+                <p className="text-slate-500 dark:text-slate-400">Загрузка...</p>
+              </div>
             ) : items.length === 0 ? (
-              <p className="text-[#64748B]">Нет данных. Добавьте позиции ТМЦ.</p>
+              <div className="p-6">
+                <p className="text-slate-500 dark:text-slate-400">Нет данных. Добавьте позиции ТМЦ.</p>
+              </div>
             ) : (
               <table className="table">
                 <thead>
@@ -60,14 +101,24 @@ export default function TmcRegistryPage() {
                 <tbody>
                   {items.map((i) => (
                     <tr key={i.tmc_item_id}>
-                      <td>{i.item_code ?? '—'}</td>
-                      <td className="font-medium">{i.name}</td>
-                      <td>{i.category ?? '—'}</td>
-                      <td>{i.manufacturer ?? '—'}</td>
-                      <td>{i.part_no ?? '—'}</td>
-                      <td className="text-right font-medium">{Number(i.total_on_hand).toFixed(2)}</td>
-                      <td className="text-right">{i.lot_count}</td>
-                      <td>{i.unit}</td>
+                      <td className="font-mono text-xs text-primary font-medium">{i.item_code ?? '—'}</td>
+                      <td className="font-medium text-slate-900 dark:text-white">{i.name}</td>
+                      <td>
+                        {i.category ? (
+                          <span className="badge badge-secondary">{i.category}</span>
+                        ) : '—'}
+                      </td>
+                      <td className="text-slate-600 dark:text-slate-300">{i.manufacturer ?? '—'}</td>
+                      <td className="font-mono text-xs text-slate-500">{i.part_no ?? '—'}</td>
+                      <td className={`text-right font-mono font-semibold ${
+                        Number(i.total_on_hand) < 10
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-slate-900 dark:text-white'
+                      }`}>
+                        {Number(i.total_on_hand).toFixed(2)}
+                      </td>
+                      <td className="text-right font-mono text-slate-500">{i.lot_count}</td>
+                      <td className="text-slate-400 text-xs">{i.unit}</td>
                     </tr>
                   ))}
                 </tbody>
